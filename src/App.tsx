@@ -12,7 +12,7 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>DNA Blockly 코드 생성기</h1>
+        <h1>DnA Blockly</h1>
       </header>
       <main className="app-main">
         <div className="blockly-container">
