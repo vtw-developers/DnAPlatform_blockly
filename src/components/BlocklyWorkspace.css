@@ -251,4 +251,63 @@
 
 .reset-button:hover {
   background-color: #d32f2f;
+}
+
+.code-execution-container {
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  padding: 15px 0;
+  margin: 10px 0;
+}
+
+.execute-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.execute-button:hover {
+  background-color: #1976D2;
+}
+
+.execute-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.execution-result {
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+.execution-result h4 {
+  margin: 10px 0 5px 0;
+  color: #333;
+}
+
+.execution-result pre {
+  background-color: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.execution-result .error pre {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.execution-result .output pre {
+  background-color: #e8f5e9;
+  color: #2e7d32;
 } 
