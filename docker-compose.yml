@@ -9,9 +9,15 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-data:/var/lib/postgresql/data
     networks:
       - blockly_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blockly_user -d blockly_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: 
@@ -26,11 +32,13 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - blockly_network
     volumes:
       - ./backend:/app
+    restart: always
 
 volumes:
   postgres_data:

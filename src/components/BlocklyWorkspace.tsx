@@ -226,7 +226,11 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       setDescription('');
     } catch (error) {
       console.error('코드 저장 중 오류 발생:', error);
-      alert('코드 저장 중 오류가 발생했습니다.');
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('코드 저장 중 알 수 없는 오류가 발생했습니다.');
+      }
     } finally {
       setIsSaving(false);
     }

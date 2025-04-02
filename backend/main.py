@@ -8,6 +8,7 @@ from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
 import logging
+import time
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -51,37 +52,78 @@ class CodeBlock(CodeBlockBase):
     created_at: datetime
     updated_at: datetime
 
-# 테이블 생성
+def wait_for_db():
+    max_retries = 30
+    retry_interval = 2  # seconds
+    
+    for i in range(max_retries):
+        try:
+            conn = psycopg2.connect(
+                host=os.getenv("DB_HOST", "postgres"),
+                database=os.getenv("DB_NAME", "blockly_db"),
+                user=os.getenv("DB_USER", "blockly_user"),
+                password=os.getenv("DB_PASSWORD", "blockly_password")
+            )
+            conn.close()
+            logger.info("데이터베이스 연결 성공")
+            return True
+        except Exception as e:
+            logger.warning(f"데이터베이스 연결 시도 {i+1}/{max_retries} 실패: {e}")
+            time.sleep(retry_interval)
+    
+    return False
+
 def create_tables():
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # 테이블이 이미 존재하는지 확인
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS code_blocks (
-                id SERIAL PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                description TEXT,
-                code TEXT NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'code_blocks'
+            ) as exists;
         """)
-        conn.commit()
-        logger.info("테이블이 성공적으로 생성되었습니다.")
+        result = cur.fetchone()
+        table_exists = result['exists']
+        
+        if not table_exists:
+            cur.execute("""
+                CREATE TABLE code_blocks (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    code TEXT NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+            logger.info("code_blocks 테이블이 성공적으로 생성되었습니다.")
+        else:
+            logger.info("code_blocks 테이블이 이미 존재합니다.")
+            
     except Exception as e:
         logger.error(f"테이블 생성 중 오류 발생: {e}")
         if conn:
             conn.rollback()
+        raise
     finally:
         if conn:
             conn.close()
 
-# 앱 시작 시 테이블 생성
 @app.on_event("startup")
 async def startup_event():
-    create_tables()
-    logger.info("애플리케이션이 시작되었습니다.")
+    try:
+        if not wait_for_db():
+            raise Exception("데이터베이스 연결 실패")
+        create_tables()
+        logger.info("애플리케이션이 시작되었습니다.")
+    except Exception as e:
+        logger.error(f"애플리케이션 시작 중 오류 발생: {e}")
+        raise
 
 # API 엔드포인트
 @app.post("/api/code-blocks", response_model=CodeBlock)
