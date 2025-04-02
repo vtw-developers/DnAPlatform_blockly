@@ -136,6 +136,8 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [selectedBlockId, setSelectedBlockId] = useState<number | null>(null);
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
+  const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [executionResult, setExecutionResult] = useState<{ output: string; error: string }>({ output: '', error: '' });
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -217,6 +219,28 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     onCodeGenerate(code);
   };
 
+  const handleExecuteCode = async () => {
+    if (!currentCode) {
+      alert('실행할 코드가 없습니다.');
+      return;
+    }
+
+    try {
+      setIsExecuting(true);
+      const result = await codeBlockApi.executeCode(currentCode);
+      setExecutionResult(result);
+    } catch (error) {
+      console.error('코드 실행 중 오류:', error);
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('코드 실행 중 알 수 없는 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
   const resetWorkspace = () => {
     // Blockly 작업화면 초기화
     const workspace = workspaceRef.current;
@@ -230,6 +254,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     setTitle('');
     setDescription('');
     setSelectedBlockId(null);
+    setExecutionResult({ output: '', error: '' });
   };
 
   const handleSaveCode = async () => {
@@ -349,6 +374,31 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           >
             {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
           </button>
+        </div>
+        <div className="code-execution-container">
+          <button
+            onClick={handleExecuteCode}
+            disabled={isExecuting || !currentCode}
+            className="execute-button"
+          >
+            {isExecuting ? '실행 중...' : '코드 실행'}
+          </button>
+          {(executionResult.output || executionResult.error) && (
+            <div className="execution-result">
+              {executionResult.output && (
+                <div className="output">
+                  <h4>실행 결과:</h4>
+                  <pre>{executionResult.output}</pre>
+                </div>
+              )}
+              {executionResult.error && (
+                <div className="error">
+                  <h4>오류:</h4>
+                  <pre>{executionResult.error}</pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="code-block-list-container">
           <CodeBlockList

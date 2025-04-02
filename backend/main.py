@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import logging
 import time
 import sqlite3
+import subprocess
+import tempfile
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -66,6 +68,13 @@ class CodeBlockUpdate(CodeBlockBase):
 
 class DeleteCodeBlocks(BaseModel):
     ids: List[int]
+
+class CodeExecuteRequest(BaseModel):
+    code: str
+
+class CodeExecuteResponse(BaseModel):
+    output: str
+    error: str
 
 def wait_for_db():
     max_retries = 30
@@ -297,6 +306,43 @@ async def delete_code_blocks(delete_request: DeleteCodeBlocks):
     finally:
         if conn:
             conn.close()
+
+@app.post("/api/execute-code", response_model=CodeExecuteResponse)
+async def execute_code(request: CodeExecuteRequest):
+    try:
+        # 임시 파일 생성
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(request.code)
+            temp_file = f.name
+
+        try:
+            # Python 코드 실행
+            process = subprocess.Popen(
+                ['python', temp_file],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate(timeout=5)  # 5초 타임아웃
+
+            return {
+                "output": stdout,
+                "error": stderr
+            }
+        finally:
+            # 임시 파일 삭제
+            os.unlink(temp_file)
+
+    except subprocess.TimeoutExpired:
+        return {
+            "output": "",
+            "error": "코드 실행 시간이 초과되었습니다 (5초 제한)."
+        }
+    except Exception as e:
+        return {
+            "output": "",
+            "error": f"코드 실행 중 오류가 발생했습니다: {str(e)}"
+        }
 
 if __name__ == "__main__":
     import uvicorn

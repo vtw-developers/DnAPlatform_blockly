@@ -29,6 +29,11 @@ export interface CodeBlocksResponse {
   total: number;
 }
 
+interface CodeExecuteResponse {
+  output: string;
+  error: string;
+}
+
 class CodeBlockApi {
   private baseUrl = API_BASE_URL;
 
@@ -89,6 +94,22 @@ class CodeBlockApi {
     if (!response.ok) {
       throw new Error('코드 블록 삭제에 실패했습니다.');
     }
+  }
+
+  async executeCode(code: string): Promise<CodeExecuteResponse> {
+    const response = await fetch(`${this.baseUrl}/execute-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code }),
+    });
+
+    if (!response.ok) {
+      throw new Error('코드 실행에 실패했습니다.');
+    }
+
+    return await response.json();
   }
 }
 
