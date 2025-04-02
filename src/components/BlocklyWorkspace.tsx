@@ -217,6 +217,21 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     onCodeGenerate(code);
   };
 
+  const resetWorkspace = () => {
+    // Blockly 작업화면 초기화
+    const workspace = workspaceRef.current;
+    if (workspace) {
+      workspace.clear();
+      const code = pythonGenerator.workspaceToCode(workspace);
+      handleCodeGeneration(code);
+    }
+
+    // 입력 필드 초기화
+    setTitle('');
+    setDescription('');
+    setSelectedBlockId(null);
+  };
+
   const handleSaveCode = async () => {
     if (!currentCode || !title || !description) {
       alert('제목, 설명, 코드를 모두 입력해주세요.');
@@ -253,9 +268,8 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         alert('코드가 성공적으로 저장되었습니다!');
       }
 
-      setTitle('');
-      setDescription('');
-      setSelectedBlockId(null);
+      // 저장 후 초기화
+      resetWorkspace();
       setShouldRefresh(true);
     } catch (error) {
       console.error('코드 저장 중 오류:', error);
@@ -300,6 +314,15 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       </div>
       <div className="right-panel">
         <div className="code-input-container">
+          <div className="button-container">
+            <button
+              onClick={resetWorkspace}
+              className="reset-button"
+              type="button"
+            >
+              초기화
+            </button>
+          </div>
           <input
             type="text"
             value={title}
