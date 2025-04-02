@@ -9,6 +9,7 @@ import os
 from dotenv import load_dotenv
 import logging
 import time
+import sqlite3
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +22,7 @@ app = FastAPI()
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5000"],
+    allow_origins=["*"],  # 개발 환경에서는 모든 origin 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,11 +47,25 @@ class CodeBlockBase(BaseModel):
     title: str
     description: str
     code: str
+    blockly_xml: Optional[str] = None
 
 class CodeBlock(CodeBlockBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+class CodeBlockResponse(BaseModel):
+    blocks: List[CodeBlock]
+    total: int
+
+class CodeBlockCreate(CodeBlockBase):
+    pass
+
+class CodeBlockUpdate(CodeBlockBase):
+    pass
+
+class DeleteCodeBlocks(BaseModel):
+    ids: List[int]
 
 def wait_for_db():
     max_retries = 30
@@ -96,6 +111,7 @@ def create_tables():
                     title VARCHAR(255) NOT NULL,
                     description TEXT,
                     code TEXT NOT NULL,
+                    blockly_xml TEXT,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
@@ -103,7 +119,28 @@ def create_tables():
             conn.commit()
             logger.info("code_blocks 테이블이 성공적으로 생성되었습니다.")
         else:
-            logger.info("code_blocks 테이블이 이미 존재합니다.")
+            # 컬럼 이름 변경 및 불필요한 컬럼 제거
+            try:
+                # blocklyXml -> blockly_xml 변경
+                cur.execute("""
+                    ALTER TABLE code_blocks
+                    RENAME COLUMN "blocklyXml" TO blockly_xml;
+                """)
+                logger.info("blocklyXml 컬럼 이름을 blockly_xml로 변경했습니다.")
+            except Exception as e:
+                logger.info("blockly_xml 컬럼이 이미 존재합니다.")
+
+            try:
+                # blocks_xml 컬럼이 있다면 제거
+                cur.execute("""
+                    ALTER TABLE code_blocks
+                    DROP COLUMN IF EXISTS blocks_xml;
+                """)
+                logger.info("불필요한 blocks_xml 컬럼을 제거했습니다.")
+            except Exception as e:
+                logger.info("blocks_xml 컬럼이 존재하지 않습니다.")
+
+            conn.commit()
             
     except Exception as e:
         logger.error(f"테이블 생성 중 오류 발생: {e}")
@@ -127,16 +164,16 @@ async def startup_event():
 
 # API 엔드포인트
 @app.post("/api/code-blocks", response_model=CodeBlock)
-async def create_code_block(code_block: CodeBlockBase):
+async def create_code_block(code_block: CodeBlockCreate):
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO code_blocks (title, description, code)
-            VALUES (%s, %s, %s)
-            RETURNING id, title, description, code, created_at, updated_at
-        """, (code_block.title, code_block.description, code_block.code))
+            INSERT INTO code_blocks (title, description, code, blockly_xml)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, title, description, code, blockly_xml, created_at, updated_at
+        """, (code_block.title, code_block.description, code_block.code, code_block.blockly_xml))
         result = cur.fetchone()
         conn.commit()
         logger.info(f"새로운 코드 블록이 생성되었습니다. ID: {result['id']}")
@@ -150,19 +187,62 @@ async def create_code_block(code_block: CodeBlockBase):
         if conn:
             conn.close()
 
-@app.get("/api/code-blocks", response_model=List[CodeBlock])
-async def get_code_blocks():
+@app.put("/api/code-blocks/{code_block_id}", response_model=CodeBlock)
+async def update_code_block(code_block_id: int, code_block: CodeBlockUpdate):
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, title, description, code, created_at, updated_at
+            UPDATE code_blocks
+            SET title = %s,
+                description = %s,
+                code = %s,
+                blockly_xml = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING id, title, description, code, blockly_xml, created_at, updated_at
+        """, (code_block.title, code_block.description, code_block.code, code_block.blockly_xml, code_block_id))
+        result = cur.fetchone()
+        if result is None:
+            raise HTTPException(status_code=404, detail="Code block not found")
+        conn.commit()
+        logger.info(f"코드 블록이 수정되었습니다. ID: {result['id']}")
+        return dict(result)
+    except Exception as e:
+        logger.error(f"코드 블록 수정 중 오류 발생: {e}")
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+@app.get("/api/code-blocks", response_model=CodeBlockResponse)
+async def get_code_blocks(page: int = 1, per_page: int = 10):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # 전체 레코드 수 조회
+        cur.execute("SELECT COUNT(*) as total FROM code_blocks")
+        total = cur.fetchone()['total']
+        
+        # 페이지네이션된 데이터 조회
+        offset = (page - 1) * per_page
+        cur.execute("""
+            SELECT id, title, description, code, blockly_xml, created_at, updated_at
             FROM code_blocks
             ORDER BY created_at DESC
-        """)
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))
         results = cur.fetchall()
-        return [dict(row) for row in results]
+        
+        return {
+            "blocks": [dict(row) for row in results],
+            "total": total
+        }
     except Exception as e:
         logger.error(f"코드 블록 조회 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -177,7 +257,7 @@ async def get_code_block(code_block_id: int):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, title, description, code, created_at, updated_at
+            SELECT id, title, description, code, blockly_xml, created_at, updated_at
             FROM code_blocks
             WHERE id = %s
         """, (code_block_id,))
@@ -187,6 +267,32 @@ async def get_code_block(code_block_id: int):
         return dict(result)
     except Exception as e:
         logger.error(f"코드 블록 조회 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+@app.delete("/api/code-blocks")
+async def delete_code_blocks(delete_request: DeleteCodeBlocks):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # SQLite에서는 IN 절에 ?를 직접 사용할 수 없어서 각 ID에 대해 ? 대신 실제 값을 사용
+        placeholders = ','.join(str(id) for id in delete_request.ids)
+        query = f"DELETE FROM code_blocks WHERE id IN ({placeholders})"
+        cur.execute(query)
+        conn.commit()
+        
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="No code blocks were deleted")
+        
+        return {"message": "Code blocks deleted successfully"}
+    except Exception as e:
+        logger.error(f"코드 블록 삭제 중 오류 발생: {e}")
+        if conn:
+            conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if conn:

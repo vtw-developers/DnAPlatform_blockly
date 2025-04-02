@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
+import { CodeBlock } from '../types/CodeBlock';
+import { CodeBlockList } from './CodeBlockList';
 import { codeBlockApi } from '../services/api';
 import './BlocklyWorkspace.css';
 
@@ -132,14 +134,13 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [selectedBlockId, setSelectedBlockId] = useState<number | null>(null);
+  const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
 
   useEffect(() => {
-    let workspace: Blockly.WorkspaceSvg | null = null;
-
     if (blocklyDiv.current && !workspaceRef.current) {
       try {
-        // Blockly 워크스페이스 초기화
-        workspace = Blockly.inject(blocklyDiv.current, {
+        const workspace = Blockly.inject(blocklyDiv.current, {
           toolbox: TOOLBOX_CONFIG,
           scrollbars: true,
           move: {
@@ -166,7 +167,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
 
         workspaceRef.current = workspace;
 
-        // 워크스페이스 변경 이벤트 리스너
         const onWorkspaceChange = (event: Blockly.Events.Abstract) => {
           if (!workspace) return;
 
@@ -185,14 +185,23 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
 
         workspace.addChangeListener(onWorkspaceChange);
 
-        // 초기 코드 생성
         const code = pythonGenerator.workspaceToCode(workspace);
         handleCodeGeneration(code);
 
-        // 정리 함수 반환
+        // 윈도우 리사이즈 이벤트 핸들러 추가
+        const handleResize = () => {
+          if (workspace) {
+            Blockly.svgResize(workspace);
+          }
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
         return () => {
           if (workspace) {
             workspace.removeChangeListener(onWorkspaceChange);
+            window.removeEventListener('resize', handleResize);
             workspace.dispose();
             workspaceRef.current = null;
           }
@@ -201,7 +210,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         console.error('Blockly 워크스페이스 초기화 중 오류:', error);
       }
     }
-  }, []); // 의존성 배열을 비워서 컴포넌트 마운트 시에만 실행
+  }, []);
 
   const handleCodeGeneration = (code: string) => {
     setCurrentCode(code);
@@ -216,16 +225,40 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
 
     try {
       setIsSaving(true);
-      await codeBlockApi.createCodeBlock({
-        title,
-        description,
-        code: currentCode
-      });
-      alert('코드가 성공적으로 저장되었습니다!');
+      const workspace = workspaceRef.current;
+      if (!workspace) {
+        throw new Error('워크스페이스를 찾을 수 없습니다.');
+      }
+
+      const dom = Blockly.Xml.workspaceToDom(workspace);
+      const blockly_xml = Blockly.Xml.domToText(dom);
+
+      if (selectedBlockId) {
+        // 기존 코드 블록 수정
+        await codeBlockApi.updateCodeBlock(selectedBlockId, {
+          title,
+          description,
+          code: currentCode,
+          blockly_xml
+        });
+        alert('코드가 성공적으로 수정되었습니다!');
+      } else {
+        // 새로운 코드 블록 생성
+        await codeBlockApi.createCodeBlock({
+          title,
+          description,
+          code: currentCode,
+          blockly_xml
+        });
+        alert('코드가 성공적으로 저장되었습니다!');
+      }
+
       setTitle('');
       setDescription('');
+      setSelectedBlockId(null);
+      setShouldRefresh(true);
     } catch (error) {
-      console.error('코드 저장 중 오류 발생:', error);
+      console.error('코드 저장 중 오류:', error);
       if (error instanceof Error) {
         alert(error.message);
       } else {
@@ -236,31 +269,72 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     }
   };
 
+  const handleBlockSelect = async (block: CodeBlock) => {
+    try {
+      setTitle(block.title);
+      setDescription(block.description);
+      setSelectedBlockId(block.id);
+      
+      const workspace = workspaceRef.current;
+      if (!workspace || !block.blockly_xml) {
+        throw new Error('워크스페이스를 찾을 수 없거나 Blockly XML이 없습니다.');
+      }
+
+      workspace.clear();
+      const xml = Blockly.Xml.textToDom(block.blockly_xml);
+      Blockly.Xml.domToWorkspace(xml, workspace);
+    } catch (error) {
+      console.error('코드 블록 로드 중 오류:', error);
+      alert('코드 블록을 불러오는데 실패했습니다.');
+    }
+  };
+
+  const handleRefreshComplete = () => {
+    setShouldRefresh(false);
+  };
+
   return (
-    <div className="blockly-workspace-container">
-      <div className="blockly-controls">
-        <input
-          type="text"
-          placeholder="코드 제목"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="blockly-input"
-        />
-        <textarea
-          placeholder="코드 설명"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="blockly-textarea"
-        />
-        <button
-          onClick={handleSaveCode}
-          disabled={isSaving}
-          className="blockly-save-button"
-        >
-          {isSaving ? '저장 중...' : '코드 저장'}
-        </button>
+    <div className="blockly-container">
+      <div className="blockly-workspace-container">
+        <div ref={blocklyDiv} id="blocklyDiv" className="blockly-workspace" />
       </div>
-      <div ref={blocklyDiv} className="blockly-workspace" />
+      <div className="right-panel">
+        <div className="code-input-container">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="코드 제목"
+            className="code-title-input"
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="코드 설명"
+            className="code-description-input"
+          />
+          <textarea
+            value={currentCode}
+            readOnly
+            placeholder="Python 코드가 여기에 표시됩니다"
+            className="python-code-display"
+          />
+          <button
+            onClick={handleSaveCode}
+            disabled={isSaving}
+            className="save-button"
+          >
+            {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
+          </button>
+        </div>
+        <div className="code-block-list-container">
+          <CodeBlockList
+            onSelectBlock={handleBlockSelect}
+            shouldRefresh={shouldRefresh}
+            onRefreshComplete={handleRefreshComplete}
+          />
+        </div>
+      </div>
     </div>
   );
 }; 
