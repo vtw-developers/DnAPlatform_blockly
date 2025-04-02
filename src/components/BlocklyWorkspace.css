@@ -1,0 +1,188 @@
+.blockly-workspace-container {
+  width: 100%;
+  height: 70vh;
+  position: relative;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.blockly-workspace {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* Blockly 기본 스타일 재정의 */
+.blocklyToolboxDiv {
+  background-color: #f5f5f5 !important;
+  border-right: 1px solid #ddd !important;
+}
+
+.blocklyFlyout {
+  background-color: #fff !important;
+}
+
+.blocklyMainBackground {
+  stroke: none;
+}
+
+/* z-index 계층 구조 설정 */
+.injectionDiv {
+  position: relative !important;
+  z-index: 1;
+  height: 100%;
+  width: 100%;
+}
+
+.blocklyToolboxDiv {
+  z-index: 2;
+}
+
+.blocklyFlyout {
+  z-index: 3;
+}
+
+/* 드래그 중인 블록이 최상위에 표시되도록 설정 */
+.blocklyDragging {
+  z-index: 100 !important;
+}
+
+.blocklyWidgetDiv {
+  z-index: 100 !important;
+}
+
+.blocklyDropDownDiv {
+  z-index: 101 !important;
+}
+
+.blocklyTooltipDiv {
+  z-index: 102 !important;
+}
+
+/* 블록 스타일 */
+.blocklySelected>.blocklyPath {
+  stroke: #fff;
+  stroke-width: 2px;
+  stroke-opacity: 0.5;
+}
+
+/* 드래그 중인 블록 스타일 */
+.blocklyDragging>.blocklyPath,
+.blocklyDragging>.blocklyPathLight {
+  fill-opacity: 1;
+  stroke-opacity: 1;
+}
+
+/* 블록 연결 포인트 스타일 */
+.blocklyHighlightedConnectionPath {
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-opacity: 0.5;
+}
+
+/* 스크롤바 스타일 */
+.blocklyScrollbarHandle {
+  fill: #bbb;
+  rx: 3px;
+  ry: 3px;
+}
+
+.blocklyScrollbarBackground:hover+.blocklyScrollbarHandle,
+.blocklyScrollbarHandle:hover {
+  fill: #999;
+}
+
+/* 트리 메뉴 스타일 */
+.blocklyTreeRow {
+  height: 32px;
+  line-height: 32px;
+  padding: 0 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.blocklyTreeRow:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.blocklyTreeSelected {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.blocklyTreeLabel {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  padding-left: 4px;
+  user-select: none;
+}
+
+/* 카테고리 스타일 */
+.blocklyTreeRoot {
+  padding: 8px !important;
+}
+
+.blocklyTreeIcon {
+  visibility: hidden;
+}
+
+/* 휴지통 스타일 */
+.blocklyTrash {
+  opacity: 0.7;
+}
+
+.blocklyTrash:hover {
+  opacity: 1;
+}
+
+.blockly-controls {
+  padding: 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.blockly-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 200px;
+}
+
+.blockly-textarea {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 300px;
+  height: 60px;
+  resize: vertical;
+}
+
+.blockly-save-button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  height: 36px;
+}
+
+.blockly-save-button:hover {
+  background-color: #45a049;
+}
+
+.blockly-save-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+} 
