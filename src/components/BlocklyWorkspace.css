@@ -1,8 +1,8 @@
 .blockly-container {
   display: flex;
-  height: 100vh;
-  padding: 20px;
-  gap: 20px;
+  height: 92vh;
+  padding: 0px;
+  gap: 10px;
 }
 
 .blockly-workspace-container {
@@ -11,6 +11,7 @@
   border-radius: 4px;
   overflow: hidden;
   position: relative;
+  min-width: 0;
 }
 
 .blockly-workspace {
@@ -95,17 +96,18 @@
 }
 
 /* Blockly 기본 스타일 재정의 */
+.blocklyMainBackground {
+  stroke: none !important;
+}
+
 .blocklyToolboxDiv {
   background-color: #f5f5f5 !important;
   border-right: 1px solid #ddd !important;
+  padding: 4px !important;
 }
 
 .blocklyFlyout {
   background-color: #fff !important;
-}
-
-.blocklyMainBackground {
-  stroke: none;
 }
 
 /* z-index 계층 구조 설정 */
@@ -191,12 +193,10 @@
 
 /* 트리 메뉴 스타일 */
 .blocklyTreeRow {
-  height: 32px;
-  line-height: 32px;
-  padding: 0 8px;
-  margin-bottom: 2px;
-  border-radius: 4px;
-  cursor: pointer;
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 4px !important;
+  margin-bottom: 2px !important;
 }
 
 .blocklyTreeRow:hover {
@@ -210,13 +210,13 @@
 .blocklyTreeLabel {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
-  padding-left: 4px;
+  padding-left: 2px !important;
   user-select: none;
 }
 
 /* 카테고리 스타일 */
 .blocklyTreeRoot {
-  padding: 8px !important;
+  padding: 4px !important;
 }
 
 .blocklyTreeIcon {
