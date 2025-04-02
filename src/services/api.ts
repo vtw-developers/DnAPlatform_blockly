@@ -1,28 +1,7 @@
-import axios, { AxiosError } from 'axios';
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
 // 개발 환경에서는 localhost:8000을 사용
 const API_BASE_URL = 'http://localhost:8000/api';
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 5000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-const handleApiError = (error: unknown) => {
-  if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError;
-    if (axiosError.response) {
-      throw new Error(`API 오류: ${axiosError.response.status} - ${JSON.stringify(axiosError.response.data)}`);
-    } else if (axiosError.request) {
-      throw new Error('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
-    }
-  }
-  throw new Error('알 수 없는 오류가 발생했습니다.');
-};
 
 export interface CodeBlocksResponse {
   blocks: CodeBlock[];
