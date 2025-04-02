@@ -7,6 +7,7 @@ interface CodeBlockListProps {
   onSelectBlock: (block: CodeBlock) => void;
   shouldRefresh?: boolean;
   onRefreshComplete?: () => void;
+  onDeleteComplete: () => void;
 }
 
 interface CodeBlocksResponse {
@@ -17,7 +18,8 @@ interface CodeBlocksResponse {
 export const CodeBlockList: React.FC<CodeBlockListProps> = ({
   onSelectBlock,
   shouldRefresh = false,
-  onRefreshComplete
+  onRefreshComplete,
+  onDeleteComplete
 }) => {
   const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
   const [selectedBlocks, setSelectedBlocks] = useState<number[]>([]);
@@ -34,6 +36,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
       const response = await codeBlockApi.getCodeBlocks(page, blocksPerPage) as CodeBlocksResponse;
       setCodeBlocks(response.blocks);
       setTotalPages(Math.ceil(response.total / blocksPerPage));
+      onRefreshComplete?.();
     } catch (error) {
       console.error('코드 블록 목록 조회 중 오류:', error);
       setError('코드 블록 목록을 불러오는데 실패했습니다.');
@@ -41,7 +44,6 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
       setTotalPages(1);
     } finally {
       setIsLoading(false);
-      onRefreshComplete?.();
     }
   };
 
@@ -80,6 +82,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
         await codeBlockApi.deleteCodeBlocks(selectedBlocks);
         setSelectedBlocks([]);
         fetchCodeBlocks(currentPage);
+        onDeleteComplete();
       } catch (error) {
         console.error('코드 블록 삭제 중 오류:', error);
         alert('일부 코드 블록 삭제에 실패했습니다.');

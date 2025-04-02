@@ -355,6 +355,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             onSelectBlock={handleBlockSelect}
             shouldRefresh={shouldRefresh}
             onRefreshComplete={handleRefreshComplete}
+            onDeleteComplete={resetWorkspace}
           />
         </div>
       </div>
