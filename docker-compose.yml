@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: blockly_postgres
+    environment:
+      POSTGRES_DB: blockly_db
+      POSTGRES_USER: blockly_user
+      POSTGRES_PASSWORD: blockly_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - blockly_network
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: blockly_backend
+    environment:
+      DB_HOST: postgres
+      DB_NAME: blockly_db
+      DB_USER: blockly_user
+      DB_PASSWORD: blockly_password
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - blockly_network
+    volumes:
+      - ./backend:/app
+
+volumes:
+  postgres_data:
+
+networks:
+  blockly_network:
+    driver: bridge 
