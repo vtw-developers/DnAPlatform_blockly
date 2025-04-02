@@ -1,7 +1,8 @@
 import axios, { AxiosError } from 'axios';
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+// 개발 환경에서는 localhost:8000을 사용
+const API_BASE_URL = 'http://localhost:8000/api';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -23,58 +24,72 @@ const handleApiError = (error: unknown) => {
   throw new Error('알 수 없는 오류가 발생했습니다.');
 };
 
-export const codeBlockApi = {
-  // 코드 블록 생성
-  createCodeBlock: async (data: CreateCodeBlockDto): Promise<CodeBlock> => {
-    try {
-      const response = await axiosInstance.post('/code-blocks', data);
-      return response.data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  },
+export interface CodeBlocksResponse {
+  blocks: CodeBlock[];
+  total: number;
+}
 
-  // 코드 블록 목록 조회
-  getCodeBlocks: async (): Promise<CodeBlock[]> => {
-    try {
-      const response = await axiosInstance.get('/code-blocks');
-      return response.data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  },
+class CodeBlockApi {
+  private baseUrl = API_BASE_URL;
 
-  // 특정 코드 블록 조회
-  getCodeBlock: async (id: number): Promise<CodeBlock> => {
+  async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
     try {
-      const response = await axiosInstance.get(`/code-blocks/${id}`);
-      return response.data;
+      const response = await fetch(`${this.baseUrl}/code-blocks?page=${page}&limit=${limit}`);
+      if (!response.ok) {
+        throw new Error('코드 블록을 가져오는데 실패했습니다.');
+      }
+      return await response.json();
     } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  },
-
-  // 코드 블록 수정
-  updateCodeBlock: async (id: number, data: Partial<CreateCodeBlockDto>): Promise<CodeBlock> => {
-    try {
-      const response = await axiosInstance.put(`/code-blocks/${id}`, data);
-      return response.data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  },
-
-  // 코드 블록 삭제
-  deleteCodeBlock: async (id: number): Promise<void> => {
-    try {
-      await axiosInstance.delete(`/code-blocks/${id}`);
-    } catch (error) {
-      handleApiError(error);
-      throw error;
+      console.error('코드 블록 가져오기 오류:', error);
+      return { blocks: [], total: 0 };
     }
   }
-}; 
+
+  async createCodeBlock(data: CreateCodeBlockDto): Promise<CodeBlock> {
+    const response = await fetch(`${this.baseUrl}/code-blocks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('코드 블록 생성에 실패했습니다.');
+    }
+
+    return await response.json();
+  }
+
+  async updateCodeBlock(id: number, data: CreateCodeBlockDto): Promise<CodeBlock> {
+    const response = await fetch(`${this.baseUrl}/code-blocks/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('코드 블록 수정에 실패했습니다.');
+    }
+
+    return await response.json();
+  }
+
+  async deleteCodeBlocks(ids: number[]): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/code-blocks`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids }),
+    });
+
+    if (!response.ok) {
+      throw new Error('코드 블록 삭제에 실패했습니다.');
+    }
+  }
+}
+
+export const codeBlockApi = new CodeBlockApi(); 
