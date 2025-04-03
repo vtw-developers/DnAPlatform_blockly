@@ -27,9 +27,9 @@ interface CodeVerifyRequest {
 export interface ModelInfo {
   name: string;
   type: 'ollama' | 'openai';
-  size: number;
-  digest: string;
-  modified_at: string;
+  size?: number;
+  digest?: string;
+  modified_at?: string;
 }
 
 interface ModelsResponse {
@@ -63,6 +63,7 @@ export interface LLMModel {
   type: 'ollama' | 'openai';
   modified_at?: string;
   size?: number;
+  digest?: string;
 }
 
 class CodeBlockApi {
@@ -175,7 +176,7 @@ class CodeBlockApi {
     }
   }
 
-  async getModels(): Promise<LLMModel[]> {
+  async getModels(): Promise<ModelInfo[]> {
     try {
       const response = await fetch(`${this.baseUrl}/models`);
       if (!response.ok) {
@@ -236,7 +237,12 @@ class CodeBlockApi {
     try {
       // Ollama 모델 가져오기
       const ollamaResponse = await fetch(`${this.baseUrl}/ollama/api/tags`);
+      if (!ollamaResponse.ok) {
+        console.error('Ollama API 오류:', ollamaResponse.status, await ollamaResponse.text());
+        return [];
+      }
       const ollamaData = await ollamaResponse.json();
+      console.log('Ollama API 응답:', ollamaData);
       const ollamaModels: LLMModel[] = (ollamaData.models || []).map((model: any) => ({
         name: model.name,
         type: 'ollama',
