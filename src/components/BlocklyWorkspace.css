@@ -686,11 +686,11 @@
 .verification-message {
   font-size: 14px;
   line-height: 1.6;
-  color: #1a73e8;
+  color: #1565c0;
   padding: 10px 15px;
-  background-color: #e8f0fe;
+  background-color: #e3f2fd;
   border-radius: 4px;
-  border-left: 4px solid #1a73e8;
+  border-left: 4px solid #1565c0;
 }
 
 .verification-code {
@@ -729,4 +729,41 @@
   border: none;
   background: none;
   padding: 0;
+}
+
+.execution-result-container {
+  margin-top: 15px;
+  border-top: 1px solid #dee2e6;
+  padding: 15px;
+  background-color: #fff;
+}
+
+.execution-result-container .execution-status {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.execution-result-container .execution-result {
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.execution-result-container .execution-result.success {
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+  color: #1565c0;
+}
+
+.execution-result-container .execution-result.error {
+  background-color: #e8eaf6;
+  border: 1px solid #c5cae9;
+  color: #283593;
 } 
