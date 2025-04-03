@@ -41,6 +41,17 @@ interface VerificationPopupProps {
   } | null;
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface NaturalLanguagePopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateBlock: (blockXml: string) => void;
+}
+
 const TOOLBOX_CONFIG = {
   kind: 'categoryToolbox',
   contents: [
@@ -154,6 +165,18 @@ const TOOLBOX_CONFIG = {
       name: '함수',
       categorystyle: 'procedure_category',
       custom: 'PROCEDURE'
+    },
+    {
+      kind: 'category',
+      name: '자연어 코드',
+      categorystyle: 'procedure_category',
+      contents: [
+        {
+          kind: 'button',
+          text: '자연어로 블록 생성',
+          callbackKey: 'NATURAL_LANGUAGE'
+        }
+      ]
     }
   ]
 };
@@ -356,6 +379,110 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
   );
 };
 
+const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onClose, onCreateBlock }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsLoading(true);
+
+    try {
+      // TODO: LLM API 호출 로직 구현
+      const response = await new Promise(resolve => setTimeout(() => {
+        resolve("이해했습니다. 어떤 기능이 필요하신가요?");
+      }, 1000));
+
+      setMessages(prev => [...prev, { role: 'assistant', content: response as string }]);
+
+      // "블록 생성해" 명령어 감지
+      if (userMessage.includes('블록 생성해')) {
+        // 임시 블록 XML (실제 구현 시 LLM이 생성한 XML로 대체)
+        const sampleBlockXml = `
+          <xml>
+            <block type="text_print" x="50" y="50">
+              <value name="TEXT">
+                <block type="text">
+                  <field name="TEXT">Hello, World!</field>
+                </block>
+              </value>
+            </block>
+          </xml>
+        `;
+        onCreateBlock(sampleBlockXml);
+        onClose();
+      }
+    } catch (error) {
+      console.error('메시지 처리 중 오류:', error);
+      setMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다. 오류가 발생했습니다.' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="popup-overlay">
+      <div className="popup-content natural-language-popup">
+        <div className="popup-header">
+          <h3>자연어로 코드 생성</h3>
+          <button className="popup-close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="popup-body">
+          <div className="chat-container" ref={chatContainerRef}>
+            {messages.map((message, index) => (
+              <div key={index} className={`chat-message ${message.role}`}>
+                <div className="message-content">{message.content}</div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="chat-message assistant">
+                <div className="message-content">
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="chat-input-container">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="자연어로 원하는 코드를 설명해주세요..."
+              className="chat-input"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading}
+              className="chat-send-button"
+            >
+              전송
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
@@ -385,6 +512,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     };
   } | null>(null);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isNaturalLanguagePopupOpen, setIsNaturalLanguagePopupOpen] = useState(false);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -446,6 +574,10 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
 
         window.addEventListener('resize', handleResize);
         handleResize();
+
+        workspace.registerButtonCallback('NATURAL_LANGUAGE', () => {
+          setIsNaturalLanguagePopupOpen(true);
+        });
 
         return () => {
           if (workspace) {
@@ -717,6 +849,20 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     handleExecuteCode();
   };
 
+  // 자연어로 생성된 블록 추가 함수
+  const handleCreateBlock = (blockXml: string) => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    try {
+      const xml = Blockly.Xml.textToDom(blockXml);
+      Blockly.Xml.domToWorkspace(xml, workspace);
+    } catch (error) {
+      console.error('블록 생성 중 오류:', error);
+      alert('블록 생성에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="blockly-container">
       <div className="blockly-workspace-container">
@@ -823,6 +969,11 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         onClose={handleCloseVerificationPopup}
         status={verificationStatus}
         result={verificationResult}
+      />
+      <NaturalLanguagePopup
+        isOpen={isNaturalLanguagePopupOpen}
+        onClose={() => setIsNaturalLanguagePopupOpen(false)}
+        onCreateBlock={handleCreateBlock}
       />
     </div>
   );
