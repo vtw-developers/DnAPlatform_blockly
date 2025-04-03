@@ -39,7 +39,6 @@ interface VerificationPopupProps {
       message?: string;
     };
   } | null;
-  onExecuteCode?: (code: string) => void;
 }
 
 const TOOLBOX_CONFIG = {
@@ -194,7 +193,10 @@ const ExecutionPopup: React.FC<ExecutionPopupProps> = ({ isOpen, onClose, status
   );
 };
 
-const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result, onExecuteCode }) => {
+const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result }) => {
+  const [executionStatus, setExecutionStatus] = useState<string>('');
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+
   if (!isOpen) return null;
 
   const formatElapsedTime = (seconds?: number) => {
@@ -224,10 +226,25 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
     }
   };
 
-  const handleExecuteCode = () => {
-    if (result?.verificationResult?.result_code && onExecuteCode) {
-      onExecuteCode(result.verificationResult.result_code);
-      onClose();
+  const handleExecuteCode = async () => {
+    if (!result?.verificationResult?.result_code) return;
+
+    setExecutionStatus('실행 중...');
+    setExecutionResult(null);
+
+    try {
+      const executeResult = await codeBlockApi.executeCode(result.verificationResult.result_code);
+      setExecutionStatus('실행 완료');
+      setExecutionResult({
+        output: executeResult.output || '',
+        error: executeResult.error || ''
+      });
+    } catch (error) {
+      setExecutionStatus('실행 실패');
+      setExecutionResult({
+        output: '',
+        error: '코드 실행 중 오류가 발생했습니다.'
+      });
     }
   };
 
@@ -272,6 +289,19 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
                       <pre className="code-snippet">
                         <code>{formatVerificationResult(result.verificationResult.result_code)}</code>
                       </pre>
+                      {executionStatus && (
+                        <div className="execution-result-container">
+                          <div className="execution-status">
+                            {executionStatus === '실행 중...' && <div className="status-spinner" />}
+                            <span>{executionStatus}</span>
+                          </div>
+                          {executionResult && (
+                            <div className={`execution-result ${executionResult.error ? 'error' : 'success'}`}>
+                              <pre>{executionResult.output || executionResult.error}</pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -760,7 +790,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         onClose={handleCloseVerificationPopup}
         status={verificationStatus}
         result={verificationResult}
-        onExecuteCode={handleVerificationCodeExecute}
       />
     </div>
   );
