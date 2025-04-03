@@ -96,8 +96,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
 
   return (
     <div className="code-block-list">
-      <div className="code-block-list-header">
-        <h3>저장된 코드 목록</h3>
+      <div className="code-block-list-header">       
         {selectedBlocks.length > 0 && (
           <button 
             className="delete-button"
