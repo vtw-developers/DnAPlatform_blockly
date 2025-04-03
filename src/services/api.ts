@@ -33,6 +33,16 @@ interface ModelsResponse {
   models: ModelInfo[];
 }
 
+export interface VerificationResult {
+  result?: {
+    elapsed_time?: number;
+    result_code?: string;
+    message?: string;
+  };
+  error?: string;
+  status?: 'RUNNING' | 'SUCCESS' | 'ERROR';
+}
+
 class CodeBlockApi {
   private baseUrl = API_BASE_URL;
   private verifyUrl = `${API_BASE_URL}/proxy/airflow/api/v1/dags/equiv_task/dagRuns`;
@@ -119,10 +129,14 @@ class CodeBlockApi {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Basic ${this.verifyAuth}`
         },
         body: JSON.stringify({
-          code,
-          model_name
+          dag_run_id: `rest_call_${Date.now()}`,
+          conf: {
+            origin_code: code,
+            model_name: model_name
+          }
         })
       });
 
@@ -148,6 +162,49 @@ class CodeBlockApi {
     } catch (error) {
       console.error('모델 목록 가져오기 오류:', error);
       return [];
+    }
+  }
+
+  async getVerificationResult(dagRunId: string): Promise<VerificationResult> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/proxy/airflow/api/v1/dags/equiv_task/dagRuns/${dagRunId}/taskInstances/get_result/xcomEntries/return_value`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${this.verifyAuth}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { status: 'RUNNING' };
+        }
+        throw new Error(`검증 결과 조회 실패: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('검증 결과 데이터:', data);
+
+      // 응답 데이터 구조 처리
+      const result = {
+        elapsed_time: 0, // 실제 소요 시간은 나중에 추가
+        result_code: data.value, // 전체 검증 결과를 표시
+        message: '코드 검증이 완료되었습니다.'
+      };
+
+      return { result, status: 'SUCCESS' };
+    } catch (error) {
+      console.error('검증 결과 조회 중 상세 오류:', error);
+      if (error instanceof Error && error.message.includes('404')) {
+        return { status: 'RUNNING' };
+      }
+      if (error instanceof Error) {
+        return { error: error.message, status: 'ERROR' };
+      }
+      return { error: '알 수 없는 오류가 발생했습니다.', status: 'ERROR' };
     }
   }
 }

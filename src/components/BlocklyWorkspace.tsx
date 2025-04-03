@@ -33,7 +33,13 @@ interface VerificationPopupProps {
   result: {
     dag_run_id?: string;
     error?: string;
+    verificationResult?: {
+      elapsed_time?: number;
+      result_code?: string;
+      message?: string;
+    };
   } | null;
+  onExecuteCode?: (code: string) => void;
 }
 
 const TOOLBOX_CONFIG = {
@@ -188,12 +194,46 @@ const ExecutionPopup: React.FC<ExecutionPopupProps> = ({ isOpen, onClose, status
   );
 };
 
-const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result }) => {
+const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result, onExecuteCode }) => {
   if (!isOpen) return null;
+
+  const formatElapsedTime = (seconds?: number) => {
+    if (!seconds) return '';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes > 0 ? `${minutes}분 ` : ''}${remainingSeconds.toFixed(1)}초`;
+  };
+
+  const formatVerificationResult = (code?: string) => {
+    if (!code) return '';
+    return code
+      .split('\n')
+      .filter(line => !line.trim().startsWith('#') && line.trim() !== '')
+      .join('\n');
+  };
+
+  const handleCopyCode = async () => {
+    if (result?.verificationResult?.result_code) {
+      try {
+        await navigator.clipboard.writeText(result.verificationResult.result_code);
+        alert('코드가 클립보드에 복사되었습니다.');
+      } catch (error) {
+        console.error('코드 복사 중 오류:', error);
+        alert('코드 복사에 실패했습니다.');
+      }
+    }
+  };
+
+  const handleExecuteCode = () => {
+    if (result?.verificationResult?.result_code && onExecuteCode) {
+      onExecuteCode(result.verificationResult.result_code);
+      onClose();
+    }
+  };
 
   return (
     <div className="popup-overlay">
-      <div className="popup-content">
+      <div className="popup-content verification-popup">
         <div className="popup-header">
           <h3>코드 검증</h3>
           {status !== '검증 중...' && (
@@ -207,9 +247,37 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
           </div>
           {result && (
             <div className={`popup-result ${result.error ? 'error' : 'success'}`}>
-              <pre>
-                {result.error ? result.error : `검증이 시작되었습니다.\nDAG Run ID: ${result.dag_run_id}`}
-              </pre>
+              {result.error ? (
+                <pre className="error-message">{result.error}</pre>
+              ) : result.verificationResult ? (
+                <div className="verification-details">
+                  {result.verificationResult.message && (
+                    <div className="verification-message">
+                      {result.verificationResult.message}
+                    </div>
+                  )}
+                  {result.verificationResult.result_code && (
+                    <div className="verification-code">
+                      <div className="code-header">
+                        <span>검증 결과:</span>
+                        <div className="code-actions">
+                          <button onClick={handleCopyCode} className="code-action-button">
+                            복사
+                          </button>
+                          <button onClick={handleExecuteCode} className="code-action-button">
+                            실행
+                          </button>
+                        </div>
+                      </div>
+                      <pre className="code-snippet">
+                        <code>{formatVerificationResult(result.verificationResult.result_code)}</code>
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <pre>검증이 시작되었습니다.{'\n'}DAG Run ID: {result.dag_run_id}</pre>
+              )}
             </div>
           )}
         </div>
@@ -244,7 +312,16 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [executionStatus, setExecutionStatus] = useState('');
   const [isVerificationPopupOpen, setIsVerificationPopupOpen] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('');
-  const [verificationResult, setVerificationResult] = useState<{ dag_run_id?: string; error?: string; } | null>(null);
+  const [verificationResult, setVerificationResult] = useState<{
+    dag_run_id?: string;
+    error?: string;
+    verificationResult?: {
+      elapsed_time?: number;
+      result_code?: string;
+      message?: string;
+    };
+  } | null>(null);
+  const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -372,10 +449,63 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     }
   };
 
+  const checkVerificationResult = async (dagRunId: string) => {
+    try {
+      const result = await codeBlockApi.getVerificationResult(dagRunId);
+      console.log('검증 결과:', result); // 디버깅용 로그 추가
+      
+      if (result.status === 'SUCCESS' && result.result) {
+        const { elapsed_time = 0, result_code = '', message = '' } = result.result;
+        setVerificationStatus('검증 완료');
+        setVerificationResult(prev => ({
+          ...prev,
+          verificationResult: {
+            elapsed_time,
+            result_code,
+            message
+          }
+        }));
+        if (verificationTimerRef.current) {
+          clearInterval(verificationTimerRef.current);
+          verificationTimerRef.current = null;
+        }
+      } else if (result.status === 'ERROR') {
+        setVerificationStatus('검증 실패');
+        setVerificationResult(prev => ({
+          ...prev,
+          error: result.error || '검증 중 오류가 발생했습니다.'
+        }));
+        if (verificationTimerRef.current) {
+          clearInterval(verificationTimerRef.current);
+          verificationTimerRef.current = null;
+        }
+      } else {
+        setVerificationStatus('검증 중...');
+      }
+    } catch (error) {
+      console.error('검증 결과 조회 중 오류:', error);
+      setVerificationStatus('검증 실패');
+      setVerificationResult(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : '검증 결과 조회 중 오류가 발생했습니다.'
+      }));
+      if (verificationTimerRef.current) {
+        clearInterval(verificationTimerRef.current);
+        verificationTimerRef.current = null;
+      }
+    }
+  };
+
   const handleVerifyCode = async () => {
     if (!currentCode) {
       alert('검증할 코드가 없습니다.');
       return;
+    }
+
+    // 이전 타이머가 있다면 제거
+    if (verificationTimerRef.current) {
+      clearInterval(verificationTimerRef.current);
+      verificationTimerRef.current = null;
     }
 
     setIsVerificationPopupOpen(true);
@@ -384,10 +514,15 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
 
     try {
       const result = await codeBlockApi.verifyCode(currentCode, selectedModel);
-      setVerificationStatus('검증 요청 완료');
       setVerificationResult({
         dag_run_id: result.dag_run_id
       });
+
+      // 10초 간격으로 결과 확인
+      verificationTimerRef.current = setInterval(
+        () => checkVerificationResult(result.dag_run_id),
+        10000
+      );
     } catch (error) {
       console.error('코드 검증 중 오류:', error);
       setVerificationStatus('검증 실패');
@@ -495,9 +630,28 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   };
 
   const handleCloseVerificationPopup = () => {
+    if (verificationTimerRef.current) {
+      clearInterval(verificationTimerRef.current);
+      verificationTimerRef.current = null;
+    }
     setIsVerificationPopupOpen(false);
     setVerificationStatus('');
     setVerificationResult(null);
+  };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (verificationTimerRef.current) {
+        clearInterval(verificationTimerRef.current);
+        verificationTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleVerificationCodeExecute = (code: string) => {
+    setCurrentCode(code);
+    handleExecuteCode();
   };
 
   return (
@@ -606,6 +760,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         onClose={handleCloseVerificationPopup}
         status={verificationStatus}
         result={verificationResult}
+        onExecuteCode={handleVerificationCodeExecute}
       />
     </div>
   );

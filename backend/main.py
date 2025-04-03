@@ -357,7 +357,7 @@ async def execute_code(request: CodeExecuteRequest):
         }
 
 @app.post("/api/proxy/airflow/{path:path}")
-async def proxy_to_airflow(path: str, request: Request):
+async def proxy_to_airflow_post(path: str, request: Request):
     airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://host.docker.internal:8080")
     target_url = f"{airflow_base_url}/{path}"
 
@@ -365,18 +365,7 @@ async def proxy_to_airflow(path: str, request: Request):
         # 클라이언트 요청의 body를 읽음
         body = await request.json()
         
-        # DAG Run ID 생성 (타임스탬프 기반)
-        dag_run_id = f"rest_call_{int(time.time())}"
-        
-        # Airflow API 요청 본문 구성
-        airflow_request = {
-            "dag_run_id": dag_run_id,
-            "conf": {
-                "origin_code": body.get("code", ""),
-                "model_name": body.get("model_name", "qwen2.5-coder:32b")
-            }
-        }
-
+        # 요청 본문을 그대로 전달
         headers = {
             "Content-Type": "application/json",
             "Authorization": "Basic YWRtaW46dnR3MjEwMzAy"  # admin:vtw210302의 Base64 인코딩
@@ -385,7 +374,34 @@ async def proxy_to_airflow(path: str, request: Request):
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.post(
                 target_url,
-                json=airflow_request,
+                json=body,
+                headers=headers,
+                timeout=30.0
+            )
+
+        return StreamingResponse(
+            content=response.iter_bytes(),
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+    except Exception as e:
+        logger.error(f"Airflow API 프록시 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy/airflow/{path:path}")
+async def proxy_to_airflow_get(path: str, request: Request):
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://host.docker.internal:8080")
+    target_url = f"{airflow_base_url}/{path}"
+
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Basic YWRtaW46dnR3MjEwMzAy"  # admin:vtw210302의 Base64 인코딩
+        }
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(
+                target_url,
                 headers=headers,
                 timeout=30.0
             )
