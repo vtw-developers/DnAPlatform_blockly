@@ -422,7 +422,8 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
           </button>
         </div>
-        <div className="code-execution-container">
+        <div className="execution-section">
+          <h3 className="section-title">코드 실행</h3>
           <button
             onClick={handleExecuteCode}
             disabled={isExecuting || !currentCode}
@@ -430,6 +431,25 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           >
             {isExecuting ? '실행 중...' : '코드 실행'}
           </button>
+          {(executionResult.output || executionResult.error) && (
+            <div className="execution-result">
+              {executionResult.output && (
+                <div className="output">
+                  <h4>실행 결과:</h4>
+                  <pre>{executionResult.output}</pre>
+                </div>
+              )}
+              {executionResult.error && (
+                <div className="error">
+                  <h4>오류:</h4>
+                  <pre>{executionResult.error}</pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="verification-section">
+          <h3 className="section-title">코드 검증</h3>
           <div className="verify-container">
             <select
               value={selectedModel}
@@ -457,24 +477,9 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               {isVerifying ? '검증 중...' : '코드 검증'}
             </button>
           </div>
-          {(executionResult.output || executionResult.error) && (
-            <div className="execution-result">
-              {executionResult.output && (
-                <div className="output">
-                  <h4>실행 결과:</h4>
-                  <pre>{executionResult.output}</pre>
-                </div>
-              )}
-              {executionResult.error && (
-                <div className="error">
-                  <h4>오류:</h4>
-                  <pre>{executionResult.error}</pre>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-        <div className="code-block-list-container">
+        <div className="saved-codes-section">
+          <h3 className="section-title">저장된 코드 목록</h3>
           <CodeBlockList
             onSelectBlock={handleBlockSelect}
             shouldRefresh={shouldRefresh}
