@@ -383,13 +383,34 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [models, setModels] = useState<{ name: string; modified_at: string; size: number; }[]>([]);
+  const [selectedModel, setSelectedModel] = useState('qwen2.5-coder:latest');
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [currentDescription, setCurrentDescription] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      loadModels();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const loadModels = async () => {
+    try {
+      const modelList = await codeBlockApi.getOllamaModels();
+      setModels(modelList);
+      if (modelList.length > 0) {
+        setSelectedModel(modelList[0].name);
+      }
+    } catch (error) {
+      console.error('모델 목록 로딩 중 오류:', error);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -400,35 +421,36 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
     setIsLoading(true);
 
     try {
-      // TODO: LLM API 호출 로직 구현
-      const response = await new Promise(resolve => setTimeout(() => {
-        resolve("이해했습니다. 어떤 기능이 필요하신가요?");
-      }, 1000));
-
-      setMessages(prev => [...prev, { role: 'assistant', content: response as string }]);
-
-      // "블록 생성해" 명령어 감지
       if (userMessage.includes('블록 생성해')) {
-        // 임시 블록 XML (실제 구현 시 LLM이 생성한 XML로 대체)
-        const sampleBlockXml = `
-          <xml>
-            <block type="text_print" x="50" y="50">
-              <value name="TEXT">
-                <block type="text">
-                  <field name="TEXT">Hello, World!</field>
-                </block>
-              </value>
-            </block>
-          </xml>
-        `;
-        onCreateBlock(sampleBlockXml);
+        const blockXml = await codeBlockApi.generateBlockCode(currentDescription, selectedModel);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '블록이 생성되었습니다. 작업 공간에 추가됩니다.'
+        }]);
+        onCreateBlock(blockXml);
         onClose();
+      } else {
+        setCurrentDescription(userMessage);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '이해했습니다. "블록 생성해"라고 입력하시면 설명하신 내용대로 블록을 생성해드리겠습니다.'
+        }]);
       }
     } catch (error) {
       console.error('메시지 처리 중 오류:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다. 오류가 발생했습니다.' }]);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '죄송합니다. 블록 생성 중 오류가 발생했습니다.'
+      }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -436,47 +458,53 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
 
   return (
     <div className="popup-overlay">
-      <div className="popup-content natural-language-popup">
+      <div className="natural-language-popup">
         <div className="popup-header">
-          <h3>자연어로 코드 생성</h3>
-          <button className="popup-close" onClick={onClose}>&times;</button>
+          <h2>자연어로 블록 생성</h2>
+          <button onClick={onClose}>×</button>
         </div>
-        <div className="popup-body">
-          <div className="chat-container" ref={chatContainerRef}>
-            {messages.map((message, index) => (
-              <div key={index} className={`chat-message ${message.role}`}>
-                <div className="message-content">{message.content}</div>
-              </div>
+        <div className="model-selector">
+          <label>모델 선택:</label>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+          >
+            {models.map((model) => (
+              <option key={model.name} value={model.name}>
+                {model.name}
+              </option>
             ))}
-            {isLoading && (
-              <div className="chat-message assistant">
-                <div className="message-content">
-                  <div className="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="chat-input-container">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="자연어로 원하는 코드를 설명해주세요..."
-              className="chat-input"
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={isLoading}
-              className="chat-send-button"
+          </select>
+        </div>
+        <div className="chat-container" ref={chatContainerRef}>
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`chat-message ${message.role}`}
             >
-              전송
-            </button>
-          </div>
+              <div className="content">{message.content}</div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="chat-message assistant">
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="input-container">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="자연어로 원하는 블록을 설명해주세요..."
+          />
+          <button onClick={handleSendMessage} disabled={isLoading || !input.trim()}>
+            전송
+          </button>
         </div>
       </div>
     </div>
