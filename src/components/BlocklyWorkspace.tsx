@@ -906,6 +906,13 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             >
               초기화
             </button>
+            <button
+              onClick={handleSaveCode}
+              disabled={isSaving}
+              className="save-button"
+            >
+              {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
+            </button>
           </div>
           <input
             type="text"
@@ -926,13 +933,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             placeholder="Python 코드가 여기에 표시됩니다"
             className="python-code-display"
           />
-          <button
-            onClick={handleSaveCode}
-            disabled={isSaving}
-            className="save-button"
-          >
-            {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
-          </button>
         </div>
         <div className="code-execution-container">
           <div className="execution-section">

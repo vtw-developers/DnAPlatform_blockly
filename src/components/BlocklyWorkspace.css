@@ -69,7 +69,7 @@
 }
 
 .save-button {
-  padding: 12px;
+  padding: 8px 16px;
   background-color: #4CAF50;
   color: white;
   border: none;
@@ -77,7 +77,7 @@
   cursor: pointer;
   font-size: 14px;
   transition: background-color 0.2s;
-  width: 100%;
+  min-width: 80px;
 }
 
 .save-button:hover {
@@ -90,8 +90,8 @@
 }
 
 .code-execution-container {
-  padding: 15px 0;
-  margin: 10px 0;
+  padding: 5px 0;
+  margin: 5px 0;
 }
 
 .execution-section,
@@ -99,12 +99,12 @@
 .saved-codes-section {
   background-color: #f8f9fa;
   border-radius: 8px;
-  padding: 15px;
+  padding: 10px;
   margin: 0;
 }
 
 .section-title {
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   font-size: 14px;
   font-weight: 600;
   color: #333;
@@ -112,8 +112,8 @@
 
 .execute-button {
   width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
+  padding: 8px;
+  margin-bottom: 0;
   background-color: #007bff;
   color: white;
   border: none;
@@ -387,6 +387,7 @@
 .button-container {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
