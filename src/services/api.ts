@@ -22,6 +22,17 @@ interface CodeVerifyRequest {
   model_name?: string;
 }
 
+export interface ModelInfo {
+  name: string;
+  size: number;
+  digest: string;
+  modified_at: string;
+}
+
+interface ModelsResponse {
+  models: ModelInfo[];
+}
+
 class CodeBlockApi {
   private baseUrl = API_BASE_URL;
   private verifyUrl = `${API_BASE_URL}/proxy/airflow/api/v1/dags/equiv_task/dagRuns`;
@@ -123,6 +134,20 @@ class CodeBlockApi {
     } catch (error) {
       console.error('코드 검증 중 오류:', error);
       throw error;
+    }
+  }
+
+  async getModels(): Promise<ModelInfo[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/models`);
+      if (!response.ok) {
+        throw new Error('모델 목록을 가져오는데 실패했습니다.');
+      }
+      const data: ModelsResponse = await response.json();
+      return data.models;
+    } catch (error) {
+      console.error('모델 목록 가져오기 오류:', error);
+      return [];
     }
   }
 }

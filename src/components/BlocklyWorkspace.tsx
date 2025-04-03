@@ -4,6 +4,7 @@ import { pythonGenerator } from 'blockly/python';
 import { CodeBlock } from '../types/CodeBlock';
 import { CodeBlockList } from './CodeBlockList';
 import { codeBlockApi } from '../services/api';
+import type { ModelInfo } from '../services/api';
 import './BlocklyWorkspace.css';
 
 interface BlocklyWorkspaceProps {
@@ -139,7 +140,9 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [executionResult, setExecutionResult] = useState<{ output: string; error: string }>({ output: '', error: '' });
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
-  const [selectedModel, setSelectedModel] = useState<string>("qwen2.5-coder:32b");
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -214,6 +217,26 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         console.error('Blockly 워크스페이스 초기화 중 오류:', error);
       }
     }
+  }, []);
+
+  // 모델 목록 로드
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        setIsLoadingModels(true);
+        const modelList = await codeBlockApi.getModels();
+        setModels(modelList);
+        if (modelList.length > 0) {
+          setSelectedModel(modelList[0].name);
+        }
+      } catch (error) {
+        console.error('모델 목록 로드 중 오류:', error);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    loadModels();
   }, []);
 
   const handleCodeGeneration = (code: string) => {
@@ -412,14 +435,23 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
               className="model-select"
+              disabled={isLoadingModels || models.length === 0}
             >
-              <option value="qwen2.5-coder:32b">Qwen 2.5 Coder (32B)</option>
-              <option value="qwen1.5-72b">Qwen 1.5 (72B)</option>
-              <option value="gpt-4">GPT-4</option>
+              {isLoadingModels ? (
+                <option value="">모델 목록 로딩 중...</option>
+              ) : models.length === 0 ? (
+                <option value="">사용 가능한 모델이 없습니다</option>
+              ) : (
+                models.map((model) => (
+                  <option key={model.digest} value={model.name}>
+                    {model.name}
+                  </option>
+                ))
+              )}
             </select>
             <button
               onClick={handleVerifyCode}
-              disabled={isVerifying || !currentCode}
+              disabled={isVerifying || !currentCode || !selectedModel}
               className="verify-button"
             >
               {isVerifying ? '검증 중...' : '코드 검증'}

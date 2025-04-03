@@ -82,6 +82,12 @@ class CodeVerifyRequest(BaseModel):
     code: str
     model_name: str = "qwen2.5-coder:32b"  # 기본값 설정
 
+class ModelInfo(BaseModel):
+    name: str
+    size: int
+    digest: str
+    modified_at: str
+
 def wait_for_db():
     max_retries = 30
     retry_interval = 2  # seconds
@@ -391,6 +397,31 @@ async def proxy_to_airflow(path: str, request: Request):
         )
     except Exception as e:
         logger.error(f"Airflow API 프록시 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/models")
+async def get_models():
+    try:
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(f"{ollama_url}/api/tags")
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                return {
+                    "models": [
+                        {
+                            "name": model["name"],
+                            "size": model.get("size", 0),
+                            "digest": model.get("digest", ""),
+                            "modified_at": model.get("modified_at", "")
+                        }
+                        for model in models
+                    ]
+                }
+            else:
+                raise HTTPException(status_code=response.status_code, detail="Ollama 서버에서 모델 목록을 가져오는데 실패했습니다.")
+    except Exception as e:
+        logger.error(f"Ollama 모델 목록 조회 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
