@@ -446,15 +446,16 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
     try {
       if (currentMessage.includes('블록 생성해')) {
         console.log('블록 생성 명령어 감지');
-        // 이전 메시지들과 현재 메시지를 모두 포함
-        const allMessages = [...messages, userMessage]
-          .filter(msg => msg.role === 'user')  // 사용자 메시지만 수집
-          .map(msg => msg.content)
-          .join('\n');
         
-        console.log('전체 메시지 내용:', allMessages);
+        // 가장 최근의 사용자 메시지 찾기 (현재 메시지 제외)
+        const lastDescription = messages
+          .filter(msg => msg.role === 'user')
+          .map(msg => msg.content)
+          .pop() || '';
 
-        const blockXml = await codeBlockApi.generateBlockCode(allMessages, selectedModel);
+        console.log('블록 생성에 사용될 설명:', lastDescription);
+
+        const blockXml = await codeBlockApi.generateBlockCode(lastDescription, selectedModel);
         console.log('생성된 블록 XML:', blockXml);
 
         const assistantMessage: ChatMessage = {
