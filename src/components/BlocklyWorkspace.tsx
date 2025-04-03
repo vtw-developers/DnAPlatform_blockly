@@ -52,6 +52,13 @@ interface NaturalLanguagePopupProps {
   onCreateBlock: (blockXml: string) => void;
 }
 
+interface LLMModel {
+  name: string;
+  type: 'ollama' | 'openai';
+  modified_at?: string;
+  size?: number;
+}
+
 const TOOLBOX_CONFIG = {
   kind: 'categoryToolbox',
   contents: [
@@ -381,19 +388,21 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
 
 const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onClose, onCreateBlock }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
+  const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [models, setModels] = useState<{ name: string; modified_at: string; size: number; }[]>([]);
-  const [selectedModel, setSelectedModel] = useState('qwen2.5-coder:latest');
+  const [models, setModels] = useState<LLMModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState<LLMModel | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [currentDescription, setCurrentDescription] = useState<string>('');
 
+  // 팝업이 열릴 때 모델 목록 로드
   useEffect(() => {
     if (isOpen) {
       loadModels();
     }
   }, [isOpen]);
 
+  // 메시지가 추가될 때마다 스크롤
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -402,46 +411,70 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
 
   const loadModels = async () => {
     try {
-      const modelList = await codeBlockApi.getOllamaModels();
-      setModels(modelList);
-      if (modelList.length > 0) {
-        setSelectedModel(modelList[0].name);
+      console.log('모델 목록 로딩 시작');
+      const availableModels = await codeBlockApi.getAvailableModels();
+      console.log('사용 가능한 모델:', availableModels);
+      setModels(availableModels);
+      if (availableModels.length > 0) {
+        setSelectedModel(availableModels[0]);
+        console.log('기본 모델 선택:', availableModels[0]);
       }
     } catch (error) {
-      console.error('모델 목록 로딩 중 오류:', error);
+      console.error('모델 로딩 중 오류:', error);
     }
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
+    if (!currentMessage.trim() || !selectedModel) return;
 
-    const userMessage = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    console.log('메시지 전송 시작:', {
+      message: currentMessage,
+      selectedModel
+    });
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: currentMessage
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setCurrentMessage('');
     setIsLoading(true);
 
     try {
-      if (userMessage.includes('블록 생성해')) {
-        const blockXml = await codeBlockApi.generateBlockCode(currentDescription, selectedModel);
-        setMessages(prev => [...prev, {
+      if (currentMessage.includes('블록 생성해')) {
+        console.log('블록 생성 명령어 감지');
+        // 이전 메시지들과 현재 메시지를 모두 포함
+        const allMessages = [...messages, userMessage]
+          .filter(msg => msg.role === 'user')  // 사용자 메시지만 수집
+          .map(msg => msg.content)
+          .join('\n');
+        
+        console.log('전체 메시지 내용:', allMessages);
+
+        const blockXml = await codeBlockApi.generateBlockCode(allMessages, selectedModel);
+        console.log('생성된 블록 XML:', blockXml);
+
+        const assistantMessage: ChatMessage = {
           role: 'assistant',
-          content: '블록이 생성되었습니다. 작업 공간에 추가됩니다.'
-        }]);
+          content: '블록이 생성되었습니다.'
+        };
+        setMessages(prev => [...prev, assistantMessage]);
         onCreateBlock(blockXml);
-        onClose();
       } else {
-        setCurrentDescription(userMessage);
-        setMessages(prev => [...prev, {
+        const assistantMessage: ChatMessage = {
           role: 'assistant',
-          content: '이해했습니다. "블록 생성해"라고 입력하시면 설명하신 내용대로 블록을 생성해드리겠습니다.'
-        }]);
+          content: '블록을 생성하려면 "블록 생성해"라고 입력해주세요.'
+        };
+        setMessages(prev => [...prev, assistantMessage]);
       }
     } catch (error) {
       console.error('메시지 처리 중 오류:', error);
-      setMessages(prev => [...prev, {
+      const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: '죄송합니다. 블록 생성 중 오류가 발생했습니다.'
-      }]);
+        content: `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -466,14 +499,26 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
         <div className="model-selector">
           <label>모델 선택:</label>
           <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
+            value={selectedModel?.name || ''}
+            onChange={(e) => {
+              const model = models.find(m => m.name === e.target.value);
+              if (model) setSelectedModel(model);
+            }}
           >
-            {models.map((model) => (
-              <option key={model.name} value={model.name}>
-                {model.name}
-              </option>
-            ))}
+            <optgroup label="Ollama 모델">
+              {models.filter(m => m.type === 'ollama').map((model) => (
+                <option key={model.name} value={model.name}>
+                  {model.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="OpenAI 모델">
+              {models.filter(m => m.type === 'openai').map((model) => (
+                <option key={model.name} value={model.name}>
+                  {model.name}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
         <div className="chat-container" ref={chatContainerRef}>
@@ -497,12 +542,12 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
         </div>
         <div className="input-container">
           <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={currentMessage}
+            onChange={(e) => setCurrentMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="자연어로 원하는 블록을 설명해주세요..."
           />
-          <button onClick={handleSendMessage} disabled={isLoading || !input.trim()}>
+          <button onClick={handleSendMessage} disabled={isLoading || !currentMessage.trim() || !selectedModel}>
             전송
           </button>
         </div>
