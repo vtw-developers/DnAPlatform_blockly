@@ -447,15 +447,11 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
       if (currentMessage.includes('블록 생성해')) {
         console.log('블록 생성 명령어 감지');
         
-        // 가장 최근의 사용자 메시지 찾기 (현재 메시지 제외)
-        const lastDescription = messages
-          .filter(msg => msg.role === 'user')
-          .map(msg => msg.content)
-          .pop() || '';
+        // 현재 메시지를 설명으로 사용
+        const description = currentMessage.replace('블록 생성해', '').trim();
+        console.log('블록 생성에 사용될 설명:', description);
 
-        console.log('블록 생성에 사용될 설명:', lastDescription);
-
-        const blockXml = await codeBlockApi.generateBlockCode(lastDescription, selectedModel);
+        const blockXml = await codeBlockApi.generateBlockCode(description, selectedModel);
         console.log('생성된 블록 XML:', blockXml);
 
         const assistantMessage: ChatMessage = {
@@ -631,7 +627,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [models, setModels] = useState<LLMModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [executionStatus, setExecutionStatus] = useState('');

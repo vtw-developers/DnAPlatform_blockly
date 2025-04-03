@@ -17,6 +17,7 @@ from starlette.responses import StreamingResponse
 import re
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+import json
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -103,6 +104,11 @@ class ModelInfo(BaseModel):
     size: int
     digest: str
     modified_at: str
+
+class GenerateBlockRequest(BaseModel):
+    description: str
+    model_name: str
+    model_type: str
 
 def wait_for_db():
     max_retries = 30
@@ -439,9 +445,12 @@ async def get_models():
             # Ollama 모델 가져오기
             response = await client.get(f"{ollama_url}/api/tags")
             if response.status_code != 200:
+                logger.error(f"Ollama API 응답: {response.status_code}, {response.text}")
                 raise HTTPException(status_code=response.status_code, detail="Ollama 서버에서 모델 목록을 가져오는데 실패했습니다.")
             
-            ollama_models = response.json().get("models", [])
+            data = response.json()
+            logger.info(f"Ollama API 응답: {data}")  # 응답 로깅
+            ollama_models = data.get("models", [])
             
             # OpenAI 모델 추가
             openai_models = [
@@ -462,6 +471,8 @@ async def get_models():
                 for model in ollama_models
             ]
             
+            logger.info(f"포맷된 Ollama 모델: {formatted_ollama_models}")  # 포맷된 모델 로깅
+            
             # 모든 모델 합치기
             all_models = formatted_ollama_models + openai_models
             return {"models": all_models}
@@ -471,12 +482,10 @@ async def get_models():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/generate-block")
-async def generate_block(
-    description: str,
-    model_name: str,
-    model_type: str
-):
+async def generate_block(request: GenerateBlockRequest):
     try:
+        logger.info(f"블록 생성 요청: {request}")
+
         prompt = f"""
 당신은 Blockly 블록 XML을 생성하는 전문가입니다.
 아래 설명에 맞는 Blockly XML 코드를 생성해주세요.
@@ -546,7 +555,7 @@ async def generate_block(
    - procedures_callnoreturn: 함수 호출 (반환값 없음)
    - procedures_callreturn: 함수 호출 (반환값 있음)
 
-설명: {description}
+설명: {request.description}
 
 다음 형식으로만 응답해주세요:
 <xml>
@@ -563,80 +572,179 @@ async def generate_block(
 7. 가능한 한 재사용 가능하고 모듈화된 코드를 생성하세요.
 """
 
-        if model_type == "ollama":
-            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-            async with httpx.AsyncClient(verify=False) as client:
-                response = await client.post(
-                    f"{ollama_url}/api/generate",
-                    json={
-                        "model": model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "temperature": 0.7,
-                        "top_p": 0.9
-                    }
-                )
-                
-                if response.status_code != 200:
-                    raise HTTPException(status_code=response.status_code, detail="Ollama API 호출 실패")
-                
-                data = response.json()
-                xml_match = re.search(r'<xml>[\s\S]*</xml>', data["response"])
-                if not xml_match:
-                    raise HTTPException(status_code=400, detail="유효한 XML 코드를 생성하지 못했습니다.")
-                
-                return {"xml": xml_match.group(0)}
-                
-        elif model_type == "openai":
+        if request.model_type == "ollama":
+            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            logger.info(f"Ollama URL: {ollama_url}")
+            
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.post(
+                        f"{ollama_url}/api/generate",
+                        json={
+                            "model": request.model_name,
+                            "prompt": prompt,
+                            "stream": False
+                        },
+                        timeout=30.0
+                    )
+                    logging.info(f"Ollama API 응답 상태 코드: {response.status_code}")
+                    logging.info(f"Ollama API 응답 내용: {response.text}")
+                    
+                    if response.status_code != 200:
+                        error_msg = f"Ollama API 오류 - 상태 코드: {response.status_code}, 응답: {response.text}"
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
+                        
+                    response_data = response.json()
+                    if "response" not in response_data:
+                        error_msg = f"Ollama API 응답에 'response' 필드가 없습니다: {response_data}"
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
+                        
+                    xml_code = response_data["response"]
+                    
+                    return {"xml": xml_code}
+                    
+                except httpx.RequestError as e:
+                    error_msg = f"Ollama API 요청 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
+                except json.JSONDecodeError as e:
+                    error_msg = f"Ollama API 응답 JSON 파싱 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
+                except Exception as e:
+                    error_msg = f"블록 생성 중 예상치 못한 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
+        
+        elif request.model_type == "openai":
             openai_key = os.getenv("OPENAI_API_KEY")
             if not openai_key:
-                raise HTTPException(status_code=500, detail="OpenAI API 키가 설정되지 않았습니다.")
-                
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {openai_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": model_name,
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": "You are a Blockly XML code generation expert."
-                            },
-                            {
-                                "role": "user",
-                                "content": prompt
-                            }
-                        ],
-                        "temperature": 0.7,
-                        "max_tokens": 2000
-                    }
+                raise HTTPException(
+                    status_code=500,
+                    detail="OpenAI API 키가 설정되지 않았습니다."
                 )
                 
-                if response.status_code != 200:
-                    raise HTTPException(status_code=response.status_code, detail="OpenAI API 호출 실패")
-                
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                xml_match = re.search(r'<xml[^>]*>[\s\S]*</xml>', content)
-                
-                if not xml_match:
-                    if "<xml" in content and "</xml>" in content:
-                        start_index = content.index("<xml")
-                        end_index = content.index("</xml>") + 6
-                        return {"xml": content[start_index:end_index]}
-                    raise HTTPException(status_code=400, detail="유효한 XML 코드를 생성하지 못했습니다.")
-                
-                return {"xml": xml_match.group(0)}
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {openai_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": request.model_name,
+                            "messages": [
+                                {
+                                    "role": "system",
+                                    "content": "You are a Blockly XML code generation expert."
+                                },
+                                {
+                                    "role": "user",
+                                    "content": prompt
+                                }
+                            ],
+                            "temperature": 0.7,
+                            "max_tokens": 2000
+                        }
+                    )
+                    
+                    if response.status_code != 200:
+                        error_text = await response.text()
+                        logger.error(f"OpenAI API 오류: {error_text}")
+                        raise HTTPException(
+                            status_code=response.status_code,
+                            detail=f"OpenAI API 호출 실패: {error_text}"
+                        )
+                    
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    xml_match = re.search(r'<xml[^>]*>[\s\S]*</xml>', content)
+                    
+                    if not xml_match:
+                        if "<xml" in content and "</xml>" in content:
+                            start_index = content.index("<xml")
+                            end_index = content.index("</xml>") + 6
+                            return {"xml": content[start_index:end_index]}
+                        logger.error("XML 코드를 찾을 수 없음")
+                        raise HTTPException(
+                            status_code=400,
+                            detail="유효한 XML 코드를 생성하지 못했습니다."
+                        )
+                    
+                    return {"xml": xml_match.group(0)}
+                    
+                except httpx.RequestError as e:
+                    logger.error(f"OpenAI API 요청 오류: {e}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"OpenAI API 요청 실패: {str(e)}"
+                    )
         
         else:
-            raise HTTPException(status_code=400, detail="지원하지 않는 모델 타입입니다.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"지원하지 않는 모델 타입입니다: {request.model_type}"
+            )
             
     except Exception as e:
         logger.error(f"블록 생성 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.get("/api/ollama/{path:path}")
+async def proxy_to_ollama(path: str, request: Request):
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    target_url = f"{ollama_url}/{path}"
+    
+    try:
+        logger.info(f"Ollama API 요청: {target_url}")
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(
+                target_url,
+                headers=dict(request.headers),
+                timeout=30.0
+            )
+            
+        logger.info(f"Ollama API 응답: {response.status_code}")
+        return StreamingResponse(
+            content=response.iter_bytes(),
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+    except Exception as e:
+        logger.error(f"Ollama API 프록시 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ollama/{path:path}")
+async def proxy_to_ollama_post(path: str, request: Request):
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    target_url = f"{ollama_url}/{path}"
+    
+    try:
+        body = await request.json()
+        logger.info(f"Ollama API 요청: {target_url}, 본문: {body}")
+        
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.post(
+                target_url,
+                json=body,
+                headers=dict(request.headers),
+                timeout=30.0
+            )
+            
+        logger.info(f"Ollama API 응답: {response.status_code}")
+        return StreamingResponse(
+            content=response.iter_bytes(),
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+    except Exception as e:
+        logger.error(f"Ollama API 프록시 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
