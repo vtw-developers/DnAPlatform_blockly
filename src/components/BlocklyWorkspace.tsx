@@ -394,6 +394,8 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
   const [selectedModel, setSelectedModel] = useState<LLMModel | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'xml'>('chat');
+  const [xmlInput, setXmlInput] = useState('');
 
   // 팝업이 열릴 때 모델 목록 로드
   useEffect(() => {
@@ -487,70 +489,129 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
     }
   };
 
+  const handleXmlSubmit = () => {
+    try {
+      if (!xmlInput.trim()) {
+        alert('XML을 입력해주세요.');
+        return;
+      }
+
+      // XML 유효성 검사
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlInput, 'text/xml');
+      if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+        throw new Error('유효하지 않은 XML 형식입니다.');
+      }
+
+      // XML이 <xml> 태그로 시작하는지 확인
+      if (!xmlInput.trim().startsWith('<xml')) {
+        throw new Error('XML은 <xml> 태그로 시작해야 합니다.');
+      }
+
+      onCreateBlock(xmlInput);
+      setXmlInput('');
+      alert('블록이 생성되었습니다.');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '유효하지 않은 XML입니다.');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="popup-overlay">
       <div className="natural-language-popup">
         <div className="popup-header">
-          <h2>자연어로 블록 생성</h2>
+          <h2>블록 생성</h2>
           <button onClick={onClose}>×</button>
         </div>
-        <div className="model-selector">
-          <label>모델 선택:</label>
-          <select
-            value={selectedModel?.name || ''}
-            onChange={(e) => {
-              const model = models.find(m => m.name === e.target.value);
-              if (model) setSelectedModel(model);
-            }}
+        <div className="tabs">
+          <button
+            className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
           >
-            <optgroup label="Ollama 모델">
-              {models.filter(m => m.type === 'ollama').map((model) => (
-                <option key={model.name} value={model.name}>
-                  {model.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="OpenAI 모델">
-              {models.filter(m => m.type === 'openai').map((model) => (
-                <option key={model.name} value={model.name}>
-                  {model.name}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
-        <div className="chat-container" ref={chatContainerRef}>
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`chat-message ${message.role}`}
-            >
-              <div className="content">{message.content}</div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="chat-message assistant">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="input-container">
-          <textarea
-            value={currentMessage}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="자연어로 원하는 블록을 설명해주세요..."
-          />
-          <button onClick={handleSendMessage} disabled={isLoading || !currentMessage.trim() || !selectedModel}>
-            전송
+            자연어로 생성
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'xml' ? 'active' : ''}`}
+            onClick={() => setActiveTab('xml')}
+          >
+            XML로 생성
           </button>
         </div>
+        {activeTab === 'chat' ? (
+          <>
+            <div className="model-selector">
+              <label>모델 선택:</label>
+              <select
+                value={selectedModel?.name || ''}
+                onChange={(e) => {
+                  const model = models.find(m => m.name === e.target.value);
+                  if (model) setSelectedModel(model);
+                }}
+              >
+                <optgroup label="Ollama 모델">
+                  {models.filter(m => m.type === 'ollama').map((model) => (
+                    <option key={model.name} value={model.name}>
+                      {model.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="OpenAI 모델">
+                  {models.filter(m => m.type === 'openai').map((model) => (
+                    <option key={model.name} value={model.name}>
+                      {model.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+            <div className="chat-container" ref={chatContainerRef}>
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`chat-message ${message.role}`}
+                >
+                  <div className="content">{message.content}</div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="chat-message assistant">
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="input-container">
+              <textarea
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="자연어로 원하는 블록을 설명해주세요..."
+              />
+              <button onClick={handleSendMessage} disabled={isLoading || !currentMessage.trim() || !selectedModel}>
+                전송
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="xml-input-container">
+            <textarea
+              value={xmlInput}
+              onChange={(e) => setXmlInput(e.target.value)}
+              placeholder="Blockly XML 코드를 입력해주세요..."
+              className="xml-input"
+            />
+            <div className="xml-button-container">
+              <button onClick={handleXmlSubmit} className="xml-submit-button">
+                블록 생성
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

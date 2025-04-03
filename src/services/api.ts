@@ -432,10 +432,20 @@ class CodeBlockApi {
         const data: OpenAIResponse = await response.json();
         console.log('OpenAI 응답 데이터:', data);
         const content = data.choices[0]?.message?.content;
-        const xmlMatch = content?.match(/<xml>[\s\S]*<\/xml>/);
+        
+        // XML 매칭 정규식 수정
+        const xmlMatch = content?.match(/<xml[^>]*>[\s\S]*<\/xml>/);
 
         if (!xmlMatch) {
           console.error('XML 생성 실패. 응답:', content);
+          // 응답에 XML이 포함되어 있지만 정규식이 매칭되지 않는 경우를 위한 처리
+          if (content?.includes('<xml') && content?.includes('</xml>')) {
+            const startIndex = content.indexOf('<xml');
+            const endIndex = content.indexOf('</xml>') + 6;
+            const extractedXml = content.substring(startIndex, endIndex);
+            console.log('추출된 XML:', extractedXml);
+            return extractedXml;
+          }
           throw new Error('유효한 XML 코드를 생성하지 못했습니다.');
         }
 
