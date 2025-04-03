@@ -14,6 +14,9 @@ import subprocess
 import tempfile
 import httpx
 from starlette.responses import StreamingResponse
+import re
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -26,10 +29,23 @@ app = FastAPI()
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 개발 환경에서는 모든 origin 허용
+    allow_origins=["http://localhost:5000"],  # 개발 서버 주소
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# 프록시 설정
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+# HTTPS 리다이렉트 (프로덕션 환경에서 사용)
+# app.add_middleware(HTTPSRedirectMiddleware)
+
+# 신뢰할 수 있는 호스트 설정
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"]  # 개발 환경에서는 모든 호스트 허용
 )
 
 # 데이터베이스 연결
@@ -420,24 +436,207 @@ async def get_models():
     try:
         ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
         async with httpx.AsyncClient(verify=False) as client:
+            # Ollama 모델 가져오기
             response = await client.get(f"{ollama_url}/api/tags")
-            if response.status_code == 200:
-                models = response.json().get("models", [])
-                return {
-                    "models": [
-                        {
-                            "name": model["name"],
-                            "size": model.get("size", 0),
-                            "digest": model.get("digest", ""),
-                            "modified_at": model.get("modified_at", "")
-                        }
-                        for model in models
-                    ]
-                }
-            else:
+            if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail="Ollama 서버에서 모델 목록을 가져오는데 실패했습니다.")
+            
+            ollama_models = response.json().get("models", [])
+            
+            # OpenAI 모델 추가
+            openai_models = [
+                {"name": "gpt-4", "type": "openai", "size": 0, "modified_at": "", "digest": ""},
+                {"name": "gpt-4-turbo-preview", "type": "openai", "size": 0, "modified_at": "", "digest": ""},
+                {"name": "gpt-3.5-turbo", "type": "openai", "size": 0, "modified_at": "", "digest": ""}
+            ]
+            
+            # Ollama 모델 형식 변환
+            formatted_ollama_models = [
+                {
+                    "name": model["name"],
+                    "type": "ollama",
+                    "size": model.get("size", 0),
+                    "digest": model.get("digest", ""),
+                    "modified_at": model.get("modified_at", "")
+                }
+                for model in ollama_models
+            ]
+            
+            # 모든 모델 합치기
+            all_models = formatted_ollama_models + openai_models
+            return {"models": all_models}
+            
     except Exception as e:
-        logger.error(f"Ollama 모델 목록 조회 중 오류 발생: {e}")
+        logger.error(f"모델 목록 조회 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/generate-block")
+async def generate_block(
+    description: str,
+    model_name: str,
+    model_type: str
+):
+    try:
+        prompt = f"""
+당신은 Blockly 블록 XML을 생성하는 전문가입니다.
+아래 설명에 맞는 Blockly XML 코드를 생성해주세요.
+
+사용 가능한 블록 카테고리:
+1. 로직
+   - controls_if: if-else 조건문
+   - logic_compare: 비교 연산 (==, !=, <, >, <=, >=)
+   - logic_operation: 논리 연산 (AND, OR)
+   - logic_negate: NOT 연산
+   - logic_boolean: true/false 값
+   - logic_null: null 값
+   - logic_ternary: 삼항 연산자
+
+2. 반복
+   - controls_repeat_ext: n번 반복
+   - controls_repeat: 정해진 횟수만큼 반복
+   - controls_whileUntil: while/until 반복문
+   - controls_for: for 반복문
+   - controls_forEach: 리스트 순회
+   - controls_flow_statements: break/continue
+
+3. 수학
+   - math_number: 숫자
+   - math_arithmetic: 사칙연산
+   - math_single: 단항 연산 (제곱근, 절대값 등)
+   - math_trig: 삼각함수
+   - math_constant: 수학 상수 (π, e 등)
+   - math_number_property: 숫자 속성 (짝수, 소수 등)
+   - math_round: 반올림/올림/내림
+   - math_modulo: 나머지 연산
+   - math_random_int: 난수 생성
+
+4. 텍스트
+   - text: 문자열
+   - text_multiline: 여러 줄 문자열
+   - text_join: 문자열 결합
+   - text_append: 문자열 추가
+   - text_length: 문자열 길이
+   - text_isEmpty: 빈 문자열 확인
+   - text_indexOf: 문자열 검색
+   - text_charAt: 문자 추출
+   - text_getSubstring: 부분 문자열
+   - text_changeCase: 대소문자 변환
+   - text_trim: 공백 제거
+   - text_print: 출력
+
+5. 리스트
+   - lists_create_with: 리스트 생성
+   - lists_repeat: 반복값으로 리스트 생성
+   - lists_length: 리스트 길이
+   - lists_isEmpty: 빈 리스트 확인
+   - lists_indexOf: 요소 검색
+   - lists_getIndex: 요소 가져오기
+   - lists_setIndex: 요소 설정
+   - lists_getSublist: 부분 리스트
+   - lists_sort: 정렬
+   - lists_reverse: 역순 정렬
+
+6. 변수
+   - variables_get: 변수 값 가져오기
+   - variables_set: 변수 값 설정하기
+
+7. 함수
+   - procedures_defnoreturn: 반환값 없는 함수 정의
+   - procedures_defreturn: 반환값 있는 함수 정의
+   - procedures_callnoreturn: 함수 호출 (반환값 없음)
+   - procedures_callreturn: 함수 호출 (반환값 있음)
+
+설명: {description}
+
+다음 형식으로만 응답해주세요:
+<xml>
+[생성된 Blockly XML 코드]
+</xml>
+
+주의사항:
+1. XML 태그 외의 다른 설명이나 주석을 포함하지 마세요.
+2. 블록의 x, y 좌표는 각각 50, 50으로 시작하여 적절히 배치하세요.
+3. 복잡한 기능은 여러 블록을 조합하여 구현하세요.
+4. 변수나 함수 이름은 명확하고 의미있게 지정하세요.
+5. 사용자의 요구사항을 가장 잘 구현할 수 있는 블록들을 선택하세요.
+6. 필요한 경우 중첩 블록을 사용하여 복잡한 로직을 구현하세요.
+7. 가능한 한 재사용 가능하고 모듈화된 코드를 생성하세요.
+"""
+
+        if model_type == "ollama":
+            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+            async with httpx.AsyncClient(verify=False) as client:
+                response = await client.post(
+                    f"{ollama_url}/api/generate",
+                    json={
+                        "model": model_name,
+                        "prompt": prompt,
+                        "stream": False,
+                        "temperature": 0.7,
+                        "top_p": 0.9
+                    }
+                )
+                
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail="Ollama API 호출 실패")
+                
+                data = response.json()
+                xml_match = re.search(r'<xml>[\s\S]*</xml>', data["response"])
+                if not xml_match:
+                    raise HTTPException(status_code=400, detail="유효한 XML 코드를 생성하지 못했습니다.")
+                
+                return {"xml": xml_match.group(0)}
+                
+        elif model_type == "openai":
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                raise HTTPException(status_code=500, detail="OpenAI API 키가 설정되지 않았습니다.")
+                
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {openai_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": model_name,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "You are a Blockly XML code generation expert."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        "temperature": 0.7,
+                        "max_tokens": 2000
+                    }
+                )
+                
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail="OpenAI API 호출 실패")
+                
+                data = response.json()
+                content = data["choices"][0]["message"]["content"]
+                xml_match = re.search(r'<xml[^>]*>[\s\S]*</xml>', content)
+                
+                if not xml_match:
+                    if "<xml" in content and "</xml>" in content:
+                        start_index = content.index("<xml")
+                        end_index = content.index("</xml>") + 6
+                        return {"xml": content[start_index:end_index]}
+                    raise HTTPException(status_code=400, detail="유효한 XML 코드를 생성하지 못했습니다.")
+                
+                return {"xml": xml_match.group(0)}
+        
+        else:
+            raise HTTPException(status_code=400, detail="지원하지 않는 모델 타입입니다.")
+            
+    except Exception as e:
+        logger.error(f"블록 생성 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
