@@ -196,22 +196,52 @@ const ExecutionPopup: React.FC<ExecutionPopupProps> = ({ isOpen, onClose, status
 const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result }) => {
   const [executionStatus, setExecutionStatus] = useState<string>('');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // 검증이 시작되면 타이머 시작
+    if (status === '검증 중...') {
+      setElapsedTime(0);
+      timerRef.current = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      // 검증이 완료되거나 실패하면 타이머 정지
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    // 컴포넌트 언마운트 시 타이머 정리
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [status]);
 
   if (!isOpen) return null;
 
-  const formatElapsedTime = (seconds?: number) => {
-    if (!seconds) return '';
+  const formatElapsedTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes > 0 ? `${minutes}분 ` : ''}${remainingSeconds.toFixed(1)}초`;
+    return `${minutes > 0 ? `${minutes}분 ` : ''}${remainingSeconds}초`;
   };
 
   const formatVerificationResult = (code?: string) => {
     if (!code) return '';
-    return code
-      .split('\n')
-      .filter(line => !line.trim().startsWith('#') && line.trim() !== '')
-      .join('\n');
+    try {
+      return code
+        .split('\n')
+        .filter(line => !line.trim().startsWith('#') && line.trim() !== '')
+        .join('\n');
+    } catch (error) {
+      console.error('코드 포맷팅 중 오류:', error);
+      return String(code);
+    }
   };
 
   const handleCopyCode = async () => {
@@ -261,6 +291,9 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
           <div className="execution-status">
             {status === '검증 중...' && <div className="status-spinner" />}
             <span>{status}</span>
+            <span className="elapsed-time">
+              (소요시간: {formatElapsedTime(elapsedTime)})
+            </span>
           </div>
           {result && (
             <div className={`popup-result ${result.error ? 'error' : 'success'}`}>
