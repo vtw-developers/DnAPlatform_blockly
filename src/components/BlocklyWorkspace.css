@@ -271,14 +271,42 @@
 @media (max-width: 1024px) {
   .blockly-container {
     flex-direction: column;
+    height: auto;
+    min-height: 92vh;
   }
 
   .blockly-workspace-container {
-    height: 50vh;
+    height: 60vh;
+    min-height: 200px;
+    flex: none;
   }
 
   .right-panel {
     max-width: none;
+    height: auto;
+    min-height: 200px;
+  }
+
+  .code-execution-container {
+    padding: 10px 0;
+    margin: 5px 0;
+  }
+
+  .execution-section,
+  .verification-section,
+  .saved-codes-section {
+    padding: 10px;
+  }
+
+  .saved-codes-section {
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .blockly-workspace-container {
+    height: 50vh;
+    min-height: 350px;
   }
 }
 
