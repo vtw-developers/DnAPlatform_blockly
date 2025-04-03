@@ -829,18 +829,18 @@
 }
 
 .natural-language-popup .model-selector {
-  padding: 15px 20px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 10px 15px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
 }
 
 .natural-language-popup .model-selector label {
   font-weight: 500;
   color: #333;
-  white-space: nowrap;
+  min-width: 80px;
 }
 
 .natural-language-popup .model-selector select {
@@ -852,13 +852,27 @@
   font-size: 14px;
   color: #333;
   cursor: pointer;
-  outline: none;
-  max-width: none;
+  transition: border-color 0.2s;
+}
+
+.natural-language-popup .model-selector select:hover {
+  border-color: #999;
 }
 
 .natural-language-popup .model-selector select:focus {
-  border-color: #2196f3;
-  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+  border-color: #0066cc;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.natural-language-popup .model-selector optgroup {
+  font-weight: 600;
+  color: #666;
+}
+
+.natural-language-popup .model-selector option {
+  padding: 8px;
+  color: #333;
 }
 
 .natural-language-popup .chat-container {

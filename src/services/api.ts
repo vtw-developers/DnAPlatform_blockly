@@ -47,10 +47,19 @@ interface OllamaResponse {
   response: string;
 }
 
-interface OllamaModel {
+interface OpenAIResponse {
+  choices: {
+    message: {
+      content: string;
+    };
+  }[];
+}
+
+interface LLMModel {
   name: string;
-  modified_at: string;
-  size: number;
+  type: 'ollama' | 'openai';
+  modified_at?: string;
+  size?: number;
 }
 
 class CodeBlockApi {
@@ -58,6 +67,8 @@ class CodeBlockApi {
   private verifyUrl = `${API_BASE_URL}/proxy/airflow/api/v1/dags/equiv_task/dagRuns`;
   private verifyAuth = 'YWRtaW46dnR3MjEwMzAy'; // 하드코딩된 Base64 인코딩 값
   private ollamaUrl = 'http://localhost:11434';
+  private openaiUrl = 'https://api.openai.com/v1/chat/completions';
+  private openaiKey = process.env.REACT_APP_OPENAI_API_KEY || '';
 
   async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
     try {
@@ -219,21 +230,34 @@ class CodeBlockApi {
     }
   }
 
-  async getOllamaModels(): Promise<OllamaModel[]> {
+  async getAvailableModels(): Promise<LLMModel[]> {
     try {
-      const response = await fetch(`${this.ollamaUrl}/api/tags`);
-      if (!response.ok) {
-        throw new Error('Ollama 모델 목록을 가져오는데 실패했습니다.');
-      }
-      const data = await response.json();
-      return data.models || [];
+      // Ollama 모델 가져오기
+      const ollamaResponse = await fetch(`${this.ollamaUrl}/api/tags`);
+      const ollamaData = await ollamaResponse.json();
+      const ollamaModels: LLMModel[] = (ollamaData.models || []).map((model: any) => ({
+        name: model.name,
+        type: 'ollama',
+        modified_at: model.modified_at,
+        size: model.size
+      }));
+
+      // OpenAI 모델 추가
+      const openaiModels: LLMModel[] = [
+        { name: 'gpt-4', type: 'openai' },
+        { name: 'gpt-4-turbo-preview', type: 'openai' },
+        { name: 'gpt-3.5-turbo', type: 'openai' }
+      ];
+
+      return [...ollamaModels, ...openaiModels];
     } catch (error) {
-      console.error('Ollama 모델 목록 가져오기 오류:', error);
+      console.error('모델 목록 가져오기 오류:', error);
       return [];
     }
   }
 
-  async generateBlockCode(description: string, modelName: string = 'qwen2.5-coder:latest'): Promise<string> {
+  async generateBlockCode(description: string, model: LLMModel): Promise<string> {
+    console.log('블록 생성 시작:', { description, model });
     const prompt = `
 당신은 Blockly 블록 XML을 생성하는 전문가입니다.
 아래 설명에 맞는 Blockly XML 코드를 생성해주세요.
@@ -321,32 +345,103 @@ class CodeBlockApi {
 `;
 
     try {
-      const response = await fetch(`${this.ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: modelName,
+      let response;
+      
+      if (model.type === 'ollama') {
+        console.log('Ollama API 호출 시작');
+        const requestBody = {
+          model: model.name,
           prompt: prompt,
           stream: false,
           temperature: 0.7,
           top_p: 0.9
-        })
-      });
+        };
+        console.log('Ollama 요청 데이터:', requestBody);
 
-      if (!response.ok) {
-        throw new Error('블록 코드 생성에 실패했습니다.');
+        response = await fetch(`${this.ollamaUrl}/api/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Ollama API 오류:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          });
+          throw new Error(`Ollama API 호출 실패: ${response.status} ${response.statusText}`);
+        }
+
+        const data: OllamaResponse = await response.json();
+        console.log('Ollama 응답 데이터:', data);
+        const xmlMatch = data.response.match(/<xml>[\s\S]*<\/xml>/);
+        
+        if (!xmlMatch) {
+          console.error('XML 생성 실패. 응답:', data.response);
+          throw new Error('유효한 XML 코드를 생성하지 못했습니다.');
+        }
+
+        console.log('생성된 XML:', xmlMatch[0]);
+        return xmlMatch[0];
+      } else {
+        console.log('OpenAI API 호출 시작');
+        if (!this.openaiKey) {
+          throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경 변수를 확인해주세요.');
+        }
+
+        const requestBody = {
+          model: model.name,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a Blockly XML code generation expert.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000
+        };
+        console.log('OpenAI 요청 데이터:', requestBody);
+
+        response = await fetch(this.openaiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.openaiKey}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('OpenAI API 오류:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          });
+          throw new Error(`OpenAI API 호출 실패: ${response.status} ${response.statusText}`);
+        }
+
+        const data: OpenAIResponse = await response.json();
+        console.log('OpenAI 응답 데이터:', data);
+        const content = data.choices[0]?.message?.content;
+        const xmlMatch = content?.match(/<xml>[\s\S]*<\/xml>/);
+
+        if (!xmlMatch) {
+          console.error('XML 생성 실패. 응답:', content);
+          throw new Error('유효한 XML 코드를 생성하지 못했습니다.');
+        }
+
+        console.log('생성된 XML:', xmlMatch[0]);
+        return xmlMatch[0];
       }
-
-      const data: OllamaResponse = await response.json();
-      const xmlMatch = data.response.match(/<xml>[\s\S]*<\/xml>/);
-      
-      if (!xmlMatch) {
-        throw new Error('유효한 XML 코드를 생성하지 못했습니다.');
-      }
-
-      return xmlMatch[0];
     } catch (error) {
       console.error('블록 코드 생성 중 오류:', error);
       throw error;
