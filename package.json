@@ -2,6 +2,7 @@
   "name": "dnaplatform_blockly",
   "version": "1.0.0",
   "private": true,
+  "proxy": "http://localhost:8000",
   "dependencies": {
     "@types/node": "^16.0.0",
     "@types/react": "^17.0.0",

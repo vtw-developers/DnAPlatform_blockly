@@ -551,16 +551,16 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
                   if (model) setSelectedModel(model);
                 }}
               >
-                <optgroup label="Ollama 모델">
+                <optgroup label="Ollama 모델" key="ollama-group">
                   {models.filter(m => m.type === 'ollama').map((model) => (
-                    <option key={model.name} value={model.name}>
+                    <option key={`ollama-${model.name}`} value={model.name}>
                       {model.name}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="OpenAI 모델">
+                <optgroup label="OpenAI 모델" key="openai-group">
                   {models.filter(m => m.type === 'openai').map((model) => (
-                    <option key={model.name} value={model.name}>
+                    <option key={`openai-${model.name}`} value={model.name}>
                       {model.name}
                     </option>
                   ))}
@@ -1063,12 +1063,12 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               disabled={isLoadingModels || models.length === 0}
             >
               {isLoadingModels ? (
-                <option value="">모델 목록 로딩 중...</option>
+                <option key="loading" value="">모델 목록 로딩 중...</option>
               ) : models.length === 0 ? (
-                <option value="">사용 가능한 모델이 없습니다</option>
+                <option key="empty" value="">사용 가능한 모델이 없습니다</option>
               ) : (
                 models.map((model) => (
-                  <option key={model.digest} value={model.name}>
+                  <option key={`${model.type}-${model.name}`} value={model.name}>
                     {model.name}
                   </option>
                 ))
