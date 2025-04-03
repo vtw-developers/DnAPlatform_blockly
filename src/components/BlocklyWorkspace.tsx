@@ -11,6 +11,31 @@ interface BlocklyWorkspaceProps {
   onCodeGenerate: (code: string) => void;
 }
 
+interface ExecutionPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  status: string;
+  result: {
+    output?: string;
+    error?: string;
+  } | null;
+}
+
+interface ExecutionResult {
+  output?: string;
+  error?: string;
+}
+
+interface VerificationPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  status: string;
+  result: {
+    dag_run_id?: string;
+    error?: string;
+  } | null;
+}
+
 const TOOLBOX_CONFIG = {
   kind: 'categoryToolbox',
   contents: [
@@ -128,6 +153,78 @@ const TOOLBOX_CONFIG = {
   ]
 };
 
+const ExecutionPopup: React.FC<ExecutionPopupProps> = ({ isOpen, onClose, status, result }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="popup-overlay">
+      <div className="popup-content">
+        <div className="popup-header">
+          <h3>코드 실행</h3>
+          {status !== '실행 중...' && (
+            <button className="popup-close" onClick={onClose}>&times;</button>
+          )}
+        </div>
+        <div className="popup-body">
+          <div className="execution-status">
+            {status === '실행 중...' && <div className="status-spinner" />}
+            <span>{status}</span>
+          </div>
+          {result && (
+            <div className={`popup-result ${result.error ? 'error' : 'success'}`}>
+              <pre>{result.output || result.error}</pre>
+            </div>
+          )}
+        </div>
+        <div className="popup-footer">
+          {status !== '실행 중...' && (
+            <button className="popup-button primary" onClick={onClose}>
+              확인
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="popup-overlay">
+      <div className="popup-content">
+        <div className="popup-header">
+          <h3>코드 검증</h3>
+          {status !== '검증 중...' && (
+            <button className="popup-close" onClick={onClose}>&times;</button>
+          )}
+        </div>
+        <div className="popup-body">
+          <div className="execution-status">
+            {status === '검증 중...' && <div className="status-spinner" />}
+            <span>{status}</span>
+          </div>
+          {result && (
+            <div className={`popup-result ${result.error ? 'error' : 'success'}`}>
+              <pre>
+                {result.error ? result.error : `검증이 시작되었습니다.\nDAG Run ID: ${result.dag_run_id}`}
+              </pre>
+            </div>
+          )}
+        </div>
+        <div className="popup-footer">
+          {status !== '검증 중...' && (
+            <button className="popup-button primary" onClick={onClose}>
+              확인
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
@@ -138,11 +235,16 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [selectedBlockId, setSelectedBlockId] = useState<number | null>(null);
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
-  const [executionResult, setExecutionResult] = useState<{ output: string; error: string }>({ output: '', error: '' });
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [executionStatus, setExecutionStatus] = useState('');
+  const [isVerificationPopupOpen, setIsVerificationPopupOpen] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState('');
+  const [verificationResult, setVerificationResult] = useState<{ dag_run_id?: string; error?: string; } | null>(null);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -250,19 +352,23 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       return;
     }
 
+    setIsPopupOpen(true);
+    setExecutionStatus('실행 중...');
+    setExecutionResult(null);
+
     try {
-      setIsExecuting(true);
       const result = await codeBlockApi.executeCode(currentCode);
-      setExecutionResult(result);
+      setExecutionStatus('실행 완료');
+      setExecutionResult({
+        output: result.output || '',
+        error: result.error || ''
+      });
     } catch (error) {
-      console.error('코드 실행 중 오류:', error);
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert('코드 실행 중 알 수 없는 오류가 발생했습니다.');
-      }
-    } finally {
-      setIsExecuting(false);
+      setExecutionStatus('실행 실패');
+      setExecutionResult({
+        output: '',
+        error: '코드 실행 중 오류가 발생했습니다.'
+      });
     }
   };
 
@@ -272,19 +378,22 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       return;
     }
 
+    setIsVerificationPopupOpen(true);
+    setVerificationStatus('검증 중...');
+    setVerificationResult(null);
+
     try {
-      setIsVerifying(true);
       const result = await codeBlockApi.verifyCode(currentCode, selectedModel);
-      alert(`코드 검증이 시작되었습니다. (DAG Run ID: ${result.dag_run_id})`);
+      setVerificationStatus('검증 요청 완료');
+      setVerificationResult({
+        dag_run_id: result.dag_run_id
+      });
     } catch (error) {
       console.error('코드 검증 중 오류:', error);
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert('코드 검증 중 알 수 없는 오류가 발생했습니다.');
-      }
-    } finally {
-      setIsVerifying(false);
+      setVerificationStatus('검증 실패');
+      setVerificationResult({
+        error: error instanceof Error ? error.message : '코드 검증 중 알 수 없는 오류가 발생했습니다.'
+      });
     }
   };
 
@@ -301,7 +410,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     setTitle('');
     setDescription('');
     setSelectedBlockId(null);
-    setExecutionResult({ output: '', error: '' });
+    setExecutionResult(null);
   };
 
   const handleSaveCode = async () => {
@@ -379,6 +488,18 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     setShouldRefresh(false);
   };
 
+  const handleClosePopup = () => {
+    setIsPopupOpen(false);
+    setExecutionStatus('');
+    setExecutionResult(null);
+  };
+
+  const handleCloseVerificationPopup = () => {
+    setIsVerificationPopupOpen(false);
+    setVerificationStatus('');
+    setVerificationResult(null);
+  };
+
   return (
     <div className="blockly-container">
       <div className="blockly-workspace-container">
@@ -422,31 +543,17 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
           </button>
         </div>
-        <div className="execution-section">
-          <h3 className="section-title">코드 실행</h3>
-          <button
-            onClick={handleExecuteCode}
-            disabled={isExecuting || !currentCode}
-            className="execute-button"
-          >
-            {isExecuting ? '실행 중...' : '코드 실행'}
-          </button>
-          {(executionResult.output || executionResult.error) && (
-            <div className="execution-result">
-              {executionResult.output && (
-                <div className="output">
-                  <h4>실행 결과:</h4>
-                  <pre>{executionResult.output}</pre>
-                </div>
-              )}
-              {executionResult.error && (
-                <div className="error">
-                  <h4>오류:</h4>
-                  <pre>{executionResult.error}</pre>
-                </div>
-              )}
-            </div>
-          )}
+        <div className="code-execution-container">
+          <div className="execution-section">
+            <h3 className="section-title">코드 실행</h3>
+            <button
+              className="execute-button"
+              onClick={handleExecuteCode}
+              disabled={!currentCode}
+            >
+              코드 실행
+            </button>
+          </div>
         </div>
         <div className="verification-section">
           <h3 className="section-title">코드 검증</h3>
@@ -474,7 +581,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               disabled={isVerifying || !currentCode || !selectedModel}
               className="verify-button"
             >
-              {isVerifying ? '검증 중...' : '코드 검증'}
+              코드 검증
             </button>
           </div>
         </div>
@@ -488,6 +595,18 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           />
         </div>
       </div>
+      <ExecutionPopup
+        isOpen={isPopupOpen}
+        onClose={handleClosePopup}
+        status={executionStatus}
+        result={executionResult}
+      />
+      <VerificationPopup
+        isOpen={isVerificationPopupOpen}
+        onClose={handleCloseVerificationPopup}
+        status={verificationStatus}
+        result={verificationResult}
+      />
     </div>
   );
 }; 
