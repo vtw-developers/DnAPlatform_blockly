@@ -43,6 +43,19 @@ services:
       - "host.docker.internal:host-gateway"
     restart: always
 
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: blockly_frontend
+    ports:
+      - "5050:80"
+    depends_on:
+      - backend
+    networks:
+      - blockly_network
+    restart: always
+
 volumes:
   postgres_data:
 

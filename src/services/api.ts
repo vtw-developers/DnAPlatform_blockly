@@ -1,7 +1,7 @@
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
-// 개발 환경에서는 localhost:8000을 사용
-const API_BASE_URL = 'http://localhost:8000/api';
+// 운영 환경에서는 현재 호스트의 주소를 사용
+const API_BASE_URL = `http://${window.location.hostname}:8000/api`;
 
 export interface CodeBlocksResponse {
   blocks: CodeBlock[];
