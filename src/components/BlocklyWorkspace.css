@@ -998,4 +998,94 @@
     transform: translateY(-4px);
     opacity: 1;
   }
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  background-color: #f5f5f5;
+  padding: 0 15px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.tab-button:hover {
+  color: #0066cc;
+}
+
+.tab-button.active {
+  color: #0066cc;
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #0066cc;
+}
+
+.xml-input-container {
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  flex: 1;
+  background-color: #f9f9f9;
+}
+
+.xml-input {
+  flex: 1;
+  min-height: 300px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  background-color: white;
+  margin-bottom: 15px;
+}
+
+.xml-input:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.xml-button-container {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.xml-submit-button {
+  padding: 10px 20px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.xml-submit-button:hover {
+  background-color: #0052a3;
+}
+
+.xml-submit-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 } 
