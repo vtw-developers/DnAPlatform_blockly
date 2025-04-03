@@ -1,18 +1,19 @@
+version: '3'
+
 services:
   postgres:
     image: postgres:15
     container_name: blockly_postgres
     environment:
-      POSTGRES_DB: blockly_db
-      POSTGRES_USER: blockly_user
-      POSTGRES_PASSWORD: blockly_password
+      - POSTGRES_DB=blockly_db
+      - POSTGRES_USER=blockly_user
+      - POSTGRES_PASSWORD=blockly_password
     ports:
       - "5432:5432"
     volumes:
       - ./docker/postgres-data:/var/lib/postgresql/data
     networks:
       - blockly_network
-    restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U blockly_user -d blockly_db"]
       interval: 5s
@@ -38,6 +39,8 @@ services:
       - blockly_network
     volumes:
       - ./backend:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: always
 
 volumes:

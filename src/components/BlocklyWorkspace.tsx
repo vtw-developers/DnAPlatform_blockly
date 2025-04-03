@@ -138,6 +138,8 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [executionResult, setExecutionResult] = useState<{ output: string; error: string }>({ output: '', error: '' });
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [selectedModel, setSelectedModel] = useState<string>("qwen2.5-coder:32b");
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -238,6 +240,28 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       }
     } finally {
       setIsExecuting(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!currentCode) {
+      alert('검증할 코드가 없습니다.');
+      return;
+    }
+
+    try {
+      setIsVerifying(true);
+      const result = await codeBlockApi.verifyCode(currentCode, selectedModel);
+      alert(`코드 검증이 시작되었습니다. (DAG Run ID: ${result.dag_run_id})`);
+    } catch (error) {
+      console.error('코드 검증 중 오류:', error);
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('코드 검증 중 알 수 없는 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -383,6 +407,24 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           >
             {isExecuting ? '실행 중...' : '코드 실행'}
           </button>
+          <div className="verify-container">
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="model-select"
+            >
+              <option value="qwen2.5-coder:32b">Qwen 2.5 Coder (32B)</option>
+              <option value="qwen1.5-72b">Qwen 1.5 (72B)</option>
+              <option value="gpt-4">GPT-4</option>
+            </select>
+            <button
+              onClick={handleVerifyCode}
+              disabled={isVerifying || !currentCode}
+              className="verify-button"
+            >
+              {isVerifying ? '검증 중...' : '코드 검증'}
+            </button>
+          </div>
           {(executionResult.output || executionResult.error) && (
             <div className="execution-result">
               {executionResult.output && (

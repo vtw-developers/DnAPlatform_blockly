@@ -13,8 +13,19 @@ interface CodeExecuteResponse {
   error: string;
 }
 
+interface CodeVerifyResponse {
+  dag_run_id: string;
+}
+
+interface CodeVerifyRequest {
+  code: string;
+  model_name?: string;
+}
+
 class CodeBlockApi {
   private baseUrl = API_BASE_URL;
+  private verifyUrl = `${API_BASE_URL}/proxy/airflow/api/v1/dags/equiv_task/dagRuns`;
+  private verifyAuth = 'YWRtaW46dnR3MjEwMzAy'; // 하드코딩된 Base64 인코딩 값
 
   async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
     try {
@@ -89,6 +100,30 @@ class CodeBlockApi {
     }
 
     return await response.json();
+  }
+
+  async verifyCode(code: string, model_name: string = "qwen2.5-coder:32b"): Promise<{ dag_run_id: string }> {
+    try {
+      const response = await fetch(this.verifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code,
+          model_name
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('코드 검증에 실패했습니다.');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('코드 검증 중 오류:', error);
+      throw error;
+    }
   }
 }
 

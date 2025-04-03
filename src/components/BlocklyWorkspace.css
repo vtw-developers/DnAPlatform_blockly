@@ -262,22 +262,49 @@
 
 .execute-button {
   width: 100%;
-  padding: 12px;
-  background-color: #2196F3;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.execute-button:hover {
-  background-color: #1976D2;
 }
 
 .execute-button:disabled {
-  background-color: #cccccc;
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.verify-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.model-select {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+}
+
+.verify-button {
+  flex: 1;
+  padding: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.verify-button:disabled {
+  background-color: #ccc;
   cursor: not-allowed;
 }
 
