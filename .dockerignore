@@ -1,0 +1,27 @@
+# 의존성 및 빌드 파일
+node_modules
+build
+dist
+
+# Docker 관련 파일
+docker
+docker/postgres-data
+Dockerfile
+.dockerignore
+
+# Git 관련 파일
+.git
+.gitignore
+
+# 환경 설정 파일
+.env
+.env.*
+
+# 백엔드 관련 파일
+backend
+__pycache__
+*.pyc
+
+# 기타 파일
+.DS_Store
+*.log 

@@ -1,9 +1,7 @@
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
 // 개발 환경에서는 백엔드 서버의 주소를 직접 사용
-const API_BASE_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:8000/api'
-  : `http://${window.location.hostname}:8000/api`;
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.2:8000/api';
 
 export interface CodeBlocksResponse {
   blocks: CodeBlock[];
