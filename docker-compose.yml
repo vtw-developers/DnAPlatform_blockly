@@ -31,6 +31,7 @@ services:
       - DB_USER=blockly_user
       - DB_PASSWORD=blockly_password
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_BASE_URL=http://192.168.0.2:11434
     env_file:
       - .env
     ports:
@@ -42,8 +43,6 @@ services:
       - blockly_network
     volumes:
       - ./backend:/app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: always
 
   frontend:

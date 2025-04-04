@@ -384,7 +384,7 @@ async def execute_code(request: CodeExecuteRequest):
 
 @app.post("/api/proxy/airflow/{path:path}")
 async def proxy_to_airflow_post(path: str, request: Request):
-    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://host.docker.internal:8080")
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
     target_url = f"{airflow_base_url}/{path}"
 
     try:
@@ -397,7 +397,7 @@ async def proxy_to_airflow_post(path: str, request: Request):
             "Authorization": "Basic YWRtaW46dnR3MjEwMzAy"  # admin:vtw210302의 Base64 인코딩
         }
 
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.post(
                 target_url,
                 json=body,
@@ -416,7 +416,7 @@ async def proxy_to_airflow_post(path: str, request: Request):
 
 @app.get("/api/proxy/airflow/{path:path}")
 async def proxy_to_airflow_get(path: str, request: Request):
-    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://host.docker.internal:8080")
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
     target_url = f"{airflow_base_url}/{path}"
 
     try:
@@ -425,7 +425,7 @@ async def proxy_to_airflow_get(path: str, request: Request):
             "Authorization": "Basic YWRtaW46dnR3MjEwMzAy"  # admin:vtw210302의 Base64 인코딩
         }
 
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.get(
                 target_url,
                 headers=headers,
@@ -444,8 +444,8 @@ async def proxy_to_airflow_get(path: str, request: Request):
 @app.get("/api/models")
 async def get_models():
     try:
-        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-        async with httpx.AsyncClient(verify=False) as client:
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
+        async with httpx.AsyncClient() as client:
             # Ollama 모델 가져오기
             response = await client.get(f"{ollama_url}/api/tags")
             if response.status_code != 200:
@@ -570,7 +570,7 @@ XML 형식 규칙:
         logger.info("-" * 80)
 
         if request.model_type == "ollama":
-            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
             logger.info(f"Ollama URL: {ollama_url}")
             
             async with httpx.AsyncClient() as client:
@@ -704,12 +704,12 @@ XML 형식 규칙:
 
 @app.get("/api/ollama/{path:path}")
 async def proxy_to_ollama(path: str, request: Request):
-    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
     target_url = f"{ollama_url}/{path}"
     
     try:
         logger.info(f"Ollama API 요청: {target_url}")
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.get(
                 target_url,
                 headers=dict(request.headers),
@@ -728,14 +728,14 @@ async def proxy_to_ollama(path: str, request: Request):
 
 @app.post("/api/ollama/{path:path}")
 async def proxy_to_ollama_post(path: str, request: Request):
-    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
     target_url = f"{ollama_url}/{path}"
     
     try:
         body = await request.json()
         logger.info(f"Ollama API 요청: {target_url}, 본문: {body}")
         
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.post(
                 target_url,
                 json=body,
