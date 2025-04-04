@@ -28,14 +28,18 @@ load_dotenv()
 
 app = FastAPI()
 
-# CORS 설정
+# CORS 설정을 위한 환경변수 처리
+def get_allowed_origins():
+    # 환경변수에서 허용된 출처들을 가져옴
+    origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5000").split(",")
+    # 공백 제거 및 중복 제거
+    origins = [origin.strip() for origin in origins if origin.strip()]
+    return list(set(origins))
+
+# CORS 미들웨어 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5000",  # 개발 서버 주소
-        "http://192.168.0.2:5050",  # 프론트엔드 주소
-        "*"  # 모든 출처 허용
-    ],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
