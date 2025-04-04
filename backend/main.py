@@ -34,10 +34,12 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5000",  # 개발 서버 주소
         "http://192.168.0.2:5050",  # 프론트엔드 주소
+        "*"  # 모든 출처 허용
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # 프록시 설정
@@ -447,7 +449,11 @@ async def get_models():
         ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
         async with httpx.AsyncClient() as client:
             # Ollama 모델 가져오기
-            response = await client.get(f"{ollama_url}/api/tags")
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+            response = await client.get(f"{ollama_url}/api/tags", headers=headers, timeout=30.0)
             if response.status_code != 200:
                 logger.error(f"Ollama API 응답: {response.status_code}, {response.text}")
                 raise HTTPException(status_code=response.status_code, detail="Ollama 서버에서 모델 목록을 가져오는데 실패했습니다.")
@@ -709,18 +715,29 @@ async def proxy_to_ollama(path: str, request: Request):
     
     try:
         logger.info(f"Ollama API 요청: {target_url}")
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 target_url,
-                headers=dict(request.headers),
+                headers=headers,
                 timeout=30.0
             )
             
         logger.info(f"Ollama API 응답: {response.status_code}")
+        
+        # CORS 헤더 추가
+        headers = dict(response.headers)
+        headers["Access-Control-Allow-Origin"] = "*"
+        headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        headers["Access-Control-Allow-Headers"] = "Content-Type"
+        
         return StreamingResponse(
             content=response.iter_bytes(),
             status_code=response.status_code,
-            headers=dict(response.headers)
+            headers=headers
         )
     except Exception as e:
         logger.error(f"Ollama API 프록시 중 오류 발생: {e}")
@@ -735,19 +752,30 @@ async def proxy_to_ollama_post(path: str, request: Request):
         body = await request.json()
         logger.info(f"Ollama API 요청: {target_url}, 본문: {body}")
         
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 target_url,
                 json=body,
-                headers=dict(request.headers),
+                headers=headers,
                 timeout=30.0
             )
             
         logger.info(f"Ollama API 응답: {response.status_code}")
+        
+        # CORS 헤더 추가
+        headers = dict(response.headers)
+        headers["Access-Control-Allow-Origin"] = "*"
+        headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        headers["Access-Control-Allow-Headers"] = "Content-Type"
+        
         return StreamingResponse(
             content=response.iter_bytes(),
             status_code=response.status_code,
-            headers=dict(response.headers)
+            headers=headers
         )
     except Exception as e:
         logger.error(f"Ollama API 프록시 중 오류 발생: {e}")
