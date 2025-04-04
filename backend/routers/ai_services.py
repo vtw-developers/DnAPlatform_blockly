@@ -35,6 +35,11 @@ class GenerateBlockRequest(BaseModel):
     model_name: str
     model_type: str
 
+class PythonToBlocklyRequest(BaseModel):
+    python_code: str
+    model_name: str = "qwen2.5-coder:32b"
+    model_type: str = "ollama"
+
 @router.post("/execute-code", response_model=CodeExecuteResponse)
 async def execute_code(request: CodeExecuteRequest):
     try:
@@ -332,6 +337,140 @@ XML 형식 규칙:
             
     except Exception as e:
         logger.error(f"블록 생성 중 오류 발생: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@router.post("/python-to-blockly")
+async def convert_python_to_blockly(request: PythonToBlocklyRequest):
+    """
+    Python 코드를 Blockly XML로 변환합니다.
+    """
+    try:
+        logger.info(f"Python to Blockly 변환 요청: {request.python_code[:50]}...")
+        
+        prompt = f"""다음 Python 코드를 Blockly XML로 변환해주세요:
+
+```python
+{request.python_code}
+```
+
+결과는 유효한 Blockly XML 형식이어야 합니다. 원본 Python 코드의 모든 기능을 가능한 한 정확하게 유지해주세요.
+<xml xmlns="https://developers.google.com/blockly/xml"> 태그로 시작하여 </xml> 태그로 끝나야 합니다.
+"""
+        
+        if request.model_type == "ollama":
+            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
+            logger.info(f"Ollama URL: {ollama_url}")
+            
+            async with httpx.AsyncClient() as client:
+                try:
+                    request_data = {
+                        "model": request.model_name,
+                        "prompt": prompt,
+                        "stream": False,
+                        "raw": True
+                    }
+                    
+                    response = await client.post(
+                        f"{ollama_url}/api/generate",
+                        json=request_data,
+                        timeout=30.0
+                    )
+                    
+                    if response.status_code != 200:
+                        error_msg = f"Ollama API 오류 - 상태 코드: {response.status_code}"
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
+                        
+                    response_data = response.json()
+                    xml_code = response_data.get("response", "").strip()
+                    
+                    # XML 코드 추출
+                    xml_pattern = r'<xml xmlns="https://developers.google.com/blockly/xml">.*?</xml>'
+                    xml_matches = re.search(xml_pattern, xml_code, re.DOTALL)
+                    
+                    if xml_matches:
+                        xml_code = xml_matches.group(0)
+                    
+                    # XML 시작과 끝 태그 확인
+                    if not xml_code.startswith("<xml"):
+                        xml_code = f'<xml xmlns="https://developers.google.com/blockly/xml">{xml_code}'
+                    if not xml_code.endswith("</xml>"):
+                        xml_code = f"{xml_code}</xml>"
+                    
+                    logger.info(f"변환된 Blockly XML: {xml_code[:100]}...")
+                    return {"xml": xml_code}
+                    
+                except Exception as e:
+                    error_msg = f"Ollama API 처리 중 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
+        
+        elif request.model_type == "openai":
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                error_msg = "OpenAI API 키가 설정되지 않았습니다."
+                logging.error(error_msg)
+                raise HTTPException(status_code=500, detail=error_msg)
+                
+            async with httpx.AsyncClient() as client:
+                try:
+                    request_data = {
+                        "model": request.model_name,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "You are an expert at converting Python code to Blockly XML. Return ONLY the XML code without any markdown formatting or additional text."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        "temperature": 0.3,
+                        "max_tokens": 2000
+                    }
+                    
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {openai_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json=request_data,
+                        timeout=30.0
+                    )
+                    
+                    if response.status_code != 200:
+                        error_msg = f"OpenAI API 오류: 상태 코드 {response.status_code}"
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
+                    
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"].strip()
+                    
+                    # 마크다운 코드 블록 제거
+                    content = re.sub(r'^```xml\s*|\s*```$', '', content, flags=re.MULTILINE)
+                    xml_code = content.strip()
+                    
+                    logger.info(f"변환된 Blockly XML: {xml_code[:100]}...")
+                    return {"xml": xml_code}
+                    
+                except Exception as e:
+                    error_msg = f"OpenAI API 처리 중 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"지원하지 않는 모델 타입입니다: {request.model_type}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Python to Blockly 변환 중 오류 발생: {e}")
         raise HTTPException(
             status_code=500,
             detail=str(e)

@@ -395,8 +395,9 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
   const [selectedModel, setSelectedModel] = useState<LLMModel | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<'chat' | 'xml'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'xml' | 'python'>('chat');
   const [xmlInput, setXmlInput] = useState('');
+  const [pythonInput, setPythonInput] = useState('');
 
   // 팝업이 열릴 때 모델 목록 로드
   useEffect(() => {
@@ -571,6 +572,12 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
           >
             XML로 생성
           </button>
+          <button
+            className={`tab-button ${activeTab === 'python' ? 'active' : ''}`}
+            onClick={() => setActiveTab('python')}
+          >
+            Python 코드로 생성
+          </button>
         </div>
         {activeTab === 'chat' ? (
           <>
@@ -631,7 +638,7 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
               </button>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'xml' ? (
           <div className="xml-input-container">
             <textarea
               value={xmlInput}
@@ -642,6 +649,89 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
             <div className="xml-button-container">
               <button onClick={handleXmlSubmit} className="xml-submit-button">
                 블록 생성
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="python-tab">
+            <div className="model-selector">
+              <label>모델 선택:</label>
+              <select
+                value={selectedModel?.name}
+                onChange={(e) => {
+                  const model = models.find(m => m.name === e.target.value);
+                  if (model) setSelectedModel(model);
+                }}
+              >
+                {models.map((model) => (
+                  <option key={model.name} value={model.name}>
+                    {model.name} ({model.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="python-input">
+              <textarea
+                value={pythonInput}
+                onChange={(e) => setPythonInput(e.target.value)}
+                placeholder="변환할 Python 코드를 입력하세요..."
+                rows={10}
+              />
+            </div>
+            <div className="python-actions">
+              <button
+                onClick={async () => {
+                  if (!pythonInput.trim() || !selectedModel) {
+                    alert('Python 코드를 입력하고 모델을 선택해주세요.');
+                    return;
+                  }
+                  
+                  try {
+                    setIsLoading(true);
+                    console.log('Python 코드 변환 시작:', {
+                      code: pythonInput,
+                      model: selectedModel
+                    });
+
+                    const blockXml = await codeBlockApi.convertPythonToBlockly(
+                      pythonInput,
+                      selectedModel.name,
+                      selectedModel.type
+                    );
+                    
+                    console.log('변환된 XML:', blockXml);
+                    
+                    // XML 유효성 검사
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(blockXml, 'text/xml');
+                    
+                    if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+                      throw new Error('생성된 XML이 유효하지 않습니다.');
+                    }
+
+                    // XML이 <xml> 태그로 시작하는지 확인
+                    if (!blockXml.trim().startsWith('<xml')) {
+                      throw new Error('생성된 XML이 <xml> 태그로 시작하지 않습니다.');
+                    }
+
+                    // block 태그가 있는지 확인
+                    if (!xmlDoc.getElementsByTagName('block').length) {
+                      throw new Error('생성된 XML에 블록이 포함되어 있지 않습니다.');
+                    }
+                    
+                    onCreateBlock(blockXml);
+                    setPythonInput('');
+                    alert('Python 코드가 성공적으로 블록으로 변환되었습니다.');
+                  } catch (error) {
+                    console.error('Python 코드 변환 중 오류:', error);
+                    alert(`Python 코드 변환 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? '변환 중...' : 'Python 코드 변환'}
               </button>
             </div>
           </div>

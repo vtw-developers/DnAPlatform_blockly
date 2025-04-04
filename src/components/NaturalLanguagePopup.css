@@ -185,4 +185,31 @@
 
 .message-input button:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.mode-toggle {
+  display: flex;
+  margin-bottom: 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mode-button {
+  flex: 1;
+  background-color: #f8f9fa;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.mode-button.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.mode-button:not(.active):hover {
+  background-color: #e9ecef;
 } 

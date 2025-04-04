@@ -1088,4 +1088,58 @@
 .xml-submit-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+.python-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 10px;
+}
+
+.python-input {
+  width: 100%;
+}
+
+.python-input textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.python-input textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.python-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.python-actions button {
+  padding: 8px 16px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.python-actions button:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.python-actions button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 } 
