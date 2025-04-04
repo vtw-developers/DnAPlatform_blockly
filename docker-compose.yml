@@ -26,10 +26,13 @@ services:
       dockerfile: Dockerfile
     container_name: blockly_backend
     environment:
-      DB_HOST: postgres
-      DB_NAME: blockly_db
-      DB_USER: blockly_user
-      DB_PASSWORD: blockly_password
+      - DB_HOST=postgres
+      - DB_NAME=blockly_db
+      - DB_USER=blockly_user
+      - DB_PASSWORD=blockly_password
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     depends_on:
