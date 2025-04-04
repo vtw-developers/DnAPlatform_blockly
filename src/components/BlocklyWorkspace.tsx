@@ -451,15 +451,50 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
         const description = currentMessage.replace('블록 생성해', '').trim();
         console.log('블록 생성에 사용될 설명:', description);
 
-        const blockXml = await codeBlockApi.generateBlockCode(description, selectedModel);
-        console.log('생성된 블록 XML:', blockXml);
+        try {
+          const blockXml = await codeBlockApi.generateBlockCode(description, selectedModel);
+          console.log('생성된 블록 XML:', blockXml);
 
-        const assistantMessage: ChatMessage = {
-          role: 'assistant',
-          content: '블록이 생성되었습니다.'
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        onCreateBlock(blockXml);
+          // XML 유효성 검사
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(blockXml, 'text/xml');
+          
+          // 먼저 성공 메시지를 채팅에 표시
+          const assistantMessage: ChatMessage = {
+            role: 'assistant',
+            content: '블록이 성공적으로 생성되었습니다.'
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+
+          // 그 다음 Blockly에 적용 시도
+          try {
+            if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+              throw new Error('생성된 XML이 유효하지 않습니다.');
+            }
+
+            // XML이 <xml> 태그로 시작하는지 확인
+            if (!blockXml.trim().startsWith('<xml')) {
+              throw new Error('생성된 XML이 <xml> 태그로 시작하지 않습니다.');
+            }
+
+            // block 태그가 있는지 확인
+            if (!xmlDoc.getElementsByTagName('block').length) {
+              throw new Error('생성된 XML에 블록이 포함되어 있지 않습니다.');
+            }
+
+            onCreateBlock(blockXml);
+          } catch (blocklyError) {
+            console.error('Blockly 블록 생성 중 오류:', blocklyError);
+            alert(`블록 생성에 실패했습니다: ${blocklyError instanceof Error ? blocklyError.message : '알 수 없는 오류'}`);
+          }
+        } catch (error) {
+          console.error('블록 생성 중 오류:', error);
+          const errorMessage: ChatMessage = {
+            role: 'assistant',
+            content: `블록 생성에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
+          };
+          setMessages(prev => [...prev, errorMessage]);
+        }
       } else {
         const assistantMessage: ChatMessage = {
           role: 'assistant',

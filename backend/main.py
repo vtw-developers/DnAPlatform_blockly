@@ -18,6 +18,7 @@ import re
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import json
+import xml.etree.ElementTree as ET
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -481,14 +482,55 @@ async def get_models():
         logger.error(f"모델 목록 조회 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def validate_blockly_xml(xml_str: str) -> bool:
+    try:
+        # XML 문자열 전처리
+        xml_str = xml_str.strip()
+        if not xml_str.startswith('<xml'):
+            xml_str = '<xml xmlns="https://developers.google.com/blockly/xml">' + xml_str
+        if not xml_str.endswith('</xml>'):
+            xml_str = xml_str + '</xml>'
+            
+        # XML 파싱
+        root = ET.fromstring(xml_str)
+        
+        # xmlns 속성 확인 및 추가
+        if 'xmlns' not in root.attrib:
+            root.set('xmlns', 'https://developers.google.com/blockly/xml')
+            
+        # 블록 검사
+        blocks = root.findall('.//block')
+        if not blocks:
+            logging.error("XML에 블록이 없습니다.")
+            return False
+            
+        # 각 블록의 필수 속성 검사
+        for block in blocks:
+            if 'type' not in block.attrib:
+                logging.error(f"블록에 'type' 속성이 없습니다: {ET.tostring(block, encoding='unicode')}")
+                return False
+                
+        return True
+    except ET.ParseError as e:
+        logging.error(f"XML 파싱 오류: {str(e)}")
+        return False
+    except Exception as e:
+        logging.error(f"XML 검증 중 예상치 못한 오류: {str(e)}")
+        return False
+
 @app.post("/api/generate-block")
 async def generate_block(request: GenerateBlockRequest):
     try:
-        logger.info(f"블록 생성 요청: {request}")
+        logger.info(f"블록 생성 요청: description='{request.description}' model_name='{request.model_name}' model_type='{request.model_type}'")
 
         prompt = f"""
 당신은 Blockly 블록 XML을 생성하는 전문가입니다.
-아래 설명에 맞는 Blockly XML 코드를 생성해주세요.
+사용자가 요청한 "{request.description}"를 구현하는 Blockly XML 코드를 생성해주세요.
+
+요구사항:
+- 사용자의 요청을 정확히 구현하는 블록 코드를 생성해주세요
+- 블록은 실행 가능해야 하며, 사용자가 의도한 결과를 출력해야 합니다
+- 가능한 한 간단하고 이해하기 쉬운 블록 구조를 사용하세요
 
 사용 가능한 블록 카테고리:
 1. 로직
@@ -571,6 +613,10 @@ async def generate_block(request: GenerateBlockRequest):
 6. 필요한 경우 중첩 블록을 사용하여 복잡한 로직을 구현하세요.
 7. 가능한 한 재사용 가능하고 모듈화된 코드를 생성하세요.
 """
+        logger.info("생성된 프롬프트:")
+        logger.info("-" * 80)
+        logger.info(prompt)
+        logger.info("-" * 80)
 
         if request.model_type == "ollama":
             ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -578,16 +624,20 @@ async def generate_block(request: GenerateBlockRequest):
             
             async with httpx.AsyncClient() as client:
                 try:
+                    request_data = {
+                        "model": request.model_name,
+                        "prompt": prompt,
+                        "stream": False
+                    }
+                    logger.info(f"Ollama API 요청 데이터: {request_data}")
+                    
                     response = await client.post(
                         f"{ollama_url}/api/generate",
-                        json={
-                            "model": request.model_name,
-                            "prompt": prompt,
-                            "stream": False
-                        },
+                        json=request_data,
                         timeout=30.0
                     )
                     logging.info(f"Ollama API 응답 상태 코드: {response.status_code}")
+                    logging.info(f"Ollama API 응답 헤더: {response.headers}")
                     logging.info(f"Ollama API 응답 내용: {response.text}")
                     
                     if response.status_code != 200:
@@ -602,6 +652,12 @@ async def generate_block(request: GenerateBlockRequest):
                         raise HTTPException(status_code=500, detail=error_msg)
                         
                     xml_code = response_data["response"]
+                    
+                    # XML 유효성 검사
+                    if not validate_blockly_xml(xml_code):
+                        error_msg = "생성된 XML이 Blockly 형식에 맞지 않습니다."
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=400, detail=error_msg)
                     
                     return {"xml": xml_code}
                     
@@ -621,67 +677,98 @@ async def generate_block(request: GenerateBlockRequest):
         elif request.model_type == "openai":
             openai_key = os.getenv("OPENAI_API_KEY")
             if not openai_key:
-                raise HTTPException(
-                    status_code=500,
-                    detail="OpenAI API 키가 설정되지 않았습니다."
-                )
+                error_msg = "OpenAI API 키가 설정되지 않았습니다. 환경 변수 OPENAI_API_KEY를 설정해주세요."
+                logging.error(error_msg)
+                raise HTTPException(status_code=500, detail=error_msg)
                 
+            logging.info("OpenAI API 키가 환경 변수에서 로드되었습니다.")
+            
             async with httpx.AsyncClient() as client:
                 try:
+                    request_data = {
+                        "model": request.model_name,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "You are a Blockly XML code generation expert."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        "temperature": 0.7,
+                        "max_tokens": 2000
+                    }
+                    logger.info(f"OpenAI API 요청 데이터: {request_data}")
+                    
                     response = await client.post(
                         "https://api.openai.com/v1/chat/completions",
                         headers={
                             "Authorization": f"Bearer {openai_key}",
                             "Content-Type": "application/json"
                         },
-                        json={
-                            "model": request.model_name,
-                            "messages": [
-                                {
-                                    "role": "system",
-                                    "content": "You are a Blockly XML code generation expert."
-                                },
-                                {
-                                    "role": "user",
-                                    "content": prompt
-                                }
-                            ],
-                            "temperature": 0.7,
-                            "max_tokens": 2000
-                        }
+                        json=request_data,
+                        timeout=30.0
                     )
                     
-                    if response.status_code != 200:
-                        error_text = await response.text()
-                        logger.error(f"OpenAI API 오류: {error_text}")
-                        raise HTTPException(
-                            status_code=response.status_code,
-                            detail=f"OpenAI API 호출 실패: {error_text}"
-                        )
+                    logging.info(f"OpenAI API 응답 상태 코드: {response.status_code}")
+                    logging.info(f"OpenAI API 응답 헤더: {response.headers}")
+                    response_text = response.text
+                    logging.info(f"OpenAI API 응답 내용: {response_text}")
                     
-                    data = response.json()
-                    content = data["choices"][0]["message"]["content"]
-                    xml_match = re.search(r'<xml[^>]*>[\s\S]*</xml>', content)
+                    if response.status_code == 401:
+                        error_msg = "OpenAI API 키가 유효하지 않습니다."
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
+                    elif response.status_code != 200:
+                        error_msg = f"OpenAI API 오류: 상태 코드 {response.status_code}, 응답: {response_text}"
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
                     
-                    if not xml_match:
-                        if "<xml" in content and "</xml>" in content:
-                            start_index = content.index("<xml")
-                            end_index = content.index("</xml>") + 6
-                            return {"xml": content[start_index:end_index]}
-                        logger.error("XML 코드를 찾을 수 없음")
-                        raise HTTPException(
-                            status_code=400,
-                            detail="유효한 XML 코드를 생성하지 못했습니다."
-                        )
-                    
-                    return {"xml": xml_match.group(0)}
-                    
+                    try:
+                        data = response.json()
+                        content = data["choices"][0]["message"]["content"]
+                        logging.info(f"OpenAI 응답 내용: {content}")
+                        
+                        # XML 태그 추출 시도
+                        xml_match = re.search(r'<xml[^>]*>[\s\S]*?</xml>', content)
+                        
+                        if not xml_match:
+                            # XML 태그가 없는 경우, 전체 응답을 XML로 변환 시도
+                            xml_code = f'<xml xmlns="https://developers.google.com/blockly/xml">{content}</xml>'
+                        else:
+                            xml_code = xml_match.group(0)
+                            
+                        logging.info(f"처리할 XML: {xml_code}")
+                        
+                        # XML 유효성 검사 및 수정
+                        if not validate_blockly_xml(xml_code):
+                            # xmlns 속성 추가 시도
+                            if 'xmlns=' not in xml_code:
+                                xml_code = xml_code.replace('<xml', '<xml xmlns="https://developers.google.com/blockly/xml"', 1)
+                                logging.info(f"xmlns 속성 추가된 XML: {xml_code}")
+                        
+                        # 최종 XML 유효성 검사
+                        if not validate_blockly_xml(xml_code):
+                            error_msg = "생성된 XML이 Blockly 형식에 맞지 않습니다."
+                            logging.error(error_msg)
+                            raise HTTPException(status_code=400, detail=error_msg)
+                        
+                        return {"xml": xml_code}
+                    except json.JSONDecodeError as e:
+                        error_msg = f"OpenAI API 응답 JSON 파싱 오류: {str(e)}"
+                        logging.error(error_msg)
+                        raise HTTPException(status_code=500, detail=error_msg)
+                        
                 except httpx.RequestError as e:
-                    logger.error(f"OpenAI API 요청 오류: {e}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"OpenAI API 요청 실패: {str(e)}"
-                    )
+                    error_msg = f"OpenAI API 요청 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
+                except Exception as e:
+                    error_msg = f"OpenAI API 호출 중 예상치 못한 오류: {str(e)}"
+                    logging.error(error_msg)
+                    raise HTTPException(status_code=500, detail=error_msg)
         
         else:
             raise HTTPException(
