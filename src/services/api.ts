@@ -1,7 +1,15 @@
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
 // API URL 설정
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// 디버깅을 위한 로그 추가
+console.log('API_BASE_URL:', API_BASE_URL);
+
+// 개발 환경에서는 상대경로 사용, 프로덕션에서는 전체 URL 사용
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_URL = isLocalhost ? '/api' : API_BASE_URL || 'http://121.65.128.115:8000/api';
+console.log('Using API URL:', API_URL);
 
 export interface CodeBlocksResponse {
   blocks: CodeBlock[];
@@ -70,7 +78,7 @@ class CodeBlockApi {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = API_BASE_URL;
+    this.baseUrl = API_URL;
   }
 
   async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15
@@ -19,7 +21,7 @@ services:
       retries: 5
 
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: blockly_backend
@@ -27,6 +29,9 @@ services:
       - .env
     ports:
       - "8000:8000"
+    environment:
+      - CORS_ORIGINS=http://localhost:5000,http://192.168.0.2:5050,http://121.65.128.115:5050
+      - DATABASE_URL=postgresql://blockly_user:blockly_password@postgres:5432/blockly_db
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,12 +44,14 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: Dockerfile
     container_name: blockly_frontend
     env_file:
       - .env
     ports:
-      - "5050:80"
+      - "5050:5050"
+    environment:
+      - HOSTNAME=${HOSTNAME}
     depends_on:
       - backend
     networks:
