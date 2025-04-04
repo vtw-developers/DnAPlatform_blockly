@@ -57,6 +57,7 @@ interface LLMModel {
   type: 'ollama' | 'openai';
   modified_at?: string;
   size?: number;
+  description?: string;
 }
 
 const TOOLBOX_CONFIG = {
@@ -581,18 +582,19 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
                   const model = models.find(m => m.name === e.target.value);
                   if (model) setSelectedModel(model);
                 }}
+                className="model-select"
               >
-                <optgroup label="Ollama 모델" key="ollama-group">
-                  {models.filter(m => m.type === 'ollama').map((model) => (
-                    <option key={`ollama-${model.name}`} value={model.name}>
-                      {model.name}
-                    </option>
-                  ))}
-                </optgroup>
                 <optgroup label="OpenAI 모델" key="openai-group">
                   {models.filter(m => m.type === 'openai').map((model) => (
                     <option key={`openai-${model.name}`} value={model.name}>
-                      {model.name}
+                      {model.name} {model.description ? `- ${model.description}` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Ollama 모델" key="ollama-group">
+                  {models.filter(m => m.type === 'ollama').map((model) => (
+                    <option key={`ollama-${model.name}`} value={model.name}>
+                      {model.name} {model.description ? `- ${model.description}` : ''}
                     </option>
                   ))}
                 </optgroup>

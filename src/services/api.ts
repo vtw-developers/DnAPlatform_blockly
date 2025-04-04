@@ -30,6 +30,7 @@ export interface ModelInfo {
   size?: number;
   digest?: string;
   modified_at?: string;
+  description?: string;
 }
 
 interface ModelsResponse {
@@ -64,6 +65,7 @@ export interface LLMModel {
   modified_at?: string;
   size?: number;
   digest?: string;
+  description?: string;
 }
 
 class CodeBlockApi {
@@ -247,17 +249,19 @@ class CodeBlockApi {
         name: model.name,
         type: 'ollama',
         modified_at: model.modified_at,
-        size: model.size
+        size: model.size,
+        description: model.details?.family || ''
       }));
 
       // OpenAI 모델 추가
       const openaiModels: LLMModel[] = [
-        { name: 'gpt-4', type: 'openai' },
-        { name: 'gpt-4-turbo-preview', type: 'openai' },
-        { name: 'gpt-3.5-turbo', type: 'openai' }
+        { name: 'gpt-4-0125-preview', type: 'openai', description: '최신 GPT-4 모델, 코드 생성 능력 향상' },
+        { name: 'gpt-4-1106-preview', type: 'openai', description: 'JSON 모드 지원, 구조화된 출력에 강점' },
+        { name: 'gpt-4-vision-preview', type: 'openai', description: '시각적 이해 가능, 블록 구조 분석에 유용' },
+        { name: 'gpt-3.5-turbo-0125', type: 'openai', description: '빠른 응답, 기본적인 코드 생성' }
       ];
 
-      return [...ollamaModels, ...openaiModels];
+      return [...openaiModels, ...ollamaModels];
     } catch (error) {
       console.error('모델 목록 가져오기 오류:', error);
       return [];
