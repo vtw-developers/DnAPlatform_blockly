@@ -9,6 +9,7 @@ export const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOp
   const [models, setModels] = useState<LLMModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'description' | 'pythonCode'>('description');
 
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +45,15 @@ export const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOp
       const model = models.find(m => m.name === selectedModel);
       if (!model) throw new Error('선택된 모델을 찾을 수 없습니다.');
 
-      const blockXml = await codeBlockApi.generateBlockCode(message, model);
+      let blockXml = '';
+      
+      if (mode === 'description') {
+        // 자연어 설명으로 블록 생성
+        blockXml = await codeBlockApi.generateBlockCode(message, model);
+      } else {
+        // Python 코드를 Blockly XML로 변환
+        blockXml = await codeBlockApi.convertPythonToBlockly(message, model.name, model.type);
+      }
 
       if (blockXml) {
         onCreateBlock(blockXml);
@@ -73,16 +82,35 @@ export const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOp
     }
   };
 
+  const toggleMode = () => {
+    setMode(prevMode => prevMode === 'description' ? 'pythonCode' : 'description');
+    setMessage('');
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="popup-overlay">
       <div className="natural-language-popup">
         <div className="popup-header">
-          <h2>자연어로 블록 생성</h2>
+          <h2>{mode === 'description' ? '자연어로 블록 생성' : 'Python 코드로 블록 생성'}</h2>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         <div className="popup-content">
+          <div className="mode-toggle">
+            <button
+              className={`mode-button ${mode === 'description' ? 'active' : ''}`}
+              onClick={() => setMode('description')}
+            >
+              자연어 설명
+            </button>
+            <button
+              className={`mode-button ${mode === 'pythonCode' ? 'active' : ''}`}
+              onClick={() => setMode('pythonCode')}
+            >
+              Python 코드
+            </button>
+          </div>
           <div className="model-selector">
             <label htmlFor="model-select">모델 선택:</label>
             <select
@@ -121,14 +149,16 @@ export const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOp
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="생성할 블록에 대한 설명을 입력하세요..."
+              placeholder={mode === 'description' 
+                ? "생성할 블록에 대한 설명을 입력하세요..."
+                : "변환할 Python 코드를 입력하세요..."}
               disabled={isLoading}
             />
             <button
               onClick={handleSendMessage}
               disabled={!message.trim() || !selectedModel || isLoading}
             >
-              전송
+              {mode === 'description' ? '블록 생성' : '코드 변환'}
             </button>
           </div>
         </div>

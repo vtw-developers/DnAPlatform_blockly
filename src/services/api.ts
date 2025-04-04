@@ -275,8 +275,6 @@ class CodeBlockApi {
   }
 
   async generateBlockCode(description: string, model: LLMModel): Promise<string> {
-    console.log('블록 생성 시작:', { description, model });
-    
     try {
       const response = await fetch(`${this.baseUrl}/generate-block`, {
         method: 'POST',
@@ -287,23 +285,43 @@ class CodeBlockApi {
           description,
           model_name: model.name,
           model_type: model.type
-        })
+        }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('블록 생성 API 오류:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-        throw new Error(`블록 생성 실패: ${response.status} ${response.statusText}`);
+        throw new Error('블록 생성에 실패했습니다.');
       }
 
       const data = await response.json();
       return data.xml;
     } catch (error) {
-      console.error('블록 코드 생성 중 오류:', error);
+      console.error('블록 생성 중 오류:', error);
+      throw error;
+    }
+  }
+
+  async convertPythonToBlockly(pythonCode: string, modelName: string, modelType: string = 'ollama'): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseUrl}/python-to-blockly`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          python_code: pythonCode,
+          model_name: modelName,
+          model_type: modelType
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Python 코드를 Blockly로 변환하는데 실패했습니다.');
+      }
+
+      const data = await response.json();
+      return data.xml;
+    } catch (error) {
+      console.error('Python to Blockly 변환 중 오류:', error);
       throw error;
     }
   }
