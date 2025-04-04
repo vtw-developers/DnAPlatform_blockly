@@ -499,14 +499,64 @@ XML 형식 규칙:
 1. 반드시 <xml xmlns="https://developers.google.com/blockly/xml">로 시작
 2. 블록 좌표는 x="50" y="50"로 시작
 3. 모든 블록은 고유 id 필수
-4. 사용 가능한 블록:
-   - text_print: 출력용 블록
-   - math_arithmetic: 수학 연산 (ADD, MINUS, MULTIPLY, DIVIDE)
-   - math_number: 숫자 값
+
+사용 가능한 블록 목록:
+
+1. 수학 연산 블록:
+   - math_number: 숫자 값 (예: <value name="NUM"><shadow type="math_number"><field name="NUM">123</field></shadow></value>)
+   - math_arithmetic: 사칙연산
+     * 연산자: ADD(덧셈), MINUS(뺄셈), MULTIPLY(곱셈), DIVIDE(나눗셈)
+   - math_single: 단항 연산
+     * 연산자: ROOT(제곱근), ABS(절대값), NEG(음수), LN(자연로그), LOG10(로그), EXP(지수), POW10(10의 거듭제곱)
+   - math_round: 반올림/올림/내림
+     * 연산자: ROUND(반올림), ROUNDUP(올림), ROUNDDOWN(내림)
+   - math_modulo: 나머지 연산
+
+2. 텍스트 블록:
+   - text: 문자열 값
+   - text_print: 출력
+   - text_join: 문자열 결합
+   - text_length: 문자열 길이
+   - text_isEmpty: 문자열 비어있는지 확인
+
+3. 논리 블록:
+   - logic_compare: 비교 연산
+     * 연산자: EQ(같음), NEQ(다름), LT(미만), LTE(이하), GT(초과), GTE(이상)
+   - logic_operation: 논리 연산
+     * 연산자: AND(그리고), OR(또는)
+   - logic_negate: 논리 부정(NOT)
+   - logic_boolean: 참/거짓 값
+   - logic_null: null 값
+
+4. 제어 블록:
+   - controls_if: 조건문
+   - controls_repeat_ext: 반복문 (횟수 지정)
+   - controls_whileUntil: while/until 반복문
+   - controls_for: for 반복문
+   - controls_forEach: 리스트 순회
+
+5. 변수 블록:
+   - variables_get: 변수 값 가져오기
+   - variables_set: 변수 값 설정하기
+
+6. 리스트 블록:
+   - lists_create_empty: 빈 리스트 생성
+   - lists_create_with: 값으로 리스트 생성
+   - lists_length: 리스트 길이
+   - lists_isEmpty: 리스트 비어있는지 확인
+   - lists_indexOf: 리스트에서 값 찾기
+   - lists_getIndex: 리스트에서 값 가져오기
+   - lists_setIndex: 리스트 값 설정하기
+
+블록 연결 규칙:
+1. value 태그: 다른 블록의 값을 입력으로 받을 때 사용
+2. statement 태그: 제어 블록 내부의 실행 문장을 포함할 때 사용
+3. next 태그: 순차적으로 실행될 다음 블록을 연결할 때 사용
+4. field 태그: 블록의 설정값을 지정할 때 사용
 
 응답 형식:
 <xml xmlns="https://developers.google.com/blockly/xml">
-  <block type="text_print" id="[ID]" x="50" y="50">
+  <block type="[블록타입]" id="[고유ID]" x="50" y="50">
     [블록 내용]
   </block>
 </xml>"""
