@@ -27,14 +27,9 @@ app = FastAPI(
 )
 
 # CORS 설정
-def get_allowed_origins():
-    origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5000").split(",")
-    origins = [origin.strip() for origin in origins if origin.strip()]
-    return list(set(origins))
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_allowed_origins(),
+    allow_origins=["http://localhost:5000", "http://121.65.128.115:5050", "http://192.168.0.2:5050"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
