@@ -7,6 +7,7 @@ const App: React.FC = () => {
 
   const handleCodeGenerate = (code: string) => {
     setGeneratedCode(code);
+    console.log('Generated Code:', code); // For debugging
   };
 
   return (
