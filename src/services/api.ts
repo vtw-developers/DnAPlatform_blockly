@@ -1,25 +1,7 @@
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
-// API URL 설정을 위한 환경변수들
-const LOCAL_API_URL = process.env.REACT_APP_LOCAL_API_URL || 'http://localhost:8000/api';
-const INTERNAL_API_URL = process.env.REACT_APP_INTERNAL_API_URL || 'http://192.168.0.2:8000/api';
-const PUBLIC_API_URL = process.env.REACT_APP_PUBLIC_API_URL || 'http://121.65.128.115:8000/api';
-
-// 클라이언트의 위치에 따라 적절한 API URL을 결정하는 함수
-function determineApiBaseUrl(): string {
-  const hostname = window.location.hostname;
-  
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return LOCAL_API_URL;
-  } else if (hostname === '192.168.0.2' || /^192\.168\./.test(hostname)) {
-    return INTERNAL_API_URL;
-  } else {
-    return PUBLIC_API_URL;
-  }
-}
-
-// API 기본 URL 설정
-const API_BASE_URL = determineApiBaseUrl();
+// API URL 설정
+const API_BASE_URL = 'http://localhost:8000/api';
 
 export interface CodeBlocksResponse {
   blocks: CodeBlock[];
