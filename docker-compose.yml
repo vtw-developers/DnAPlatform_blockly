@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   postgres:
     image: postgres:15
@@ -34,7 +32,7 @@ services:
       - OLLAMA_BASE_URL=http://192.168.0.2:11434
       - ALLOWED_ORIGINS=http://localhost:5000,http://192.168.0.2:5050,http://121.65.128.115:5050
     env_file:
-      - .env
+      - backend/.env
     ports:
       - "8000:8000"
     depends_on:
@@ -50,9 +48,9 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      args:
-        - NODE_ENV=production
     container_name: blockly_frontend
+    volumes:
+      - ./frontend/.env:/app/.env
     ports:
       - "5050:80"
     depends_on:
