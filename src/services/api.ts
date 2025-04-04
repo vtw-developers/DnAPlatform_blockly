@@ -235,31 +235,13 @@ class CodeBlockApi {
 
   async getAvailableModels(): Promise<LLMModel[]> {
     try {
-      // Ollama 모델 가져오기
-      const ollamaResponse = await fetch(`${this.baseUrl}/ollama/api/tags`);
-      if (!ollamaResponse.ok) {
-        console.error('Ollama API 오류:', ollamaResponse.status, await ollamaResponse.text());
+      const response = await fetch(`${this.baseUrl}/models`);
+      if (!response.ok) {
+        console.error('모델 목록을 가져오는데 실패했습니다:', response.status);
         return [];
       }
-      const ollamaData = await ollamaResponse.json();
-      console.log('Ollama API 응답:', ollamaData);
-      const ollamaModels: LLMModel[] = (ollamaData.models || []).map((model: any) => ({
-        name: model.name,
-        type: 'ollama',
-        modified_at: model.modified_at,
-        size: model.size,
-        description: model.details?.family || ''
-      }));
-
-      // OpenAI 모델 추가
-      const openaiModels: LLMModel[] = [
-        { name: 'gpt-4-0125-preview', type: 'openai', description: '최신 GPT-4 모델, 코드 생성 능력 향상' },
-        { name: 'gpt-4-1106-preview', type: 'openai', description: 'JSON 모드 지원, 구조화된 출력에 강점' },
-        { name: 'gpt-4-vision-preview', type: 'openai', description: '시각적 이해 가능, 블록 구조 분석에 유용' },
-        { name: 'gpt-3.5-turbo-0125', type: 'openai', description: '빠른 응답, 기본적인 코드 생성' }
-      ];
-
-      return [...openaiModels, ...ollamaModels];
+      const data = await response.json();
+      return data.models;
     } catch (error) {
       console.error('모델 목록 가져오기 오류:', error);
       return [];
