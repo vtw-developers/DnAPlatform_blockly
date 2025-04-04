@@ -48,8 +48,10 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - NODE_ENV=production
     container_name: blockly_frontend
     ports:
       - "5050:80"
