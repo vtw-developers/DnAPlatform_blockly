@@ -7,10 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# 그 다음 소스 파일 복사
-COPY tsconfig.json ./
-COPY public ./public
-COPY src ./src
+# 소스 파일 복사
+COPY . .
 
 # 빌드 실행
 RUN npm run build
@@ -19,7 +17,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Nginx 설정 파일 복사
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 빌드된 파일 복사
 COPY --from=build /app/build /usr/share/nginx/html
