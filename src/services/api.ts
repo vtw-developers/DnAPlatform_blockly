@@ -1,7 +1,25 @@
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 
 // API URL 설정
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  
+  // localhost 환경
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return import.meta.env.VITE_LOCAL_API_URL || '/api';
+  }
+  
+  // 내부 IP 환경 (192.168.0.x)
+  if (hostname.startsWith('192.168.')) {
+    return import.meta.env.VITE_INTERNAL_API_URL;
+  }
+  
+  // 기본값은 공인 IP 환경
+  return import.meta.env.VITE_PUBLIC_API_URL || import.meta.env.VITE_API_URL;
+};
+
+const API_BASE_URL = getApiUrl();
+console.log('Using API URL:', API_BASE_URL);
 
 // 디버깅을 위한 로그 추가
 console.log('API_BASE_URL:', API_BASE_URL);
