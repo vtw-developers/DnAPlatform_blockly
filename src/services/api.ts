@@ -1,4 +1,5 @@
 import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
+import axios from 'axios';
 
 // API URL 설정
 const getApiUrl = () => {
@@ -92,11 +93,11 @@ export interface LLMModel {
   description?: string;
 }
 
-class CodeBlockApi {
+export class CodeBlockApi {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = API_URL;
+    this.baseUrl = API_BASE_URL;
   }
 
   async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
@@ -174,31 +175,42 @@ class CodeBlockApi {
     return await response.json();
   }
 
-  async verifyCode(code: string, model_name: string = "qwen2.5-coder:32b"): Promise<{ dag_run_id: string }> {
+  async verifyCode(code: string, model_name: string): Promise<{ dag_run_id: string }> {
+    console.log(`Requesting verification via backend for model: ${model_name}`);
     try {
-      const response = await fetch(`${this.baseUrl}/proxy/airflow/api/v1/dags/equiv_task/dagRuns`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic YWRtaW46dnR3MjEwMzAy'
+      // Call the new backend endpoint instead of Airflow directly
+      const response = await axios.post<{ dag_run_id: string }>(
+        `${this.baseUrl}/code/verify`, // <<< New backend endpoint
+        {
+          // Send code and model name in the request body
+          code: code,
+          model_name: model_name
         },
-        body: JSON.stringify({
-          dag_run_id: `rest_call_${Date.now()}`,
-          conf: {
-            origin_code: code,
-            model_name: model_name
+        {
+          headers: {
+            'Content-Type': 'application/json'
+            // No Airflow Authorization header needed here; backend handles it
           }
-        })
-      });
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error('코드 검증에 실패했습니다.');
+      console.log('Verification requested via backend, response:', response.data);
+      // Expecting backend to return { dag_run_id: string }
+      if (!response.data || !response.data.dag_run_id) {
+         throw new Error('백엔드 응답에서 dag_run_id를 찾을 수 없습니다.');
       }
+      return response.data;
 
-      return await response.json();
     } catch (error) {
-      console.error('코드 검증 중 오류:', error);
-      throw error;
+      console.error('백엔드를 통한 코드 검증 요청 중 오류:', error);
+       if (axios.isAxiosError(error) && error.response) {
+         // Provide more specific error from backend if available
+         throw new Error(`코드 검증 요청 실패 (${error.response.status}): ${error.response.data?.detail || error.message}`);
+       } else if (error instanceof Error) {
+         throw new Error(`코드 검증 요청 실패: ${error.message}`);
+       } else {
+         throw new Error('코드 검증 요청 중 알 수 없는 오류 발생');
+       }
     }
   }
 
