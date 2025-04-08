@@ -741,6 +741,14 @@ const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({ isOpen, onC
   );
 };
 
+// Helper function to format time (if not already defined globally)
+const formatElapsedTime = (seconds: number): string => {
+  if (seconds < 0) return '0초';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes > 0 ? `${minutes}분 ` : ''}${remainingSeconds}초`;
+};
+
 export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
@@ -779,6 +787,8 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [conversionError, setConversionError] = useState<string | null>(null);
   const [isConverting, setIsConverting] = useState<boolean>(false);
   const conversionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const conversionElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
+  const [conversionElapsedTime, setConversionElapsedTime] = useState<number>(0);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -1105,7 +1115,12 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     return () => {
       if (verificationTimerRef.current) {
         clearInterval(verificationTimerRef.current);
-        verificationTimerRef.current = null;
+      }
+      if (conversionTimerRef.current) {
+        clearInterval(conversionTimerRef.current);
+      }
+      if (conversionElapsedTimeRef.current) {
+        clearInterval(conversionElapsedTimeRef.current);
       }
     };
   }, []);
@@ -1130,46 +1145,65 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   };
 
   const checkConversionResult = async (runId: string) => {
+    let shouldStopPolling = false;
     try {
       const statusResponse = await codeBlockApi.getConversionStatus(runId);
       console.log("Conversion status check (backend):", statusResponse);
 
-      if (statusResponse.state === 'success') {
-        setConversionStatus('변환 성공, 결과 가져오는 중...');
-        if (conversionTimerRef.current) {
-          clearInterval(conversionTimerRef.current);
-          conversionTimerRef.current = null;
-        }
-        // Get the actual result from XCom via backend
-        const resultResponse = await codeBlockApi.getConversionResult(runId);
-        console.log("Conversion result check (backend):", resultResponse);
-        if (resultResponse.value) {
-          setConvertedCode(resultResponse.value); // Update textarea with the result
-          setConversionStatus('변환 완료');
-        } else {
-          setConvertedCode('// 변환 결과 없음');
-          setConversionStatus('변환 성공 (결과 없음)');
-          setConversionError(resultResponse.error || '성공했으나 결과를 가져오지 못했습니다.');
-        }
-        setIsConverting(false);
+      switch (statusResponse.state) {
+        case 'success':
+          setConversionStatus('변환 성공, 결과 가져오는 중...');
+          shouldStopPolling = true; // Stop polling timer
+          const resultResponse = await codeBlockApi.getConversionResult(runId);
+          console.log("Conversion result check (backend):", resultResponse);
+          if (resultResponse.value) {
+            setConvertedCode(resultResponse.value);
+            setConversionStatus('변환 완료');
+          } else {
+            setConvertedCode('// 변환 결과 없음');
+            setConversionStatus('변환 성공 (결과 없음)');
+            setConversionError(resultResponse.error || '성공했으나 결과를 가져오지 못했습니다.');
+          }
+          setIsConverting(false);
+          break;
 
-      } else if (statusResponse.state === 'failed' || statusResponse.state === 'error') {
-        setConversionStatus('변환 실패');
-        setConversionError(statusResponse.error || 'Airflow DAG 실행 실패 또는 상태 조회 오류');
+        case 'failed':
+        case 'error': // Treat backend error state same as failed state
+          setConversionStatus('변환 실패');
+          setConversionError(statusResponse.error || 'Airflow DAG 실행 실패 또는 상태 조회 오류');
+          shouldStopPolling = true;
+          setIsConverting(false);
+          break;
+
+        case 'running':
+        case 'queued': // Keep showing 'running' status even when queued
+          // Ensure the status is set to 'running' if it wasn't already
+          if (conversionStatus !== '변환 진행 중...') {
+              setConversionStatus('변환 진행 중...');
+          }
+          // Continue polling
+          break;
+
+        default: // Handle unknown or other unexpected states
+          setConversionStatus(`상태 알 수 없음: ${statusResponse.state}`);
+          // Continue polling for now, maybe add a timeout later
+          break;
+      }
+
+      // Clear timer if needed
+      if (shouldStopPolling) {
         if (conversionTimerRef.current) {
           clearInterval(conversionTimerRef.current);
           conversionTimerRef.current = null;
+          console.log("Conversion polling timer stopped.");
         }
-        setIsConverting(false);
-      } else if (statusResponse.state === 'running') {
-        setConversionStatus('변환 진행 중...');
-        // Keep polling
-      } else {
-        // Handle unknown or other states
-        setConversionStatus(`상태 알 수 없음: ${statusResponse.state}`);
-         // Keep polling for a while? Or stop?
-         // For now, keep polling
+        if (conversionElapsedTimeRef.current) {
+          clearInterval(conversionElapsedTimeRef.current);
+          conversionElapsedTimeRef.current = null;
+          console.log("Conversion elapsed time timer stopped.");
+        }
       }
+
     } catch (error) {
       // This catch block might not be reached if api.ts handles errors, but added for safety
       console.error('Error during conversion status check process:', error);
@@ -1178,6 +1212,12 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       if (conversionTimerRef.current) {
         clearInterval(conversionTimerRef.current);
         conversionTimerRef.current = null;
+        console.log("Conversion polling timer stopped due to error.");
+      }
+      if (conversionElapsedTimeRef.current) {
+        clearInterval(conversionElapsedTimeRef.current);
+        conversionElapsedTimeRef.current = null;
+        console.log("Conversion elapsed time timer stopped due to error.");
       }
       setIsConverting(false);
     }
@@ -1189,37 +1229,53 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       return;
     }
 
-    if (conversionTimerRef.current) {
-      clearInterval(conversionTimerRef.current);
-      conversionTimerRef.current = null;
-    }
+    // Clear previous timers
+    if (conversionTimerRef.current) clearInterval(conversionTimerRef.current);
+    if (conversionElapsedTimeRef.current) clearInterval(conversionElapsedTimeRef.current);
+    conversionTimerRef.current = null;
+    conversionElapsedTimeRef.current = null;
 
+    // Reset states
     setIsConversionPopupOpen(true);
     setConversionStatus('변환 요청 중...');
-    setConversionError(null); // Clear previous errors
+    setConversionError(null);
     setIsConverting(true);
     setConversionDagRunId(null);
-    setConvertedCode(''); // Clear previous converted code
+    setConvertedCode('');
+    setConversionElapsedTime(0); // Reset elapsed time
+
+    // Start elapsed time timer
+    conversionElapsedTimeRef.current = setInterval(() => {
+      setConversionElapsedTime(prev => prev + 1);
+    }, 1000);
+    console.log("Conversion elapsed time timer started.");
 
     try {
       console.log(`Requesting conversion (via backend): Code=${currentCode.substring(0,100)}..., Model=${selectedConversionModel}`);
-      // Call the updated convertCode function in api.ts
       const result = await codeBlockApi.convertCode(currentCode, selectedConversionModel);
       setConversionDagRunId(result.dag_run_id);
-      setConversionStatus('변환 진행 중...'); // Initial status after successful trigger
+      setConversionStatus('변환 진행 중...');
 
-      // Start polling
-      checkConversionResult(result.dag_run_id); // Initial check
-      conversionTimerRef.current = setInterval(
-        () => checkConversionResult(result.dag_run_id),
-        5000 // Poll every 5 seconds
-      );
+      // Start status polling timer
+      conversionTimerRef.current = setInterval(() => {
+        checkConversionResult(result.dag_run_id);
+      }, 5000); // Poll every 5 seconds
+      console.log("Conversion status polling timer started.");
+
+      // Initial check immediately
+      checkConversionResult(result.dag_run_id);
 
     } catch (error) {
       console.error("Failed to initiate code conversion (via backend):", error);
       setConversionStatus('변환 요청 실패');
       setConversionError(error instanceof Error ? error.message : '알 수 없는 오류 발생');
       setIsConverting(false);
+      // Stop both timers on initial request error
+      if (conversionTimerRef.current) clearInterval(conversionTimerRef.current);
+      if (conversionElapsedTimeRef.current) clearInterval(conversionElapsedTimeRef.current);
+      conversionTimerRef.current = null;
+      conversionElapsedTimeRef.current = null;
+      console.log("All conversion timers stopped due to request error.");
     }
   };
 
@@ -1227,10 +1283,16 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     if (conversionTimerRef.current) {
       clearInterval(conversionTimerRef.current);
       conversionTimerRef.current = null;
+      console.log("Conversion polling timer stopped on popup close.");
+    }
+    if (conversionElapsedTimeRef.current) {
+      clearInterval(conversionElapsedTimeRef.current);
+      conversionElapsedTimeRef.current = null;
+      console.log("Conversion elapsed time timer stopped on popup close.");
     }
     setIsConversionPopupOpen(false);
     setConversionStatus('');
-    setConversionError(null); // Clear error on close
+    setConversionError(null);
     setIsConverting(false);
     setConversionDagRunId(null);
   };
@@ -1419,6 +1481,11 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               <div className="execution-status">
                 {(conversionStatus === '변환 요청 중...' || conversionStatus === '변환 진행 중...' || conversionStatus === '변환 성공, 결과 가져오는 중...') && <div className="status-spinner" />}
                 <span>{conversionStatus}</span>
+                {(isConverting || conversionStatus === '변환 진행 중...' || conversionStatus === '변환 성공, 결과 가져오는 중...') && (
+                  <span className="elapsed-time">
+                    (소요시간: {formatElapsedTime(conversionElapsedTime)})
+                  </span>
+                )}
               </div>
               {conversionDagRunId && <p>DAG Run ID: {conversionDagRunId}</p>}
               {conversionError && <pre>오류: {conversionError}</pre>}

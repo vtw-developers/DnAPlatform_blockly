@@ -13,6 +13,7 @@ from pydantic import BaseModel
 import time
 import random
 import string
+import base64
 
 # 로깅 설정
 logging.basicConfig(
@@ -229,22 +230,48 @@ async def get_conversion_dag_result(run_id: str):
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             response = await client.get(airflow_xcom_url, headers=headers)
-            response.raise_for_status() # Raise for 4xx/5xx
+            response.raise_for_status()
             data = response.json()
             logger.info(f"Conversion DAG result response for {run_id}: {data}")
-            # The API returns {"key": "return_value", "timestamp": ..., "value": ...}
-            # We need to decode the value if it's base64 encoded
             encoded_value = data.get("value")
             decoded_value = None
+            decode_error_message = None # Variable to store decoding error
+
             if encoded_value:
                 try:
-                    import base64
-                    decoded_value = base64.b64decode(encoded_value).decode('utf-8')
-                except Exception as decode_error:
-                    logger.error(f"Failed to decode XCom value for {run_id}: {decode_error}")
-                    return XComResponse(error=f"결과 디코딩 실패: {decode_error}")
+                    # First, try base64 decoding
+                    # Add validate=True for stricter base64 check
+                    decoded_bytes = base64.b64decode(encoded_value, validate=True)
+                    try:
+                        # Then, try UTF-8 decoding
+                        decoded_value = decoded_bytes.decode('utf-8')
+                        logger.info(f"Successfully decoded XCom for {run_id} as UTF-8.")
+                    except UnicodeDecodeError:
+                        logger.warning(f"XCom value for {run_id} is not valid UTF-8 after base64 decode. Bytes: {decoded_bytes[:50]}...")
+                        # Set specific error message instead of raising exception
+                        decode_error_message = "결과 디코딩 실패: UTF-8 인코딩 형식이 아닙니다."
 
-            return XComResponse(value=decoded_value)
+                except (base64.binascii.Error, ValueError) as b64_error:
+                    # Base64 decoding failed, assume it might be plain text
+                    logger.warning(f"XCom value for {run_id} does not appear to be base64 encoded: {b64_error}. Assuming plain text.")
+                    if isinstance(encoded_value, str):
+                         # Check if the original string itself is valid utf-8
+                         try:
+                             encoded_value.encode('utf-8').decode('utf-8')
+                             decoded_value = encoded_value # Treat as plain text
+                         except UnicodeError:
+                             decode_error_message = "결과 디코딩 실패: Base64가 아니며 UTF-8 문자열도 아닙니다."
+                    else:
+                         decode_error_message = "결과 디코딩 실패: Base64 형식이 아니며 문자열도 아닙니다."
+                except Exception as e:
+                    logger.error(f"Unexpected error during XCom decoding for {run_id}: {e}")
+                    decode_error_message = f"결과 처리 중 예상치 못한 오류: {e}"
+
+            # Return error if decoding failed, otherwise return value (which could be None)
+            if decode_error_message:
+                return XComResponse(error=decode_error_message)
+            else:
+                return XComResponse(value=decoded_value)
 
         except httpx.HTTPStatusError as e:
             # Common case: 404 if task instance or xcom doesn't exist yet
