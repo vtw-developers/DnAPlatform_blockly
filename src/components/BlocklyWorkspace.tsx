@@ -771,6 +771,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   } | null>(null);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isNaturalLanguagePopupOpen, setIsNaturalLanguagePopupOpen] = useState(false);
+  const [convertedCode, setConvertedCode] = useState<string>('');
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -1121,6 +1122,25 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     }
   };
 
+  // <<<< ADDED: Placeholder function for code conversion >>>>
+  const handleConvertCode = async () => {
+    if (!currentCode || !selectedModel) {
+      alert("먼저 Python 코드를 생성하고 검증 모델을 선택하세요.");
+      return;
+    }
+    console.log(`Converting code using model: ${selectedModel}`);
+    // TODO: Implement actual API call for code conversion
+    // Example:
+    // try {
+    //   const response = await codeBlockApi.convertCode(currentCode, selectedModel); // Assuming convertCode method exists
+    //   setConvertedCode(response.convertedCode); // Assuming response structure
+    // } catch (error) {
+    //   console.error("Failed to convert code:", error);
+    //   setConvertedCode("Error during conversion.");
+    // }
+    setConvertedCode(`// ${selectedModel} 모델로 변환된 코드 예시입니다.\n${currentCode.replace(/print/g, 'console.log')}`); // Placeholder logic
+  };
+
   return (
     <div className="blockly-container">
       <div className="blockly-workspace-container">
@@ -1138,7 +1158,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             </button>
             <button
               onClick={handleSaveCode}
-              disabled={isSaving}
+              disabled={isSaving || !currentCode || !title || !description}
               className="save-button"
             >
               {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
@@ -1157,25 +1177,44 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             placeholder="코드 설명"
             className="code-description-input"
           />
+        </div>
+
+        {/* <<<< MODIFIED: Python Code Group >>>> */}
+        <div className="code-group">
+          <h3 className="section-title">Python 코드</h3>
           <textarea
             value={currentCode}
             readOnly
             placeholder="Python 코드가 여기에 표시됩니다"
             className="python-code-display"
           />
+          <button
+            className="execute-button action-button"
+            onClick={handleExecuteCode}
+            disabled={!currentCode}
+          >
+            코드 실행
+          </button>
         </div>
-        <div className="code-execution-container">
-          <div className="execution-section">
-            <h3 className="section-title">코드 실행</h3>
-            <button
-              className="execute-button"
-              onClick={handleExecuteCode}
-              disabled={!currentCode}
-            >
-              코드 실행
-            </button>
-          </div>
+
+        {/* <<<< ADDED: Converted Code Group >>>> */}
+        <div className="code-group">
+          <h3 className="section-title">변환된 코드</h3>
+          <textarea
+            value={convertedCode}
+            readOnly
+            placeholder="변환된 코드가 여기에 표시됩니다"
+            className="python-code-display"
+          />
+          <button
+            className="execute-button action-button"
+            onClick={handleConvertCode}
+            disabled={!currentCode || !selectedModel}
+          >
+            코드 변환
+          </button>
         </div>
+
         <div className="verification-section">
           <h3 className="section-title">코드 검증</h3>
           <div className="verify-container">
