@@ -773,6 +773,12 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isNaturalLanguagePopupOpen, setIsNaturalLanguagePopupOpen] = useState(false);
   const [convertedCode, setConvertedCode] = useState<string>('');
+  const [isConversionPopupOpen, setIsConversionPopupOpen] = useState(false);
+  const [conversionStatus, setConversionStatus] = useState('');
+  const [conversionDagRunId, setConversionDagRunId] = useState<string | null>(null);
+  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [isConverting, setIsConverting] = useState<boolean>(false);
+  const conversionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspaceRef.current) {
@@ -1123,14 +1129,110 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     }
   };
 
+  const checkConversionResult = async (runId: string) => {
+    try {
+      const statusResponse = await codeBlockApi.getConversionStatus(runId);
+      console.log("Conversion status check (backend):", statusResponse);
+
+      if (statusResponse.state === 'success') {
+        setConversionStatus('변환 성공, 결과 가져오는 중...');
+        if (conversionTimerRef.current) {
+          clearInterval(conversionTimerRef.current);
+          conversionTimerRef.current = null;
+        }
+        // Get the actual result from XCom via backend
+        const resultResponse = await codeBlockApi.getConversionResult(runId);
+        console.log("Conversion result check (backend):", resultResponse);
+        if (resultResponse.value) {
+          setConvertedCode(resultResponse.value); // Update textarea with the result
+          setConversionStatus('변환 완료');
+        } else {
+          setConvertedCode('// 변환 결과 없음');
+          setConversionStatus('변환 성공 (결과 없음)');
+          setConversionError(resultResponse.error || '성공했으나 결과를 가져오지 못했습니다.');
+        }
+        setIsConverting(false);
+
+      } else if (statusResponse.state === 'failed' || statusResponse.state === 'error') {
+        setConversionStatus('변환 실패');
+        setConversionError(statusResponse.error || 'Airflow DAG 실행 실패 또는 상태 조회 오류');
+        if (conversionTimerRef.current) {
+          clearInterval(conversionTimerRef.current);
+          conversionTimerRef.current = null;
+        }
+        setIsConverting(false);
+      } else if (statusResponse.state === 'running') {
+        setConversionStatus('변환 진행 중...');
+        // Keep polling
+      } else {
+        // Handle unknown or other states
+        setConversionStatus(`상태 알 수 없음: ${statusResponse.state}`);
+         // Keep polling for a while? Or stop?
+         // For now, keep polling
+      }
+    } catch (error) {
+      // This catch block might not be reached if api.ts handles errors, but added for safety
+      console.error('Error during conversion status check process:', error);
+      setConversionStatus('폴링 오류');
+      setConversionError(error instanceof Error ? error.message : '상태/결과 확인 중 오류');
+      if (conversionTimerRef.current) {
+        clearInterval(conversionTimerRef.current);
+        conversionTimerRef.current = null;
+      }
+      setIsConverting(false);
+    }
+  };
+
   const handleConvertCode = async () => {
     if (!currentCode || !selectedConversionModel) {
       alert("먼저 Python 코드를 생성하고 변환 모델을 선택하세요.");
       return;
     }
-    console.log(`Converting code using model: ${selectedConversionModel}`);
-    // TODO: Implement actual API call for code conversion using selectedConversionModel
-    setConvertedCode(`// ${selectedConversionModel} 모델로 변환된 코드 예시입니다.\n${currentCode.replace(/print/g, 'console.log')}`);
+
+    if (conversionTimerRef.current) {
+      clearInterval(conversionTimerRef.current);
+      conversionTimerRef.current = null;
+    }
+
+    setIsConversionPopupOpen(true);
+    setConversionStatus('변환 요청 중...');
+    setConversionError(null); // Clear previous errors
+    setIsConverting(true);
+    setConversionDagRunId(null);
+    setConvertedCode(''); // Clear previous converted code
+
+    try {
+      console.log(`Requesting conversion (via backend): Code=${currentCode.substring(0,100)}..., Model=${selectedConversionModel}`);
+      // Call the updated convertCode function in api.ts
+      const result = await codeBlockApi.convertCode(currentCode, selectedConversionModel);
+      setConversionDagRunId(result.dag_run_id);
+      setConversionStatus('변환 진행 중...'); // Initial status after successful trigger
+
+      // Start polling
+      checkConversionResult(result.dag_run_id); // Initial check
+      conversionTimerRef.current = setInterval(
+        () => checkConversionResult(result.dag_run_id),
+        5000 // Poll every 5 seconds
+      );
+
+    } catch (error) {
+      console.error("Failed to initiate code conversion (via backend):", error);
+      setConversionStatus('변환 요청 실패');
+      setConversionError(error instanceof Error ? error.message : '알 수 없는 오류 발생');
+      setIsConverting(false);
+    }
+  };
+
+  const handleCloseConversionPopup = () => {
+    if (conversionTimerRef.current) {
+      clearInterval(conversionTimerRef.current);
+      conversionTimerRef.current = null;
+    }
+    setIsConversionPopupOpen(false);
+    setConversionStatus('');
+    setConversionError(null); // Clear error on close
+    setIsConverting(false);
+    setConversionDagRunId(null);
   };
 
   return (
@@ -1304,6 +1406,33 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         onClose={() => setIsNaturalLanguagePopupOpen(false)}
         onCreateBlock={handleCreateBlock}
       />
+      {isConversionPopupOpen && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <div className="popup-header">
+              <h3>코드 변환</h3>
+              {(!isConverting || conversionStatus === '변환 완료' || conversionStatus.includes('실패') || conversionStatus.includes('오류') || conversionStatus.includes('없음')) && (
+                <button className="popup-close" onClick={handleCloseConversionPopup}>&times;</button>
+              )}
+            </div>
+            <div className="popup-body">
+              <div className="execution-status">
+                {(conversionStatus === '변환 요청 중...' || conversionStatus === '변환 진행 중...' || conversionStatus === '변환 성공, 결과 가져오는 중...') && <div className="status-spinner" />}
+                <span>{conversionStatus}</span>
+              </div>
+              {conversionDagRunId && <p>DAG Run ID: {conversionDagRunId}</p>}
+              {conversionError && <pre>오류: {conversionError}</pre>}
+            </div>
+            <div className="popup-footer">
+              {(!isConverting || conversionStatus === '변환 완료' || conversionStatus.includes('실패') || conversionStatus.includes('오류') || conversionStatus.includes('없음')) && (
+                <button className="popup-button primary" onClick={handleCloseConversionPopup}>
+                  확인
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }; 
