@@ -754,6 +754,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedConversionModel, setSelectedConversionModel] = useState<string>("");
   const [models, setModels] = useState<LLMModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -1122,23 +1123,14 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     }
   };
 
-  // <<<< ADDED: Placeholder function for code conversion >>>>
   const handleConvertCode = async () => {
-    if (!currentCode || !selectedModel) {
-      alert("먼저 Python 코드를 생성하고 검증 모델을 선택하세요.");
+    if (!currentCode || !selectedConversionModel) {
+      alert("먼저 Python 코드를 생성하고 변환 모델을 선택하세요.");
       return;
     }
-    console.log(`Converting code using model: ${selectedModel}`);
-    // TODO: Implement actual API call for code conversion
-    // Example:
-    // try {
-    //   const response = await codeBlockApi.convertCode(currentCode, selectedModel); // Assuming convertCode method exists
-    //   setConvertedCode(response.convertedCode); // Assuming response structure
-    // } catch (error) {
-    //   console.error("Failed to convert code:", error);
-    //   setConvertedCode("Error during conversion.");
-    // }
-    setConvertedCode(`// ${selectedModel} 모델로 변환된 코드 예시입니다.\n${currentCode.replace(/print/g, 'console.log')}`); // Placeholder logic
+    console.log(`Converting code using model: ${selectedConversionModel}`);
+    // TODO: Implement actual API call for code conversion using selectedConversionModel
+    setConvertedCode(`// ${selectedConversionModel} 모델로 변환된 코드 예시입니다.\n${currentCode.replace(/print/g, 'console.log')}`);
   };
 
   return (
@@ -1179,7 +1171,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           />
         </div>
 
-        {/* <<<< MODIFIED: Python Code Group >>>> */}
         <div className="code-group">
           <h3 className="section-title">Python 코드</h3>
           <textarea
@@ -1197,7 +1188,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           </button>
         </div>
 
-        {/* <<<< ADDED: Converted Code Group >>>> */}
         <div className="code-group">
           <h3 className="section-title">변환된 코드</h3>
           <textarea
@@ -1206,13 +1196,44 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
             placeholder="변환된 코드가 여기에 표시됩니다"
             className="python-code-display"
           />
-          <button
-            className="execute-button action-button"
-            onClick={handleConvertCode}
-            disabled={!currentCode || !selectedModel}
-          >
-            코드 변환
-          </button>
+          <div className="verify-container">
+            <select
+              value={selectedConversionModel}
+              onChange={(e) => setSelectedConversionModel(e.target.value)}
+              className="model-select"
+              disabled={isLoadingModels || models.length === 0}
+            >
+              {isLoadingModels ? (
+                <option key="loading" value="">모델 목록 로딩 중...</option>
+              ) : models.length === 0 ? (
+                <option key="empty" value="">사용 가능한 모델이 없습니다</option>
+              ) : (
+                <>
+                  <optgroup label="OpenAI 모델" key="openai-group">
+                    {models.filter(m => m.type === 'openai').map((model) => (
+                      <option key={`conv-openai-${model.name}`} value={model.name}>
+                        {model.name} {model.description ? `- ${model.description}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Ollama 모델" key="ollama-group">
+                    {models.filter(m => m.type === 'ollama').map((model) => (
+                      <option key={`conv-ollama-${model.name}`} value={model.name}>
+                        {model.name} {model.description ? `- ${model.description}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
+            </select>
+            <button
+              className="execute-button action-button"
+              onClick={handleConvertCode}
+              disabled={!currentCode || !selectedConversionModel}
+            >
+              코드 변환
+            </button>
+          </div>
         </div>
 
         <div className="verification-section">
@@ -1229,11 +1250,22 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               ) : models.length === 0 ? (
                 <option key="empty" value="">사용 가능한 모델이 없습니다</option>
               ) : (
-                models.map((model) => (
-                  <option key={`${model.type}-${model.name}`} value={model.name}>
-                    {model.name}
-                  </option>
-                ))
+                 <>
+                  <optgroup label="OpenAI 모델" key="openai-group">
+                    {models.filter(m => m.type === 'openai').map((model) => (
+                      <option key={`verify-openai-${model.name}`} value={model.name}>
+                        {model.name} {model.description ? `- ${model.description}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Ollama 모델" key="ollama-group">
+                    {models.filter(m => m.type === 'ollama').map((model) => (
+                      <option key={`verify-ollama-${model.name}`} value={model.name}>
+                        {model.name} {model.description ? `- ${model.description}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                 </>
               )}
             </select>
             <button
@@ -1241,7 +1273,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
               disabled={isVerifying || !currentCode || !selectedModel}
               className="verify-button"
             >
-              코드 검증
+              {isVerifying ? '검증 중...' : '코드 검증'}
             </button>
           </div>
         </div>
