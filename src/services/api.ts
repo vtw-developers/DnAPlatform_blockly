@@ -99,7 +99,7 @@ interface DagRunTriggerResponse {
 
 interface DagStatusResponse {
     dag_run_id: string;
-    state: 'running' | 'success' | 'failed' | 'error' | 'unknown'; // Match backend possibilities
+    state: 'running' | 'success' | 'failed' | 'error' | 'unknown' | 'queued';
     error?: string;
 }
 
