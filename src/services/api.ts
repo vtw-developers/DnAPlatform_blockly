@@ -93,6 +93,21 @@ export interface LLMModel {
   description?: string;
 }
 
+interface DagRunTriggerResponse {
+  dag_run_id: string;
+}
+
+interface DagStatusResponse {
+    dag_run_id: string;
+    state: 'running' | 'success' | 'failed' | 'error' | 'unknown'; // Match backend possibilities
+    error?: string;
+}
+
+interface XComResponse {
+    value?: string;
+    error?: string;
+}
+
 export class CodeBlockApi {
   private baseUrl: string;
 
@@ -175,36 +190,96 @@ export class CodeBlockApi {
     return await response.json();
   }
 
+  async convertCode(code: string, modelName: string): Promise<DagRunTriggerResponse> {
+    console.log(`Requesting conversion via backend for model: ${modelName}`);
+    try {
+      const response = await axios.post<DagRunTriggerResponse>(
+        `${this.baseUrl}/code/convert`, // <<< Call backend conversion trigger endpoint
+        {
+          code: code,
+          model_name: modelName
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      console.log('Conversion requested via backend, response:', response.data);
+      if (!response.data || !response.data.dag_run_id) {
+         throw new Error('백엔드 응답에서 dag_run_id를 찾을 수 없습니다.');
+      }
+      return response.data;
+    } catch (error) {
+      console.error('백엔드를 통한 코드 변환 요청 중 오류:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(`코드 변환 요청 실패 (${error.response.status}): ${error.response.data?.detail || error.message}`);
+      } else if (error instanceof Error) {
+        throw new Error(`코드 변환 요청 실패: ${error.message}`);
+      } else {
+        throw new Error('코드 변환 요청 중 알 수 없는 오류 발생');
+      }
+    }
+  }
+
+  async getConversionStatus(runId: string): Promise<DagStatusResponse> {
+     console.log(`Checking conversion status via backend for runId: ${runId}`);
+    try {
+      const response = await axios.get<DagStatusResponse>(
+        `${this.baseUrl}/code/convert/status/${runId}`
+      );
+      console.log('Conversion status from backend:', response.data);
+      // Ensure a valid state is returned, default to unknown if not present
+      return {
+          ...response.data,
+          state: response.data?.state || 'unknown'
+      };
+    } catch (error) {
+      console.error(`백엔드를 통한 상태 조회 중 오류 (${runId}):`, error);
+      // Return an error state compatible with DagStatusResponse
+       return {
+          dag_run_id: runId,
+          state: 'error',
+          error: '백엔드 상태 조회 실패' // Simplified error message
+       };
+    }
+  }
+
+  async getConversionResult(runId: string): Promise<XComResponse> {
+     console.log(`Getting conversion result via backend for runId: ${runId}`);
+    try {
+      const response = await axios.get<XComResponse>(
+        `${this.baseUrl}/code/convert/result/${runId}`
+      );
+      console.log('Conversion result from backend:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`백엔드를 통한 결과 조회 중 오류 (${runId}):`, error);
+      return {
+          error: '백엔드 결과 조회 실패' // Simplified error message
+      };
+    }
+  }
+
   async verifyCode(code: string, model_name: string): Promise<{ dag_run_id: string }> {
     console.log(`Requesting verification via backend for model: ${model_name}`);
     try {
-      // Call the new backend endpoint instead of Airflow directly
       const response = await axios.post<{ dag_run_id: string }>(
-        `${this.baseUrl}/code/verify`, // <<< New backend endpoint
+        `${this.baseUrl}/code/verify`, 
         {
-          // Send code and model name in the request body
           code: code,
           model_name: model_name
         },
         {
           headers: {
             'Content-Type': 'application/json'
-            // No Airflow Authorization header needed here; backend handles it
           }
         }
       );
-
       console.log('Verification requested via backend, response:', response.data);
-      // Expecting backend to return { dag_run_id: string }
       if (!response.data || !response.data.dag_run_id) {
          throw new Error('백엔드 응답에서 dag_run_id를 찾을 수 없습니다.');
       }
       return response.data;
-
     } catch (error) {
       console.error('백엔드를 통한 코드 검증 요청 중 오류:', error);
        if (axios.isAxiosError(error) && error.response) {
-         // Provide more specific error from backend if available
          throw new Error(`코드 검증 요청 실패 (${error.response.status}): ${error.response.data?.detail || error.message}`);
        } else if (error instanceof Error) {
          throw new Error(`코드 검증 요청 실패: ${error.message}`);
@@ -335,6 +410,21 @@ export class CodeBlockApi {
     } catch (error) {
       console.error('Python to Blockly 변환 중 오류:', error);
       throw error;
+    }
+  }
+
+  async getDagRunStatus(runId: string): Promise<any> { // Using 'any' for now based on previous code
+    try {
+      const response = await axios.get(
+        // TODO: Ideally this also goes via backend, but keep as is for now to avoid breaking verification
+        // Using relative path assuming proxy is setup correctly
+        `/api/proxy/airflow/dags/equiv_task/dagRuns/${runId}` 
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching DAG run status for ${runId} via proxy:`, error);
+       // Simplified error return for verification polling
+       return { state: 'error', error: '상태 조회 오류 (프록시)' };
     }
   }
 }
