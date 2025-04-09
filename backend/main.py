@@ -291,6 +291,113 @@ async def get_conversion_dag_result(run_id: str):
 
 # --- END Conversion Section ---
 
+# --- Verification Endpoint Models & Functions --- 
+
+# <<<< ADDED: Endpoint to get Verification status via backend >>>>
+@app.get("/api/code/verify/status/{run_id}", response_model=DagStatusResponse)
+async def get_verification_dag_status(run_id: str):
+    """
+    Gets the status of a specific equiv_task DAG run.
+    Mirrors get_conversion_dag_status but targets the equiv_task DAG.
+    """
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
+    # <<<< CHANGED: Use equiv_task DAG path >>>>
+    airflow_dag_status_url = f"{airflow_base_url}/api/v1/dags/equiv_task/dagRuns/{run_id}"
+    airflow_auth_header = "Basic YWRtaW46dnR3MjEwMzAy"
+    headers = {
+        'Authorization': airflow_auth_header,
+        'Accept': 'application/json'
+    }
+    logger.info(f"Checking Verification DAG status for run_id: {run_id}")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(airflow_dag_status_url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            # <<<< ADDED: Log raw response and extracted state >>>>
+            logger.info(f"Verification DAG status response (RAW from Airflow): {data}")
+            actual_state = data.get("state", "unknown")
+            logger.info(f"Extracted state: {actual_state}")
+            return DagStatusResponse(dag_run_id=data.get("dag_run_id", run_id), state=actual_state)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error getting Verification DAG status for {run_id}: {e.response.status_code} - {e.response.text}")
+            return DagStatusResponse(dag_run_id=run_id, state="error", error=f"상태 조회 실패 ({e.response.status_code}): {e.response.text}")
+        except httpx.RequestError as e:
+            logger.error(f"Request error getting Verification DAG status for {run_id}: {e}")
+            return DagStatusResponse(dag_run_id=run_id, state="error", error=f"Airflow 연결 실패: {e}")
+        except Exception as e:
+            logger.exception(f"Unexpected error getting Verification DAG status for {run_id}")
+            return DagStatusResponse(dag_run_id=run_id, state="error", error=f"내부 서버 오류: {e}")
+
+# <<<< ADDED: Endpoint to get Verification result via backend >>>>
+@app.get("/api/code/verify/result/{run_id}", response_model=XComResponse)
+async def get_verification_dag_result(run_id: str):
+    """
+    Gets the result (XCom value) from the get_result task of an equiv_task DAG run.
+    Mirrors get_conversion_dag_result but targets the equiv_task DAG.
+    """
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
+    # <<<< CHANGED: Use equiv_task DAG path >>>>
+    airflow_xcom_url = f"{airflow_base_url}/api/v1/dags/equiv_task/dagRuns/{run_id}/taskInstances/get_result/xcomEntries/return_value"
+    airflow_auth_header = "Basic YWRtaW46dnR3MjEwMzAy"
+    headers = {
+        'Authorization': airflow_auth_header,
+        'Accept': 'application/json'
+    }
+    logger.info(f"Getting Verification DAG result for run_id: {run_id}")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(airflow_xcom_url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"Verification DAG result response for {run_id}: {data}")
+            encoded_value = data.get("value")
+            decoded_value = None
+            decode_error_message = None
+
+            if encoded_value:
+                try:
+                    decoded_bytes = base64.b64decode(encoded_value, validate=True)
+                    try:
+                        decoded_value = decoded_bytes.decode('utf-8')
+                        logger.info(f"Successfully decoded Verification XCom for {run_id} as UTF-8.")
+                    except UnicodeDecodeError:
+                        logger.warning(f"Verification XCom value for {run_id} is not valid UTF-8: {decoded_bytes[:50]}...")
+                        decode_error_message = "결과 디코딩 실패: UTF-8 인코딩 형식이 아닙니다."
+                except (base64.binascii.Error, ValueError) as b64_error:
+                    logger.warning(f"Verification XCom value for {run_id} not base64: {b64_error}. Assuming plain text.")
+                    if isinstance(encoded_value, str):
+                         try:
+                             encoded_value.encode('utf-8').decode('utf-8')
+                             decoded_value = encoded_value
+                         except UnicodeError:
+                             decode_error_message = "결과 디코딩 실패: Base64가 아니며 UTF-8 문자열도 아닙니다."
+                    else:
+                         decode_error_message = "결과 디코딩 실패: Base64 형식이 아니며 문자열도 아닙니다."
+                except Exception as e:
+                    logger.error(f"Unexpected error during Verification XCom decoding for {run_id}: {e}")
+                    decode_error_message = f"결과 처리 중 예상치 못한 오류: {e}"
+
+            if decode_error_message:
+                return XComResponse(error=decode_error_message)
+            else:
+                return XComResponse(value=decoded_value)
+
+        except httpx.HTTPStatusError as e:
+           logger.warning(f"HTTP error getting Verification DAG result for {run_id}: {e.response.status_code} - {e.response.text}")
+           error_detail = e.response.text
+           try:
+               error_json = e.response.json()
+               error_detail = error_json.get('detail', error_detail)
+           except: pass
+           return XComResponse(error=f"결과 조회 실패 ({e.response.status_code}): {error_detail}")
+        except httpx.RequestError as e:
+           logger.error(f"Request error getting Verification DAG result for {run_id}: {e}")
+           return XComResponse(error=f"Airflow 연결 실패: {e}")
+        except Exception as e:
+           logger.exception(f"Unexpected error getting Verification DAG result for {run_id}")
+           return XComResponse(error=f"내부 서버 오류: {e}")
+
 @app.get("/")
 async def root():
     return {"message": "Blockly Platform API is running"}

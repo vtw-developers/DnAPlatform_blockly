@@ -34,11 +34,11 @@ interface VerificationPopupProps {
     dag_run_id?: string;
     error?: string;
     verificationResult?: {
-      elapsed_time?: number;
       result_code?: string;
       message?: string;
     };
   } | null;
+  elapsedTime: number;
 }
 
 interface ChatMessage {
@@ -224,159 +224,59 @@ const ExecutionPopup: React.FC<ExecutionPopupProps> = ({ isOpen, onClose, status
   );
 };
 
-const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result }) => {
-  const [executionStatus, setExecutionStatus] = useState<string>('');
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
-  const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    // 검증이 시작되면 타이머 시작
-    if (status === '검증 중...') {
-      setElapsedTime(0);
-      timerRef.current = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
-      }, 1000);
-    } else {
-      // 검증이 완료되거나 실패하면 타이머 정지
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-
-    // 컴포넌트 언마운트 시 타이머 정리
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [status]);
-
+const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result, elapsedTime }) => {
   if (!isOpen) return null;
-
-  const formatElapsedTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes > 0 ? `${minutes}분 ` : ''}${remainingSeconds}초`;
-  };
-
-  const formatVerificationResult = (code?: string) => {
-    if (!code) return '';
-    try {
-      return code
-        .split('\n')
-        .filter(line => !line.trim().startsWith('#') && line.trim() !== '')
-        .join('\n');
-    } catch (error) {
-      console.error('코드 포맷팅 중 오류:', error);
-      return String(code);
-    }
-  };
-
-  const handleCopyCode = async () => {
-    if (result?.verificationResult?.result_code) {
-      try {
-        await navigator.clipboard.writeText(result.verificationResult.result_code);
-        alert('코드가 클립보드에 복사되었습니다.');
-      } catch (error) {
-        console.error('코드 복사 중 오류:', error);
-        alert('코드 복사에 실패했습니다.');
-      }
-    }
-  };
 
   const handleExecuteCode = async () => {
     if (!result?.verificationResult?.result_code) return;
 
-    setExecutionStatus('실행 중...');
-    setExecutionResult(null);
-
     try {
       const executeResult = await codeBlockApi.executeCode(result.verificationResult.result_code);
-      setExecutionStatus('실행 완료');
-      setExecutionResult({
-        output: executeResult.output || '',
-        error: executeResult.error || ''
-      });
+      alert('코드 실행 완료');
+      console.log('Execution result:', executeResult);
     } catch (error) {
-      setExecutionStatus('실행 실패');
-      setExecutionResult({
-        output: '',
-        error: '코드 실행 중 오류가 발생했습니다.'
-      });
+      console.error('코드 실행 중 오류:', error);
+      alert('코드 실행에 실패했습니다.');
     }
   };
 
   return (
     <div className="popup-overlay">
-      <div className="popup-content verification-popup">
+      <div className="popup-content">
         <div className="popup-header">
           <h3>코드 검증</h3>
-          {status !== '검증 중...' && (
+           {(status === '검증 완료' || status.includes('실패') || status.includes('오류') || status.includes('없음')) && (
             <button className="popup-close" onClick={onClose}>&times;</button>
           )}
         </div>
         <div className="popup-body">
           <div className="execution-status">
-            {status === '검증 중...' && <div className="status-spinner" />}
+            {(status === '검증 진행 중...' || status === '검증 요청 중...') && <div className="status-spinner" />}
             <span>{status}</span>
-            <span className="elapsed-time">
-              (소요시간: {formatElapsedTime(elapsedTime)})
-            </span>
+            {(status === '검증 진행 중...' || status === '검증 요청 중...') && (
+              <span className="elapsed-time">
+                (소요시간: {formatElapsedTime(elapsedTime)})
+              </span>
+            )}
           </div>
           {result && (
-            <div className={`popup-result ${result.error ? 'error' : 'success'}`}>
-              {result.error ? (
-                <pre className="error-message">{result.error}</pre>
-              ) : result.verificationResult ? (
-                <div className="verification-details">
-                  {result.verificationResult.message && (
-                    <div className="verification-message">
-                      {result.verificationResult.message}
-                    </div>
-                  )}
-                  {result.verificationResult.result_code && (
-                    <div className="verification-code">
-                      <div className="code-header">
-                        <span>검증 결과:</span>
-                        <div className="code-actions">
-                          <button onClick={handleCopyCode} className="code-action-button">
-                            복사
-                          </button>
-                          <button onClick={handleExecuteCode} className="code-action-button">
-                            실행
-                          </button>
-                        </div>
-                      </div>
-                      <pre className="code-snippet">
-                        <code>{formatVerificationResult(result.verificationResult.result_code)}</code>
-                      </pre>
-                      {executionStatus && (
-                        <div className="execution-result-container">
-                          <div className="execution-status">
-                            {executionStatus === '실행 중...' && <div className="status-spinner" />}
-                            <span>{executionStatus}</span>
-                          </div>
-                          {executionResult && (
-                            <div className={`execution-result ${executionResult.error ? 'error' : 'success'}`}>
-                              <pre>{executionResult.output || executionResult.error}</pre>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <pre>검증이 시작되었습니다.{'\n'}DAG Run ID: {result.dag_run_id}</pre>
+            <div className={`popup-result ${result.error ? 'error' : (status === '검증 완료' ? 'success' : '')}`}>
+               {result.dag_run_id && <p>DAG Run ID: {result.dag_run_id}</p>}
+               {result.verificationResult?.result_code !== undefined && (
+                <> 
+                  <p>{result.verificationResult.message || '결과:'}</p>
+                  <pre><code>{result.verificationResult.result_code}</code></pre>
+                  <button onClick={handleExecuteCode} className="code-action-button">
+                    실행
+                  </button>
+                </>
               )}
+              {result.error && <pre>오류: {result.error}</pre>}
             </div>
           )}
         </div>
         <div className="popup-footer">
-          {status !== '검증 중...' && (
+           {(status === '검증 완료' || status.includes('실패') || status.includes('오류') || status.includes('없음')) && (
             <button className="popup-button primary" onClick={onClose}>
               확인
             </button>
@@ -779,6 +679,8 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     };
   } | null>(null);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [verificationElapsedTime, setVerificationElapsedTime] = useState<number>(0);
+  const verificationElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
   const [isNaturalLanguagePopupOpen, setIsNaturalLanguagePopupOpen] = useState(false);
   const [convertedCode, setConvertedCode] = useState<string>('');
   const [isConversionPopupOpen, setIsConversionPopupOpen] = useState(false);
@@ -920,86 +822,125 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     }
   };
 
-  const checkVerificationResult = async (dagRunId: string) => {
+  const checkVerificationResult = async (runId: string) => {
+    let shouldStopPolling = false;
     try {
-      const result = await codeBlockApi.getVerificationResult(dagRunId);
-      console.log('검증 결과:', result); // 디버깅용 로그 추가
-      
-      if (result.status === 'SUCCESS' && result.result) {
-        const { elapsed_time = 0, result_code = '', message = '' } = result.result;
-        setVerificationStatus('검증 완료');
-        setVerificationResult(prev => ({
-          ...prev,
-          verificationResult: {
-            elapsed_time,
-            result_code,
-            message
+      const statusResponse = await codeBlockApi.getDagRunStatus(runId);
+      console.log("Verification status check (proxy):", statusResponse);
+
+      switch (statusResponse.state) {
+        case 'success':
+          setVerificationStatus('검증 성공, 결과 가져오는 중...');
+          shouldStopPolling = true;
+
+          const resultResponse = await codeBlockApi.getVerificationResult(runId);
+          console.log("Verification result check (backend):", resultResponse);
+
+          if (resultResponse.value !== undefined && resultResponse.value !== null) {
+            setVerificationResult(prev => ({ 
+              ...prev,
+              dag_run_id: runId,
+              error: undefined,
+              verificationResult: {
+                  result_code: resultResponse.value,
+                  message: '코드 검증 완료'
+              }
+            }));
+            setVerificationStatus('검증 완료');
+          } else {
+            setVerificationResult(prev => ({
+              ...prev,
+              dag_run_id: runId,
+              error: resultResponse.error || '성공했으나 결과를 가져오지 못했습니다.',
+              verificationResult: undefined
+            }));
+            setVerificationStatus('검증 성공 (결과 없음)');
           }
-        }));
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-          verificationTimerRef.current = null;
-        }
-      } else if (result.status === 'ERROR') {
-        setVerificationStatus('검증 실패');
-        setVerificationResult(prev => ({
-          ...prev,
-          error: result.error || '검증 중 오류가 발생했습니다.'
-        }));
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-          verificationTimerRef.current = null;
-        }
-      } else {
-        setVerificationStatus('검증 중...');
+          setIsVerifying(false);
+          break;
+
+        case 'failed':
+        case 'error':
+          setVerificationStatus('검증 실패');
+          setVerificationResult(prev => ({ 
+              ...prev,
+              dag_run_id: runId,
+              error: statusResponse.error || 'Airflow DAG 실행 실패 또는 상태 조회 오류',
+              verificationResult: undefined 
+          }));
+          shouldStopPolling = true;
+          setIsVerifying(false);
+          break;
+
+        case 'running':
+        case 'queued':
+           if (verificationStatus !== '검증 진행 중...') {
+                setVerificationStatus('검증 진행 중...');
+           }
+           break;
+
+        default:
+          setVerificationStatus(`상태 알 수 없음: ${statusResponse.state}`);
+          break;
       }
     } catch (error) {
-      console.error('검증 결과 조회 중 오류:', error);
-      setVerificationStatus('검증 실패');
-      setVerificationResult(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : '검증 결과 조회 중 오류가 발생했습니다.'
-      }));
-      if (verificationTimerRef.current) {
-        clearInterval(verificationTimerRef.current);
-        verificationTimerRef.current = null;
+      console.error('Error during verification status check process:', error);
+      setVerificationStatus('폴링 오류');
+      setVerificationResult(prev => ({ ...prev, error: '상태 확인 중 오류' }));
+      shouldStopPolling = true;
+      setIsVerifying(false);
+    }
+    finally {
+      if (shouldStopPolling) {
+        if (verificationTimerRef.current) {
+          clearInterval(verificationTimerRef.current);
+          verificationTimerRef.current = null;
+          console.log("Verification polling timer stopped.");
+        }
+        if (verificationElapsedTimeRef.current) { 
+            clearInterval(verificationElapsedTimeRef.current);
+            verificationElapsedTimeRef.current = null;
+            console.log("Verification elapsed time timer stopped.");
+        }
       }
     }
   };
 
   const handleVerifyCode = async () => {
-    if (!currentCode) {
-      alert('검증할 코드가 없습니다.');
-      return;
-    }
-
-    // 이전 타이머가 있다면 제거
-    if (verificationTimerRef.current) {
-      clearInterval(verificationTimerRef.current);
-      verificationTimerRef.current = null;
-    }
-
+    if (!currentCode || !selectedModel) return;
+    if (verificationTimerRef.current) clearInterval(verificationTimerRef.current);
+    if (verificationElapsedTimeRef.current) clearInterval(verificationElapsedTimeRef.current);
+    verificationTimerRef.current = null;
+    verificationElapsedTimeRef.current = null;
+    
     setIsVerificationPopupOpen(true);
-    setVerificationStatus('검증 중...');
+    setVerificationStatus('검증 요청 중...');
     setVerificationResult(null);
+    setIsVerifying(true);
+    setVerificationElapsedTime(0);
+
+    verificationElapsedTimeRef.current = setInterval(() => {
+        setVerificationElapsedTime(prev => prev + 1);
+    }, 1000);
+    console.log("Verification elapsed time timer started.");
 
     try {
-      const result = await codeBlockApi.verifyCode(currentCode, selectedModel);
-      setVerificationResult({
-        dag_run_id: result.dag_run_id
-      });
-
-      // 10초 간격으로 결과 확인
-      verificationTimerRef.current = setInterval(
-        () => checkVerificationResult(result.dag_run_id),
-        10000
-      );
+        const result = await codeBlockApi.verifyCode(currentCode, selectedModel);
+        setVerificationResult({ dag_run_id: result.dag_run_id });
+        setVerificationStatus('검증 진행 중...');
+        verificationTimerRef.current = setInterval(() => checkVerificationResult(result.dag_run_id), 5000);
+        console.log("Verification status polling timer started.");
+        checkVerificationResult(result.dag_run_id);
     } catch (error) {
-      console.error('코드 검증 중 오류:', error);
-      setVerificationStatus('검증 실패');
-      setVerificationResult({
-        error: error instanceof Error ? error.message : '코드 검증 중 알 수 없는 오류가 발생했습니다.'
-      });
+        console.error('코드 검증 중 오류:', error);
+        setVerificationStatus('검증 요청 실패');
+        setVerificationResult({ error: error instanceof Error ? error.message : '요청 실패' });
+        setIsVerifying(false);
+        if (verificationTimerRef.current) clearInterval(verificationTimerRef.current);
+        if (verificationElapsedTimeRef.current) clearInterval(verificationElapsedTimeRef.current);
+        verificationTimerRef.current = null;
+        verificationElapsedTimeRef.current = null;
+        console.log("All verification timers stopped due to request error.");
     }
   };
 
@@ -1105,12 +1046,15 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       clearInterval(verificationTimerRef.current);
       verificationTimerRef.current = null;
     }
+    if (verificationElapsedTimeRef.current) {
+      clearInterval(verificationElapsedTimeRef.current);
+      verificationElapsedTimeRef.current = null;
+    }
     setIsVerificationPopupOpen(false);
     setVerificationStatus('');
     setVerificationResult(null);
   };
 
-  // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {
     return () => {
       if (verificationTimerRef.current) {
@@ -1122,6 +1066,9 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       if (conversionElapsedTimeRef.current) {
         clearInterval(conversionElapsedTimeRef.current);
       }
+      if (verificationElapsedTimeRef.current) {
+        clearInterval(verificationElapsedTimeRef.current);
+      }
     };
   }, []);
 
@@ -1130,7 +1077,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
     handleExecuteCode();
   };
 
-  // 자연어로 생성된 블록 추가 함수
   const handleCreateBlock = (blockXml: string) => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
@@ -1153,7 +1099,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       switch (statusResponse.state) {
         case 'success':
           setConversionStatus('변환 성공, 결과 가져오는 중...');
-          shouldStopPolling = true; // Stop polling timer
+          shouldStopPolling = true;
           const resultResponse = await codeBlockApi.getConversionResult(runId);
           console.log("Conversion result check (backend):", resultResponse);
           if (resultResponse.value) {
@@ -1168,7 +1114,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           break;
 
         case 'failed':
-        case 'error': // Treat backend error state same as failed state
+        case 'error':
           setConversionStatus('변환 실패');
           setConversionError(statusResponse.error || 'Airflow DAG 실행 실패 또는 상태 조회 오류');
           shouldStopPolling = true;
@@ -1176,21 +1122,17 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
           break;
 
         case 'running':
-        case 'queued': // Keep showing 'running' status even when queued
-          // Ensure the status is set to 'running' if it wasn't already
+        case 'queued':
           if (conversionStatus !== '변환 진행 중...') {
               setConversionStatus('변환 진행 중...');
           }
-          // Continue polling
           break;
 
-        default: // Handle unknown or other unexpected states
+        default:
           setConversionStatus(`상태 알 수 없음: ${statusResponse.state}`);
-          // Continue polling for now, maybe add a timeout later
           break;
       }
 
-      // Clear timer if needed
       if (shouldStopPolling) {
         if (conversionTimerRef.current) {
           clearInterval(conversionTimerRef.current);
@@ -1205,7 +1147,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       }
 
     } catch (error) {
-      // This catch block might not be reached if api.ts handles errors, but added for safety
       console.error('Error during conversion status check process:', error);
       setConversionStatus('폴링 오류');
       setConversionError(error instanceof Error ? error.message : '상태/결과 확인 중 오류');
@@ -1229,22 +1170,19 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       return;
     }
 
-    // Clear previous timers
     if (conversionTimerRef.current) clearInterval(conversionTimerRef.current);
     if (conversionElapsedTimeRef.current) clearInterval(conversionElapsedTimeRef.current);
     conversionTimerRef.current = null;
     conversionElapsedTimeRef.current = null;
 
-    // Reset states
     setIsConversionPopupOpen(true);
     setConversionStatus('변환 요청 중...');
     setConversionError(null);
     setIsConverting(true);
     setConversionDagRunId(null);
     setConvertedCode('');
-    setConversionElapsedTime(0); // Reset elapsed time
+    setConversionElapsedTime(0);
 
-    // Start elapsed time timer
     conversionElapsedTimeRef.current = setInterval(() => {
       setConversionElapsedTime(prev => prev + 1);
     }, 1000);
@@ -1256,13 +1194,11 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       setConversionDagRunId(result.dag_run_id);
       setConversionStatus('변환 진행 중...');
 
-      // Start status polling timer
       conversionTimerRef.current = setInterval(() => {
         checkConversionResult(result.dag_run_id);
-      }, 5000); // Poll every 5 seconds
+      }, 5000);
       console.log("Conversion status polling timer started.");
 
-      // Initial check immediately
       checkConversionResult(result.dag_run_id);
 
     } catch (error) {
@@ -1270,7 +1206,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       setConversionStatus('변환 요청 실패');
       setConversionError(error instanceof Error ? error.message : '알 수 없는 오류 발생');
       setIsConverting(false);
-      // Stop both timers on initial request error
       if (conversionTimerRef.current) clearInterval(conversionTimerRef.current);
       if (conversionElapsedTimeRef.current) clearInterval(conversionElapsedTimeRef.current);
       conversionTimerRef.current = null;
@@ -1462,6 +1397,7 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
         onClose={handleCloseVerificationPopup}
         status={verificationStatus}
         result={verificationResult}
+        elapsedTime={verificationElapsedTime}
       />
       <NaturalLanguagePopup
         isOpen={isNaturalLanguagePopupOpen}
