@@ -227,11 +227,14 @@ const ExecutionPopup: React.FC<ExecutionPopupProps> = ({ isOpen, onClose, status
 const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, status, result, elapsedTime }) => {
   if (!isOpen) return null;
 
+  const [executionOutput, setExecutionOutput] = useState<string | null>(null);
+
   const handleExecuteCode = async () => {
     if (!result?.verificationResult?.result_code) return;
 
     try {
       const executeResult = await codeBlockApi.executeCode(result.verificationResult.result_code);
+      setExecutionOutput(executeResult.output || '');
       alert('코드 실행 완료');
       console.log('Execution result:', executeResult);
     } catch (error) {
@@ -264,11 +267,16 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({ isOpen, onClose, 
                {result.dag_run_id && <p>DAG Run ID: {result.dag_run_id}</p>}
                {result.verificationResult?.result_code !== undefined && (
                 <> 
-                  <p>{result.verificationResult.message || '결과:'}</p>
-                  <pre><code>{result.verificationResult.result_code}</code></pre>
-                  <button onClick={handleExecuteCode} className="code-action-button">
-                    실행
-                  </button>
+                  <div className="code-snippet" style={{ backgroundColor: '#f0f0f0', padding: '10px', borderRadius: '5px' }}>
+                    <button onClick={handleExecuteCode} className="code-action-button">
+                      실행
+                    </button>
+                    <pre><code>{result.verificationResult.result_code}</code></pre>
+                  </div>
+                  <div className="execution-result" style={{ backgroundColor: '#e0f7fa', padding: '10px', borderRadius: '5px', marginTop: '10px' }}>
+                    <p>{executionOutput !== null ? '실행 결과:' : result.verificationResult.message || '결과:'}</p>
+                    <pre><code>{executionOutput !== null ? executionOutput : ''}</code></pre>
+                  </div>
                 </>
               )}
               {result.error && <pre>오류: {result.error}</pre>}
