@@ -303,46 +303,21 @@ export class CodeBlockApi {
     }
   }
 
-  async getVerificationResult(dagRunId: string): Promise<VerificationResult> {
+  async getVerificationResult(dagRunId: string): Promise<XComResponse> {
+    console.log(`Getting verification result via backend for runId: ${dagRunId}`);
     try {
-      const response = await fetch(
-        `${this.baseUrl}/proxy/airflow/api/v1/dags/equiv_task/dagRuns/${dagRunId}/taskInstances/get_result/xcomEntries/return_value`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': 'Basic YWRtaW46dnR3MjEwMzAy',
-            'Accept': 'application/json'
-          }
-        }
+      const response = await axios.get<XComResponse>(
+        `${this.baseUrl}/code/verify/result/${dagRunId}` // <<< Call backend result endpoint
       );
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { status: 'RUNNING' };
-        }
-        throw new Error(`검증 결과 조회 실패: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('검증 결과 데이터:', data);
-
-      // 응답 데이터 구조 처리
-      const result = {
-        elapsed_time: 0, // 실제 소요 시간은 나중에 추가
-        result_code: data.value, // 전체 검증 결과를 표시
-        message: '코드 검증이 완료되었습니다.'
-      };
-
-      return { result, status: 'SUCCESS' };
+      console.log('Verification result from backend:', response.data);
+      // Directly return the backend response which matches XComResponse
+      return response.data; 
     } catch (error) {
-      console.error('검증 결과 조회 중 상세 오류:', error);
-      if (error instanceof Error && error.message.includes('404')) {
-        return { status: 'RUNNING' };
-      }
-      if (error instanceof Error) {
-        return { error: error.message, status: 'ERROR' };
-      }
-      return { error: '알 수 없는 오류가 발생했습니다.', status: 'ERROR' };
+      console.error(`백엔드를 통한 검증 결과 조회 중 오류 (${dagRunId}):`, error);
+      // Return an error structure matching XComResponse
+      return {
+          error: '백엔드 결과 조회 실패' 
+      };
     }
   }
 
@@ -413,18 +388,26 @@ export class CodeBlockApi {
     }
   }
 
-  async getDagRunStatus(runId: string): Promise<any> { // Using 'any' for now based on previous code
+  async getDagRunStatus(runId: string): Promise<DagStatusResponse> {
+    console.log(`Checking verification status via backend for runId: ${runId}`);
     try {
-      const response = await axios.get(
-        // TODO: Ideally this also goes via backend, but keep as is for now to avoid breaking verification
-        // Using relative path assuming proxy is setup correctly
-        `/api/proxy/airflow/dags/equiv_task/dagRuns/${runId}` 
+      const response = await axios.get<DagStatusResponse>(
+        `${this.baseUrl}/code/verify/status/${runId}` // <<< Call backend status endpoint
       );
-      return response.data;
+      console.log('Verification status from backend:', response.data);
+      // Ensure a valid state is returned
+      return {
+          ...response.data,
+          state: response.data?.state || 'unknown'
+      };
     } catch (error) {
-      console.error(`Error fetching DAG run status for ${runId} via proxy:`, error);
-       // Simplified error return for verification polling
-       return { state: 'error', error: '상태 조회 오류 (프록시)' };
+      console.error(`백엔드를 통한 검증 상태 조회 중 오류 (${runId}):`, error);
+      // Return error state matching DagStatusResponse
+       return {
+          dag_run_id: runId,
+          state: 'error',
+          error: '백엔드 상태 조회 실패'
+       };
     }
   }
 }
