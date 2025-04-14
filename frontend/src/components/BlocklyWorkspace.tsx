@@ -985,7 +985,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
       const blockly_xml = Blockly.Xml.domToText(dom);
 
       if (selectedBlockId) {
-        // 기존 코드 블록 수정
         await codeBlockApi.updateCodeBlock(selectedBlockId, {
           title,
           description,
@@ -994,7 +993,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         });
         alert('코드가 성공적으로 수정되었습니다!');
       } else {
-        // 새로운 코드 블록 생성
         await codeBlockApi.createCodeBlock({
           title,
           description,
@@ -1004,7 +1002,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         alert('코드가 성공적으로 저장되었습니다!');
       }
 
-      // 저장 후 초기화
       resetWorkspace();
       setShouldRefresh(true);
     } catch (error) {
@@ -1020,18 +1017,14 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   };
 
   const handleBlockSelect = async (block: CodeBlock) => {
-    try {
-      setTitle(block.title);
-      setDescription(block.description);
-      setSelectedBlockId(block.id);
-      
-      const workspace = workspaceRef.current;
-      if (!workspace || !block.blockly_xml) {
-        throw new Error('워크스페이스를 찾을 수 없거나 Blockly XML이 없습니다.');
-      }
+    const workspace = workspaceRef.current;
+    if (!workspace || !block.blockly_xml) {
+      throw new Error('워크스페이스를 찾을 수 없거나 Blockly XML이 없습니다.');
+    }
 
+    try {
       workspace.clear();
-      const xml = Blockly.Xml.textToDom(block.blockly_xml);
+      const xml = Blockly.utils.xml.textToDom(block.blockly_xml);
       Blockly.Xml.domToWorkspace(xml, workspace);
     } catch (error) {
       console.error('코드 블록 로드 중 오류:', error);
@@ -1090,7 +1083,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     if (!workspace) return;
 
     try {
-      const xml = Blockly.Xml.textToDom(blockXml);
+      const xml = Blockly.utils.xml.textToDom(blockXml);
       Blockly.Xml.domToWorkspace(xml, workspace);
     } catch (error) {
       console.error('블록 생성 중 오류:', error);
