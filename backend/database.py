@@ -64,11 +64,29 @@ def create_tables():
                     description TEXT,
                     code TEXT NOT NULL,
                     blockly_xml TEXT,
+                    user_id INTEGER REFERENCES users(id),
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             logger.info("code_blocks 테이블이 성공적으로 생성되었습니다.")
+        else:
+            # user_id 컬럼이 존재하는지 확인
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'code_blocks' AND column_name = 'user_id'
+                ) as exists;
+            """)
+            result = cur.fetchone()
+            user_id_exists = result['exists']
+
+            if not user_id_exists:
+                cur.execute("""
+                    ALTER TABLE code_blocks
+                    ADD COLUMN user_id INTEGER REFERENCES users(id);
+                """)
+                logger.info("code_blocks 테이블에 user_id 컬럼이 추가되었습니다.")
 
         # users 테이블 생성
         cur.execute("""

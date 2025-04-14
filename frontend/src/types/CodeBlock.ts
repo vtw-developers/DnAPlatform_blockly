@@ -4,6 +4,11 @@ export interface CodeBlock {
   description: string;
   code: string;
   blockly_xml: string;
+  user_id?: number;
+  user?: {
+    name: string;
+    email: string;
+  };
   created_at: string;
   updated_at: string;
 }
