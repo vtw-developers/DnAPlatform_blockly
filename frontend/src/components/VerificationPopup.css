@@ -1,0 +1,172 @@
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.verification-popup {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 80%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-header {
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popup-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-button:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.popup-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.verification-info {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.info-item {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-weight: bold;
+  color: #666;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.value {
+  color: #333;
+  flex: 1;
+}
+
+.status-success {
+  color: #28a745;
+}
+
+.status-failure {
+  color: #dc3545;
+}
+
+.status-error {
+  color: #dc3545;
+}
+
+.error {
+  background-color: #fff5f5;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.error h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  color: #dc3545;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #dc3545;
+}
+
+.popup-footer {
+  padding: 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.popup-footer .close-button {
+  background-color: #007bff;
+  color: white;
+  font-size: 1rem;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.popup-footer .close-button:hover {
+  background-color: #0056b3;
+} 

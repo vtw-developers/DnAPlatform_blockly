@@ -1,74 +1,59 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15
-    container_name: blockly_postgres
+  db:
+    image: postgres:15-alpine
+    container_name: dna-platform-db
     environment:
-      - POSTGRES_DB=blockly_db
-      - POSTGRES_USER=blockly_user
-      - POSTGRES_PASSWORD=blockly_password
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
-      - ./docker/postgres-data:/var/lib/postgresql/data
-    networks:
-      - blockly_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U blockly_user -d blockly_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: blockly_backend
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
-    environment:
-      - CORS_ORIGINS=http://localhost:5000,http://192.168.0.2:5050,http://121.65.128.115:5050
-      - DATABASE_URL=postgresql://blockly_user:blockly_password@postgres:5432/blockly_db
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - blockly_network
+    container_name: dna-platform-backend
     volumes:
       - ./backend:/app
+    env_file:
+      - ./backend/.env
+    ports:
+      - "${PORT}:8000"
+    depends_on:
+      - db
     restart: always
 
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - VITE_LOCAL_API_URL=${VITE_LOCAL_API_URL}
-        - VITE_INTERNAL_API_URL=${VITE_INTERNAL_API_URL}
-        - VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
-        - VITE_API_URL=${VITE_API_URL}
-    container_name: blockly_frontend
+    container_name: dna-platform-frontend
     env_file:
-      - .env
+      - ./frontend/.env
     ports:
-      - "5050:5050"
-    environment:
-      - VITE_LOCAL_API_URL=${VITE_LOCAL_API_URL}
-      - VITE_INTERNAL_API_URL=${VITE_INTERNAL_API_URL}
-      - VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
-      - VITE_API_URL=${VITE_API_URL}
+      - "${VITE_PORT}:80"
     depends_on:
       - backend
-    networks:
-      - blockly_network
     restart: always
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dna-platform-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    command: serve
+    restart: always
+    environment:
+      - OLLAMA_HOST=0.0.0.0
 
 volumes:
   postgres_data:
-
-networks:
-  blockly_network:
-    driver: bridge 
+  ollama_data: 
