@@ -1,5 +1,5 @@
 # 빌드 스테이지
-FROM node:16 as build
+FROM node:lts-alpine as build
 
 WORKDIR /app
 
@@ -21,6 +21,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 빌드된 파일 복사
 COPY --from=build /app/build /usr/share/nginx/html
+
+EXPOSE 80
 
 # Nginx 실행
 CMD ["nginx", "-g", "daemon off;"] 
