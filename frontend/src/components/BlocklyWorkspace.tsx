@@ -1029,9 +1029,18 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     }
 
     try {
+      // 워크스페이스 업데이트
       workspace.clear();
       const xml = Blockly.utils.xml.textToDom(block.blockly_xml);
       Blockly.Xml.domToWorkspace(xml, workspace);
+
+      // 제목과 설명 설정
+      setTitle(block.title);
+      setDescription(block.description);
+      setSelectedBlockId(block.id);
+      
+      // 코드 설정
+      setCurrentCode(block.code);
     } catch (error) {
       console.error('코드 블록 로드 중 오류:', error);
       alert('코드 블록을 불러오는데 실패했습니다.');
