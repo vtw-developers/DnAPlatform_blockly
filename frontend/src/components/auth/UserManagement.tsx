@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -21,198 +21,237 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip
+  Chip,
+  Pagination,
+  Alert,
+  CircularProgress
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import BlockIcon from '@mui/icons-material/Block';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { User, UserUpdateData, userManagementApi } from '../../services/api';
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  organization: string;
-  role: 'admin' | 'user';
-  status: 'active' | 'inactive';
-  createdAt: string;
+interface EditDialogProps {
+  open: boolean;
+  user: User | null;
+  onClose: () => void;
+  onSave: (userId: number, data: UserUpdateData) => void;
 }
 
-const UserManagement = () => {
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+const EditDialog: React.FC<EditDialogProps> = ({ open, user, onClose, onSave }) => {
+  const [formData, setFormData] = useState<UserUpdateData>({
+    name: '',
+    organization: '',
+    role: 'user',
+    is_active: true,
+  });
 
-  // 임시 데이터
-  const users: User[] = [
-    {
-      id: 1,
-      email: 'admin@example.com',
-      name: '관리자',
-      organization: '시스템 관리부',
-      role: 'admin',
-      status: 'active',
-      createdAt: '2024-01-01'
-    },
-    {
-      id: 2,
-      email: 'user@example.com',
-      name: '홍길동',
-      organization: 'ABC 기관',
-      role: 'user',
-      status: 'active',
-      createdAt: '2024-01-02'
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name,
+        organization: user.organization,
+        role: user.role,
+        is_active: user.is_active,
+      });
     }
-  ];
+  }, [user]);
 
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
+  const handleSubmit = () => {
+    if (user) {
+      onSave(user.id, formData);
+    }
+    onClose();
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>사용자 정보 수정</DialogTitle>
+      <DialogContent>
+        <TextField
+          margin="dense"
+          label="이름"
+          fullWidth
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        />
+        <TextField
+          margin="dense"
+          label="소속"
+          fullWidth
+          value={formData.organization}
+          onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+        />
+        <FormControl fullWidth margin="dense">
+          <InputLabel>역할</InputLabel>
+          <Select
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
+          >
+            <MenuItem value="user">일반 사용자</MenuItem>
+            <MenuItem value="admin">관리자</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl fullWidth margin="dense">
+          <InputLabel>상태</InputLabel>
+          <Select
+            value={formData.is_active}
+            onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'true' })}
+          >
+            <MenuItem value="true">활성</MenuItem>
+            <MenuItem value="false">비활성</MenuItem>
+          </Select>
+        </FormControl>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>취소</Button>
+        <Button onClick={handleSubmit} color="primary">저장</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const UserManagement: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [page, setPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const rowsPerPage = 10;
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await userManagementApi.getUsers((page - 1) * rowsPerPage, rowsPerPage);
+      setUsers(response.users);
+      setTotalUsers(response.total);
+    } catch (err: any) {
+      console.error('Error fetching users:', err);
+      setError(err.response?.data?.detail || '사용자 목록을 불러오는데 실패했습니다.');
+      setUsers([]);
+      setTotalUsers(0);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [page]);
 
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
     setEditDialogOpen(true);
   };
 
-  const handleStatusToggle = (user: User) => {
-    // TODO: 사용자 상태 변경 처리
-    console.log('Toggle status for user:', user.id);
+  const handleEditSave = async (userId: number, data: UserUpdateData) => {
+    try {
+      await userManagementApi.updateUser(userId, data);
+      fetchUsers();
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '사용자 정보 수정에 실패했습니다.');
+    }
   };
 
-  const handleEditDialogClose = () => {
-    setEditDialogOpen(false);
-    setSelectedUser(null);
+  const handleDeleteClick = async (userId: number) => {
+    if (window.confirm('정말로 이 사용자를 삭제하시겠습니까?')) {
+      try {
+        await userManagementApi.deleteUser(userId);
+        fetchUsers();
+        setError(null);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || '사용자 삭제에 실패했습니다.');
+      }
+    }
   };
 
-  const handleEditSubmit = () => {
-    // TODO: 사용자 정보 업데이트 처리
-    handleEditDialogClose();
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
   };
 
   return (
-    <Box sx={{ width: '100%', p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 3 }}>
+    <Box sx={{ padding: 3 }}>
+      <Typography variant="h4" gutterBottom>
         사용자 관리
       </Typography>
-      
-      <Paper sx={{ width: '100%', mb: 2 }}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>이메일</TableCell>
-                <TableCell>이름</TableCell>
-                <TableCell>소속</TableCell>
-                <TableCell>권한</TableCell>
-                <TableCell>상태</TableCell>
-                <TableCell>가입일</TableCell>
-                <TableCell>관리</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.organization}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.role === 'admin' ? '관리자' : '사용자'}
-                        color={user.role === 'admin' ? 'primary' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.status === 'active' ? '활성' : '비활성'}
-                        color={user.status === 'active' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{user.createdAt}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditClick(user)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleStatusToggle(user)}
-                      >
-                        {user.status === 'active' ? (
-                          <BlockIcon color="error" />
-                        ) : (
-                          <CheckCircleIcon color="success" />
-                        )}
-                      </IconButton>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>이메일</TableCell>
+                  <TableCell>이름</TableCell>
+                  <TableCell>소속</TableCell>
+                  <TableCell>역할</TableCell>
+                  <TableCell>상태</TableCell>
+                  <TableCell>가입일</TableCell>
+                  <TableCell>작업</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      사용자가 없습니다.
                     </TableCell>
                   </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={users.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </Paper>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.organization}</TableCell>
+                      <TableCell>{user.role === 'admin' ? '관리자' : '일반 사용자'}</TableCell>
+                      <TableCell>{user.is_active ? '활성' : '비활성'}</TableCell>
+                      <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <IconButton onClick={() => handleEditClick(user)} size="small">
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton onClick={() => handleDeleteClick(user.id)} size="small" color="error">
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-      <Dialog open={editDialogOpen} onClose={handleEditDialogClose}>
-        <DialogTitle>사용자 정보 수정</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <TextField
-              fullWidth
-              label="이메일"
-              value={selectedUser?.email}
-              disabled
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="이름"
-              value={selectedUser?.name}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="소속"
-              value={selectedUser?.organization}
-              sx={{ mb: 2 }}
-            />
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>권한</InputLabel>
-              <Select
-                value={selectedUser?.role}
-                label="권한"
-              >
-                <MenuItem value="admin">관리자</MenuItem>
-                <MenuItem value="user">사용자</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleEditDialogClose}>취소</Button>
-          <Button onClick={handleEditSubmit} variant="contained">
-            저장
-          </Button>
-        </DialogActions>
-      </Dialog>
+          {users.length > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Pagination
+                count={Math.ceil(totalUsers / rowsPerPage)}
+                page={page}
+                onChange={handlePageChange}
+                color="primary"
+              />
+            </Box>
+          )}
+        </>
+      )}
+
+      <EditDialog
+        open={editDialogOpen}
+        user={selectedUser}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={handleEditSave}
+      />
     </Box>
   );
 };

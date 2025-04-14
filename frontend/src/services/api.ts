@@ -108,6 +108,29 @@ interface XComResponse {
     error?: string;
 }
 
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  organization: string;
+  role: 'admin' | 'user';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserListResponse {
+  users: User[];
+  total: number;
+}
+
+export interface UserUpdateData {
+  name?: string;
+  organization?: string;
+  role?: 'admin' | 'user';
+  is_active?: boolean;
+}
+
 export class CodeBlockApi {
   private baseUrl: string;
 
@@ -401,4 +424,80 @@ export class CodeBlockApi {
   }
 }
 
-export const codeBlockApi = new CodeBlockApi(); 
+export const codeBlockApi = new CodeBlockApi();
+
+export class UserManagementApi {
+  private static instance: UserManagementApi;
+  private baseUrl: string;
+
+  private constructor() {
+    this.baseUrl = `${API_URL}/auth`;
+  }
+
+  public static getInstance(): UserManagementApi {
+    if (!UserManagementApi.instance) {
+      UserManagementApi.instance = new UserManagementApi();
+    }
+    return UserManagementApi.instance;
+  }
+
+  private getHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }
+
+  private getRequestConfig() {
+    return {
+      headers: this.getHeaders(),
+      withCredentials: true
+    };
+  }
+
+  async getUsers(skip: number, limit: number): Promise<UserListResponse> {
+    try {
+      console.log('Fetching users with params:', { skip, limit });
+      const response = await axios.get(
+        `${this.baseUrl}/users`,
+        {
+          ...this.getRequestConfig(),
+          params: { skip, limit }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('사용자 목록 조회 실패:', error);
+      throw error;
+    }
+  }
+
+  async updateUser(userId: number, data: UserUpdateData): Promise<User> {
+    try {
+      const response = await axios.patch(
+        `${this.baseUrl}/users/${userId}`,
+        data,
+        this.getRequestConfig()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('사용자 정보 수정 실패:', error);
+      throw error;
+    }
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    try {
+      await axios.delete(
+        `${this.baseUrl}/users/${userId}`,
+        this.getRequestConfig()
+      );
+    } catch (error) {
+      console.error('사용자 삭제 실패:', error);
+      throw error;
+    }
+  }
+}
+
+export const userManagementApi = UserManagementApi.getInstance(); 
