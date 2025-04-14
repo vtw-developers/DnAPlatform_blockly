@@ -40,6 +40,17 @@ app = FastAPI(
 allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5000').split(',')
 origins = [origin.strip() for origin in allowed_origins]
 
+logger.info(f"Configured CORS allowed_origins: {origins}")
+
+# CORS 미들웨어에 디버그 콜백 추가
+async def debug_cors(request, call_next):
+    logger.info(f"Incoming request from origin: {request.headers.get('origin')}")
+    response = await call_next(request)
+    logger.info(f"Response CORS headers: {dict(response.headers)}")
+    return response
+
+app.middleware("http")(debug_cors)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

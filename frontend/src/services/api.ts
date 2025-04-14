@@ -138,9 +138,19 @@ export class CodeBlockApi {
     this.baseUrl = API_BASE_URL;
   }
 
+  private getHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    };
+  }
+
   async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/code-blocks?page=${page}&limit=${limit}`);
+      const response = await fetch(`${this.baseUrl}/code-blocks?page=${page}&limit=${limit}`, {
+        headers: this.getHeaders()
+      });
       if (!response.ok) {
         throw new Error('코드 블록을 가져오는데 실패했습니다.');
       }
@@ -154,9 +164,7 @@ export class CodeBlockApi {
   async createCodeBlock(data: CreateCodeBlockDto): Promise<CodeBlock> {
     const response = await fetch(`${this.baseUrl}/code-blocks`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
 
@@ -170,9 +178,7 @@ export class CodeBlockApi {
   async updateCodeBlock(id: number, data: CreateCodeBlockDto): Promise<CodeBlock> {
     const response = await fetch(`${this.baseUrl}/code-blocks/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
 
@@ -186,9 +192,7 @@ export class CodeBlockApi {
   async deleteCodeBlocks(ids: number[]): Promise<void> {
     const response = await fetch(`${this.baseUrl}/code-blocks`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify({ ids }),
     });
 

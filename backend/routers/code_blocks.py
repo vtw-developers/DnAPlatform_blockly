@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -6,6 +6,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 import logging
+from utils import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -49,29 +50,39 @@ def get_db_connection():
         logger.error(f"데이터베이스 연결 오류: {e}")
         raise HTTPException(status_code=500, detail="데이터베이스 연결 실패")
 
-@router.post("/code-blocks", response_model=CodeBlock)
-async def create_code_block(code_block: CodeBlockCreate):
-    conn = None
+@router.post("/code-blocks", response_model=CodeBlockResponse)
+async def create_code_block(code_block: CodeBlockCreate, current_user: dict = Depends(get_current_user)):
+    """새로운 코드 블록 생성"""
+    conn = get_db_connection()
     try:
-        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO code_blocks (title, description, code, blockly_xml)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, title, description, code, blockly_xml, created_at, updated_at
-        """, (code_block.title, code_block.description, code_block.code, code_block.blockly_xml))
-        result = cur.fetchone()
+            INSERT INTO code_blocks (title, description, code, blockly_xml, user_id)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, title, description, code, blockly_xml, user_id, created_at, updated_at
+        """, (code_block.title, code_block.description, code_block.code, code_block.blockly_xml, current_user["id"]))
+        
+        new_block = cur.fetchone()
+        
+        # 작성자 정보 추가
+        cur.execute("""
+            SELECT name, email
+            FROM users
+            WHERE id = %s
+        """, (current_user["id"],))
+        user_info = cur.fetchone()
+        
+        formatted_block = dict(new_block)
+        if user_info:
+            formatted_block['user'] = {
+                'name': user_info['name'],
+                'email': user_info['email']
+            }
+            
         conn.commit()
-        logger.info(f"새로운 코드 블록이 생성되었습니다. ID: {result['id']}")
-        return dict(result)
-    except Exception as e:
-        logger.error(f"코드 블록 생성 중 오류 발생: {e}")
-        if conn:
-            conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"blocks": [formatted_block], "total": 1}
     finally:
-        if conn:
-            conn.close()
+        conn.close()
 
 @router.put("/code-blocks/{code_block_id}", response_model=CodeBlock)
 async def update_code_block(code_block_id: int, code_block: CodeBlockUpdate):
@@ -105,36 +116,57 @@ async def update_code_block(code_block_id: int, code_block: CodeBlockUpdate):
             conn.close()
 
 @router.get("/code-blocks", response_model=CodeBlockResponse)
-async def get_code_blocks(page: int = 1, per_page: int = 10):
-    conn = None
+async def get_code_blocks(
+    page: int = 1,
+    limit: int = 5,
+    current_user: dict = Depends(get_current_user)
+):
+    """모든 코드 블록 조회"""
+    conn = get_db_connection()
     try:
-        conn = get_db_connection()
         cur = conn.cursor()
         
-        # 전체 레코드 수 조회
+        # 전체 개수 조회
         cur.execute("SELECT COUNT(*) as total FROM code_blocks")
         total = cur.fetchone()['total']
         
         # 페이지네이션된 데이터 조회
-        offset = (page - 1) * per_page
+        offset = (page - 1) * limit
         cur.execute("""
-            SELECT id, title, description, code, blockly_xml, created_at, updated_at
-            FROM code_blocks
-            ORDER BY created_at DESC
+            SELECT 
+                cb.id, 
+                cb.title, 
+                cb.description, 
+                cb.code, 
+                cb.blockly_xml, 
+                cb.user_id, 
+                cb.created_at, 
+                cb.updated_at,
+                u.name as user_name,
+                u.email as user_email
+            FROM code_blocks cb
+            LEFT JOIN users u ON cb.user_id = u.id
+            ORDER BY cb.created_at DESC
             LIMIT %s OFFSET %s
-        """, (per_page, offset))
-        results = cur.fetchall()
+        """, (limit, offset))
+        blocks = cur.fetchall()
         
-        return {
-            "blocks": [dict(row) for row in results],
-            "total": total
-        }
-    except Exception as e:
-        logger.error(f"코드 블록 조회 중 오류 발생: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # 작성자 정보 포맷팅
+        formatted_blocks = []
+        for block in blocks:
+            formatted_block = dict(block)
+            if block['user_name'] and block['user_email']:
+                formatted_block['user'] = {
+                    'name': block['user_name'],
+                    'email': block['user_email']
+                }
+            formatted_block.pop('user_name', None)
+            formatted_block.pop('user_email', None)
+            formatted_blocks.append(formatted_block)
+            
+        return {"blocks": formatted_blocks, "total": total}
     finally:
-        if conn:
-            conn.close()
+        conn.close()
 
 @router.get("/code-blocks/{code_block_id}", response_model=CodeBlock)
 async def get_code_block(code_block_id: int):

@@ -8,6 +8,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
+from database import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +51,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        role: str = payload.get("role")
         if email is None:
             raise credentials_exception
-        token_data = {"email": email, "role": role}
-        return token_data
+            
+        # 데이터베이스에서 사용자 정보 조회
+        conn = get_db_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT id, email, name, role, organization, is_active FROM users WHERE email = %s",
+                (email,)
+            )
+            user = cur.fetchone()
+            if user is None:
+                raise credentials_exception
+            return dict(user)
+        finally:
+            conn.close()
+            
     except JWTError:
         raise credentials_exception
 
