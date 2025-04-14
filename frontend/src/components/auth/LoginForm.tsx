@@ -41,9 +41,13 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
     
     try {
       const response = await authApi.login({ email, password });
-      localStorage.setItem('token', response.access_token);
-      await onLoginSuccess();
-      navigate('/');
+      if (response && response.access_token) {
+        localStorage.setItem('token', response.access_token);
+        await onLoginSuccess();
+        navigate('/');
+      } else {
+        throw new Error('로그인 응답이 올바르지 않습니다.');
+      }
     } catch (err) {
       let errorMessage = '로그인에 실패했습니다.';
       if (err instanceof Error) {
@@ -52,10 +56,9 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
         errorMessage = err.response.data.detail;
       }
       setError(errorMessage);
+    } finally {
       setIsLoading(false);
-      return; // 에러 발생 시 함수 종료
     }
-    setIsLoading(false);
   };
 
   return (

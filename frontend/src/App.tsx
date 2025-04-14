@@ -8,6 +8,8 @@ import UserManagementPage from './pages/auth/UserManagementPage';
 import Navbar from './components/common/Navbar';
 import { authApi } from './services/auth';
 import { CircularProgress, Box } from '@mui/material';
+import { AuthProvider } from './contexts/AuthContext';
+import './App.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -60,35 +62,37 @@ function App() {
   }
 
   return (
-    <Router>
-      <Navbar isAuthenticated={isAuthenticated === true} isAdmin={isAdmin} userEmail={userEmail} />
-      <Routes>
-        <Route path="/login" element={
-          isAuthenticated ? 
-            <Navigate to="/" /> : 
-            <LoginPage onLoginSuccess={updateAuthStatus} />
-        } />
-        <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <SignupPage />} />
-        <Route 
-          path="/profile" 
-          element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/admin/users" 
-          element={isAuthenticated && isAdmin ? <UserManagementPage /> : <Navigate to="/" />} 
-        />
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? (
-              <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          } 
-        />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Navbar isAuthenticated={isAuthenticated === true} isAdmin={isAdmin} userEmail={userEmail} />
+        <Routes>
+          <Route path="/login" element={
+            isAuthenticated ? 
+              <Navigate to="/" /> : 
+              <LoginPage onLoginSuccess={updateAuthStatus} />
+          } />
+          <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <SignupPage />} />
+          <Route 
+            path="/profile" 
+            element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/admin/users" 
+            element={isAuthenticated && isAdmin ? <UserManagementPage /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/" 
+            element={
+              isAuthenticated ? (
+                <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            } 
+          />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
