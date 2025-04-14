@@ -15,6 +15,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   const updateAuthStatus = async () => {
@@ -22,11 +23,13 @@ function App() {
       const user = await authApi.getProfile();
       setIsAuthenticated(true);
       setUserEmail(user.email);
+      setUserName(user.name);
       setIsAdmin(user.role === 'admin');
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
       localStorage.removeItem('token');
       setIsAuthenticated(false);
+      setUserName('');
     }
   };
 
@@ -64,7 +67,12 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Navbar isAuthenticated={isAuthenticated === true} isAdmin={isAdmin} userEmail={userEmail} />
+        <Navbar 
+          isAuthenticated={isAuthenticated === true} 
+          isAdmin={isAdmin} 
+          userEmail={userEmail}
+          userName={userName}
+        />
         <Routes>
           <Route path="/login" element={
             isAuthenticated ? 

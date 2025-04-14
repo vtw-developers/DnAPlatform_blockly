@@ -19,9 +19,10 @@ interface NavbarProps {
   isAuthenticated: boolean;
   isAdmin: boolean;
   userEmail?: string;
+  userName?: string;
 }
 
-const Navbar = ({ isAuthenticated, isAdmin, userEmail }: NavbarProps) => {
+const Navbar = ({ isAuthenticated, isAdmin, userEmail, userName }: NavbarProps) => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -81,10 +82,16 @@ const Navbar = ({ isAuthenticated, isAdmin, userEmail }: NavbarProps) => {
               aria-haspopup="true"
               onClick={handleMenu}
               color="inherit"
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
             >
               <Avatar sx={{ width: 32, height: 32 }}>
                 <PersonIcon />
               </Avatar>
+              {userName && (
+                <Typography variant="body2" sx={{ ml: 1, color: 'white' }}>
+                  {userName}
+                </Typography>
+              )}
             </IconButton>
             <Menu
               id="menu-appbar"
