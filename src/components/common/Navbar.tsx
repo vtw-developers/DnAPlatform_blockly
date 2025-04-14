@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PersonIcon from '@mui/icons-material/Person';
+import { authApi } from '../../services/auth';
 
 interface NavbarProps {
   isAuthenticated: boolean;
@@ -32,9 +33,11 @@ const Navbar = ({ isAuthenticated, isAdmin, userEmail }: NavbarProps) => {
   };
 
   const handleLogout = () => {
-    // TODO: 로그아웃 처리
+    authApi.logout();
     handleClose();
     navigate('/login');
+    // 페이지 새로고침하여 앱 상태 초기화
+    window.location.reload();
   };
 
   return (

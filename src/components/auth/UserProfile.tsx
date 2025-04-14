@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -8,10 +8,13 @@ import {
   Paper,
   Grid,
   Avatar,
-  Divider
+  Divider,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
+import { authApi } from '../../services/auth';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   marginTop: theme.spacing(4),
@@ -21,14 +24,37 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [userData, setUserData] = useState({
-    email: 'user@example.com',
-    name: '홍길동',
-    organization: 'ABC 기관',
+    email: '',
+    name: '',
+    organization: '',
     currentPassword: '',
     newPassword: '',
     confirmNewPassword: ''
   });
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const user = await authApi.getProfile();
+        setUserData(prevData => ({
+          ...prevData,
+          email: user.email,
+          name: user.name,
+          organization: user.organization || ''
+        }));
+      } catch (err) {
+        setError('프로필 정보를 불러오는데 실패했습니다.');
+        console.error('Failed to fetch profile:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,15 +64,66 @@ const UserProfile = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: 프로필 업데이트 처리
-    setIsEditing(false);
+    setError('');
+    
+    try {
+      const updateData: {
+        name: string;
+        organization?: string;
+        current_password?: string;
+        new_password?: string;
+      } = {
+        name: userData.name,
+        organization: userData.organization || undefined
+      };
+
+      // 비밀번호 변경이 요청된 경우에만 포함
+      if (userData.currentPassword && userData.newPassword) {
+        if (userData.newPassword !== userData.confirmNewPassword) {
+          setError('새 비밀번호가 일치하지 않습니다.');
+          return;
+        }
+        updateData.current_password = userData.currentPassword;
+        updateData.new_password = userData.newPassword;
+      }
+
+      await authApi.updateProfile(updateData);
+      
+      // 비밀번호 필드 초기화
+      setUserData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmNewPassword: ''
+      }));
+      
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '프로필 수정에 실패했습니다.');
+      console.error('Failed to update profile:', err);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <Container maxWidth="md">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="md">
       <StyledPaper elevation={3}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
           <Avatar sx={{ width: 80, height: 80, mr: 2 }}>
             <PersonIcon sx={{ fontSize: 40 }} />
@@ -74,6 +151,7 @@ const UserProfile = () => {
                 value={userData.name}
                 disabled={!isEditing}
                 onChange={handleChange}
+                required
               />
             </Grid>
             <Grid item xs={12}>
@@ -90,12 +168,17 @@ const UserProfile = () => {
             {isEditing && (
               <>
                 <Grid item xs={12}>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    비밀번호 변경
-                  </Typography>
+                  <Divider />
+                  <Box sx={{ py: 2 }}>
+                    <Typography variant="h6" color="primary">
+                      비밀번호 변경
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      비밀번호를 변경하지 않으려면 비워두세요
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     name="currentPassword"
@@ -103,9 +186,11 @@ const UserProfile = () => {
                     type="password"
                     value={userData.currentPassword}
                     onChange={handleChange}
+                    variant="outlined"
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6} />
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     name="newPassword"
@@ -113,9 +198,10 @@ const UserProfile = () => {
                     type="password"
                     value={userData.newPassword}
                     onChange={handleChange}
+                    variant="outlined"
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     name="confirmNewPassword"
@@ -123,6 +209,7 @@ const UserProfile = () => {
                     type="password"
                     value={userData.confirmNewPassword}
                     onChange={handleChange}
+                    variant="outlined"
                   />
                 </Grid>
               </>

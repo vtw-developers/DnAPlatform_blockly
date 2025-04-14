@@ -1,19 +1,26 @@
+import os
+import logging
+import string
+import base64
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import StreamingResponse
-import os
 from dotenv import load_dotenv
-import logging
 from typing import List, Optional
 from datetime import datetime
-import httpx
-from pydantic import BaseModel
 import time
 import random
-import string
-import base64
+from pydantic import BaseModel
+from routers import code_blocks, ai_services, proxy, auth
+from database import wait_for_db, create_tables
+
+# 환경 설정 로드
+env = os.getenv('ENV', 'development')
+env_file = f'.env.{env}'
+load_dotenv(dotenv_path=f'../{env_file}')
 
 # 로깅 설정
 logging.basicConfig(
@@ -21,9 +28,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# 환경 변수 로드
-load_dotenv()
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -35,11 +39,10 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5000", "http://121.65.128.115:5050", "http://192.168.0.2:5050"],
+    allow_origins=["*"],  # 실제 운영 환경에서는 구체적인 origin을 지정해야 합니다
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
 # 신뢰할 수 있는 호스트 설정
@@ -48,13 +51,16 @@ app.add_middleware(
     allowed_hosts=["*"]
 )
 
-# 라우터 임포트
-from routers import code_blocks, ai_services, proxy
+# 데이터베이스 초기화
+if not wait_for_db():
+    raise Exception("데이터베이스 연결 실패")
+create_tables()
 
 # 라우터 등록
 app.include_router(code_blocks.router, prefix="/api", tags=["code-blocks"])
 app.include_router(ai_services.router, prefix="/api", tags=["ai-services"])
 app.include_router(proxy.router, prefix="/api/proxy", tags=["proxy"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 # <<<< ADDED: Pydantic models for verify endpoint >>>>
 class CodeVerifyRequest(BaseModel):

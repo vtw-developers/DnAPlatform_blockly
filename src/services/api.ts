@@ -2,7 +2,7 @@ import { CodeBlock, CreateCodeBlockDto } from '../types/CodeBlock';
 import axios from 'axios';
 
 // API URL 설정
-const getApiUrl = () => {
+export const getApiUrl = () => {
   const hostname = window.location.hostname;
   
   // localhost 환경
@@ -117,7 +117,7 @@ export class CodeBlockApi {
 
   async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/code-blocks?page=${page}&limit=${limit}`);
+      const response = await fetch(`${this.baseUrl}/api/code-blocks?page=${page}&limit=${limit}`);
       if (!response.ok) {
         throw new Error('코드 블록을 가져오는데 실패했습니다.');
       }
@@ -129,7 +129,7 @@ export class CodeBlockApi {
   }
 
   async createCodeBlock(data: CreateCodeBlockDto): Promise<CodeBlock> {
-    const response = await fetch(`${this.baseUrl}/code-blocks`, {
+    const response = await fetch(`${this.baseUrl}/api/code-blocks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ export class CodeBlockApi {
   }
 
   async updateCodeBlock(id: number, data: CreateCodeBlockDto): Promise<CodeBlock> {
-    const response = await fetch(`${this.baseUrl}/code-blocks/${id}`, {
+    const response = await fetch(`${this.baseUrl}/api/code-blocks/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export class CodeBlockApi {
   }
 
   async deleteCodeBlocks(ids: number[]): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/code-blocks`, {
+    const response = await fetch(`${this.baseUrl}/api/code-blocks`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -175,7 +175,7 @@ export class CodeBlockApi {
   }
 
   async executeCode(code: string): Promise<CodeExecuteResponse> {
-    const response = await fetch(`${this.baseUrl}/execute-code`, {
+    const response = await fetch(`${this.baseUrl}/api/execute-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -194,27 +194,16 @@ export class CodeBlockApi {
     console.log(`Requesting conversion via backend for model: ${modelName}`);
     try {
       const response = await axios.post<DagRunTriggerResponse>(
-        `${this.baseUrl}/code/convert`, // <<< Call backend conversion trigger endpoint
+        `${this.baseUrl}/api/code/convert`,
         {
           code: code,
           model_name: modelName
-        },
-        { headers: { 'Content-Type': 'application/json' } }
+        }
       );
-      console.log('Conversion requested via backend, response:', response.data);
-      if (!response.data || !response.data.dag_run_id) {
-         throw new Error('백엔드 응답에서 dag_run_id를 찾을 수 없습니다.');
-      }
       return response.data;
     } catch (error) {
-      console.error('백엔드를 통한 코드 변환 요청 중 오류:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        throw new Error(`코드 변환 요청 실패 (${error.response.status}): ${error.response.data?.detail || error.message}`);
-      } else if (error instanceof Error) {
-        throw new Error(`코드 변환 요청 실패: ${error.message}`);
-      } else {
-        throw new Error('코드 변환 요청 중 알 수 없는 오류 발생');
-      }
+      console.error('Code conversion error:', error);
+      throw error;
     }
   }
 
@@ -291,15 +280,15 @@ export class CodeBlockApi {
 
   async getModels(): Promise<ModelInfo[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/models`);
+      const response = await fetch(`${this.baseUrl}/api/models`);
       if (!response.ok) {
         throw new Error('모델 목록을 가져오는데 실패했습니다.');
       }
-      const data = await response.json();
+      const data: ModelsResponse = await response.json();
       return data.models;
     } catch (error) {
       console.error('모델 목록 가져오기 오류:', error);
-      return [];
+      throw error;
     }
   }
 

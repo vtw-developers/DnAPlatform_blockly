@@ -7,9 +7,12 @@ import {
   Container,
   Link,
   Paper,
-  Grid
+  Grid,
+  Alert
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '../../services/auth';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   marginTop: theme.spacing(8),
@@ -21,6 +24,7 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
 }));
 
 const SignupForm = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -28,6 +32,7 @@ const SignupForm = () => {
     name: '',
     organization: ''
   });
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,12 +40,32 @@ const SignupForm = () => {
       ...prev,
       [name]: value
     }));
+    setError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: 회원가입 처리 구현
-    console.log('Signup attempt:', formData);
+    setError(null);
+
+    // 비밀번호 확인
+    if (formData.password !== formData.confirmPassword) {
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    try {
+      await authApi.signup({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        organization: formData.organization
+      });
+      
+      // 회원가입 성공 후 로그인 페이지로 이동
+      navigate('/login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '회원가입에 실패했습니다.');
+    }
   };
 
   return (
@@ -50,6 +75,11 @@ const SignupForm = () => {
           회원가입
         </Typography>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField

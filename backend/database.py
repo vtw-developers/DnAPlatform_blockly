@@ -46,7 +46,7 @@ def create_tables():
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # 테이블이 이미 존재하는지 확인
+        # code_blocks 테이블 생성
         cur.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
@@ -68,31 +68,34 @@ def create_tables():
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            conn.commit()
             logger.info("code_blocks 테이블이 성공적으로 생성되었습니다.")
-        else:
-            # 컬럼 이름 변경 및 불필요한 컬럼 제거
-            try:
-                # blocklyXml -> blockly_xml 변경
-                cur.execute("""
-                    ALTER TABLE code_blocks
-                    RENAME COLUMN "blocklyXml" TO blockly_xml;
-                """)
-                logger.info("blocklyXml 컬럼 이름을 blockly_xml로 변경했습니다.")
-            except Exception as e:
-                logger.info("blockly_xml 컬럼이 이미 존재합니다.")
 
-            try:
-                # blocks_xml 컬럼이 있다면 제거
-                cur.execute("""
-                    ALTER TABLE code_blocks
-                    DROP COLUMN IF EXISTS blocks_xml;
-                """)
-                logger.info("불필요한 blocks_xml 컬럼을 제거했습니다.")
-            except Exception as e:
-                logger.info("blocks_xml 컬럼이 존재하지 않습니다.")
+        # users 테이블 생성
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'users'
+            ) as exists;
+        """)
+        result = cur.fetchone()
+        users_table_exists = result['exists']
 
-            conn.commit()
+        if not users_table_exists:
+            cur.execute("""
+                CREATE TABLE users (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    name VARCHAR(50) NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role VARCHAR(20) NOT NULL DEFAULT 'user',
+                    is_active BOOLEAN NOT NULL DEFAULT true,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            logger.info("users 테이블이 성공적으로 생성되었습니다.")
+
+        conn.commit()
             
     except Exception as e:
         logger.error(f"테이블 생성 중 오류 발생: {e}")
