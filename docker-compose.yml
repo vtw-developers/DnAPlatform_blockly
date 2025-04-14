@@ -45,13 +45,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - VITE_LOCAL_API_URL=${VITE_LOCAL_API_URL}
+        - VITE_INTERNAL_API_URL=${VITE_INTERNAL_API_URL}
+        - VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
+        - VITE_API_URL=${VITE_API_URL}
     container_name: blockly_frontend
     env_file:
       - .env
     ports:
       - "5050:5050"
     environment:
-      - HOSTNAME=${HOSTNAME}
+      - VITE_LOCAL_API_URL=${VITE_LOCAL_API_URL}
+      - VITE_INTERNAL_API_URL=${VITE_INTERNAL_API_URL}
+      - VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
+      - VITE_API_URL=${VITE_API_URL}
     depends_on:
       - backend
     networks:
