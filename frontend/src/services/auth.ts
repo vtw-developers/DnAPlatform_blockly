@@ -22,10 +22,12 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // 로그인 시도가 아닐 때만 리다이렉트
+      // 로그인 시도가 아닐 때만 토큰 제거 및 리다이렉트
       if (!error.config.url.includes('/auth/login')) {
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
@@ -86,7 +88,16 @@ class AuthApi {
       formData.append('username', data.email);
       formData.append('password', data.password);
 
-      const response = await axios.post(`${this.baseUrl}/login`, formData);
+      const response = await axios.post(`${this.baseUrl}/login`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+      
+      if (!response.data || !response.data.access_token) {
+        throw new Error('Invalid login response');
+      }
+      
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {

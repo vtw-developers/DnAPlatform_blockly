@@ -426,6 +426,18 @@ export class CodeBlockApi {
        };
     }
   }
+
+  async getCurrentUser() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/auth/me`, {
+        headers: this.getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('사용자 정보 조회 실패:', error);
+      throw error;
+    }
+  }
 }
 
 export const codeBlockApi = new CodeBlockApi();

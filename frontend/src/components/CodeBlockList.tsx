@@ -8,6 +8,7 @@ interface CodeBlockListProps {
   shouldRefresh?: boolean;
   onRefreshComplete?: () => void;
   onDeleteComplete: () => void;
+  currentUser?: { email: string };
 }
 
 interface CodeBlocksResponse {
@@ -15,12 +16,16 @@ interface CodeBlocksResponse {
   total: number;
 }
 
+type TabType = 'my' | 'others';
+
 export const CodeBlockList: React.FC<CodeBlockListProps> = ({
   onSelectBlock,
   shouldRefresh = false,
   onRefreshComplete,
-  onDeleteComplete
+  onDeleteComplete,
+  currentUser
 }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('my');
   const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
   const [selectedBlocks, setSelectedBlocks] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,8 +39,18 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
       setIsLoading(true);
       setError(null);
       const response = await codeBlockApi.getCodeBlocks(page, blocksPerPage) as CodeBlocksResponse;
-      setCodeBlocks(response.blocks);
-      setTotalPages(Math.ceil(response.total / blocksPerPage));
+      
+      // 현재 탭에 따라 코드 블록 필터링
+      const filteredBlocks = response.blocks.filter(block => {
+        if (activeTab === 'my') {
+          return block.user?.email === currentUser?.email;
+        } else {
+          return block.user?.email !== currentUser?.email;
+        }
+      });
+      
+      setCodeBlocks(filteredBlocks);
+      setTotalPages(Math.ceil(filteredBlocks.length / blocksPerPage));
       onRefreshComplete?.();
     } catch (error) {
       console.error('코드 블록 목록 조회 중 오류:', error);
@@ -49,7 +64,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
 
   useEffect(() => {
     fetchCodeBlocks(currentPage);
-  }, [currentPage]);
+  }, [currentPage, activeTab]);
 
   useEffect(() => {
     if (shouldRefresh) {
@@ -96,8 +111,23 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
 
   return (
     <div className="code-block-list">
+      <div className="code-block-tabs">
+        <button
+          className={`tab-button ${activeTab === 'my' ? 'active' : ''}`}
+          onClick={() => setActiveTab('my')}
+        >
+          내 코드
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'others' ? 'active' : ''}`}
+          onClick={() => setActiveTab('others')}
+        >
+          다른 사람의 코드
+        </button>
+      </div>
+
       <div className="code-block-list-header">       
-        {selectedBlocks.length > 0 && (
+        {selectedBlocks.length > 0 && activeTab === 'my' && (
           <button 
             className="delete-button"
             onClick={handleDeleteSelected}
@@ -110,7 +140,9 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
       {isLoading ? (
         <div className="loading">로딩 중...</div>
       ) : codeBlocks.length === 0 ? (
-        <div className="empty-message">저장된 코드가 없습니다.</div>
+        <div className="empty-message">
+          {activeTab === 'my' ? '저장된 코드가 없습니다.' : '다른 사용자의 코드가 없습니다.'}
+        </div>
       ) : (
         <>
           <div className="code-block-items">
@@ -119,13 +151,15 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
                 key={block.id} 
                 className={`code-block-item ${selectedBlocks.includes(block.id) ? 'selected' : ''}`}
               >
-                <div className="code-block-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selectedBlocks.includes(block.id)}
-                    onChange={() => handleBlockCheckboxChange(block.id)}
-                  />
-                </div>
+                {activeTab === 'my' && (
+                  <div className="code-block-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedBlocks.includes(block.id)}
+                      onChange={() => handleBlockCheckboxChange(block.id)}
+                    />
+                  </div>
+                )}
                 <div 
                   className="code-block-content"
                   onClick={() => handleBlockSelect(block)}

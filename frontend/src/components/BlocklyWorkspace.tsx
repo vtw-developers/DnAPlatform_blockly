@@ -9,6 +9,7 @@ import { CodeBlockList } from './CodeBlockList';
 import { codeBlockApi } from '../services/api';
 import type { ModelInfo } from '../services/api';
 import './BlocklyWorkspace.css';
+import { useAuth } from '../contexts/AuthContext';
 
 // Blockly 블록 정의 로드
 import '@blockly/block-plus-minus';
@@ -664,6 +665,7 @@ const formatElapsedTime = (seconds: number): string => {
 };
 
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
+  const { user } = useAuth();
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const [currentCode, setCurrentCode] = useState<string>('');
@@ -1399,6 +1401,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
             shouldRefresh={shouldRefresh}
             onRefreshComplete={handleRefreshComplete}
             onDeleteComplete={resetWorkspace}
+            currentUser={user}
           />
         </div>
       </div>
