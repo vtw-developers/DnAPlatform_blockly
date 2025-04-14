@@ -6,9 +6,17 @@ import {
   Typography,
   Container,
   Link,
-  Paper
+  Paper,
+  Alert
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '../../services/auth';
+import axios from 'axios';
+
+interface LoginFormProps {
+  onLoginSuccess: () => Promise<void>;
+}
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   marginTop: theme.spacing(8),
@@ -19,14 +27,35 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   backgroundColor: 'rgba(255, 255, 255, 0.9)',
 }));
 
-const LoginForm = () => {
+const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: 로그인 처리 구현
-    console.log('Login attempt:', { email });
+    setError('');
+    setIsLoading(true);
+    
+    try {
+      const response = await authApi.login({ email, password });
+      localStorage.setItem('token', response.access_token);
+      await onLoginSuccess();
+      navigate('/');
+    } catch (err) {
+      let errorMessage = '로그인에 실패했습니다.';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (axios.isAxiosError(err) && err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      }
+      setError(errorMessage);
+      setIsLoading(false);
+      return; // 에러 발생 시 함수 종료
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -36,6 +65,19 @@ const LoginForm = () => {
           로그인
         </Typography>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 2,
+                '& .MuiAlert-message': {
+                  whiteSpace: 'pre-line'
+                }
+              }}
+            >
+              {error}
+            </Alert>
+          )}
           <TextField
             margin="normal"
             required
@@ -47,6 +89,7 @@ const LoginForm = () => {
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
           />
           <TextField
             margin="normal"
@@ -59,14 +102,16 @@ const LoginForm = () => {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
           />
           <Button
             type="submit"
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
+            disabled={isLoading}
           >
-            로그인
+            {isLoading ? '로그인 중...' : '로그인'}
           </Button>
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Link href="/signup" variant="body2">
