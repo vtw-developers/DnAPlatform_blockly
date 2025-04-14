@@ -145,21 +145,29 @@ const UserManagement: React.FC = () => {
     setEditDialogOpen(true);
   };
 
+  const handleCloseDialog = () => {
+    setSelectedUser(null);
+    setEditDialogOpen(false);
+    document.body.focus();
+  };
+
   const handleEditSave = async (userId: number, data: UserUpdateData) => {
     try {
-      await userManagementApi.updateUser(userId, data);
-      fetchUsers();
+      const updatedUser = await userManagementApi.updateUser(userId, data);
+      setUsers(users.map(user => user.id === userId ? updatedUser : user));
+      handleCloseDialog();
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || '사용자 정보 수정에 실패했습니다.');
     }
   };
 
-  const handleDeleteClick = async (userId: number) => {
+  const handleDeleteUser = async (userId: number) => {
     if (window.confirm('정말로 이 사용자를 삭제하시겠습니까?')) {
       try {
         await userManagementApi.deleteUser(userId);
-        fetchUsers();
+        setUsers(users.filter(user => user.id !== userId));
+        handleCloseDialog();
         setError(null);
       } catch (err: any) {
         setError(err.response?.data?.detail || '사용자 삭제에 실패했습니다.');
@@ -222,7 +230,7 @@ const UserManagement: React.FC = () => {
                         <IconButton onClick={() => handleEditClick(user)} size="small">
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleDeleteClick(user.id)} size="small" color="error">
+                        <IconButton onClick={() => handleDeleteUser(user.id)} size="small" color="error">
                           <DeleteIcon />
                         </IconButton>
                       </TableCell>
@@ -249,7 +257,7 @@ const UserManagement: React.FC = () => {
       <EditDialog
         open={editDialogOpen}
         user={selectedUser}
-        onClose={() => setEditDialogOpen(false)}
+        onClose={handleCloseDialog}
         onSave={handleEditSave}
       />
     </Box>
