@@ -8,7 +8,11 @@ interface CodeBlockListProps {
   shouldRefresh?: boolean;
   onRefreshComplete?: () => void;
   onDeleteComplete: () => void;
-  currentUser?: { email: string };
+  currentUser?: {
+    id: number;
+    email: string;
+    name: string;
+  };
 }
 
 interface CodeBlocksResponse {
@@ -34,27 +38,25 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const blocksPerPage = 5;
 
-  const fetchCodeBlocks = async (page: number) => {
+  const fetchCodeBlocks = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError(null);
-      const response = await codeBlockApi.getCodeBlocks(page, blocksPerPage) as CodeBlocksResponse;
-      
-      // 현재 탭에 따라 코드 블록 필터링
-      const filteredBlocks = response.blocks.filter(block => {
-        if (activeTab === 'my') {
-          return block.user?.email === currentUser?.email;
-        } else {
-          return block.user?.email !== currentUser?.email;
-        }
+      console.log('Fetching code blocks with params:', { 
+        page: currentPage, 
+        limit: blocksPerPage, 
+        filterType: activeTab,
+        activeTab
       });
       
-      setCodeBlocks(filteredBlocks);
-      setTotalPages(Math.ceil(filteredBlocks.length / blocksPerPage));
+      const response = await codeBlockApi.getCodeBlocks(currentPage, blocksPerPage, activeTab as 'my' | 'others');
+      console.log('Fetched code blocks:', response);
+      
+      setCodeBlocks(response.blocks);
+      setTotalPages(Math.ceil(response.total / blocksPerPage));
       onRefreshComplete?.();
     } catch (error) {
-      console.error('코드 블록 목록 조회 중 오류:', error);
-      setError('코드 블록 목록을 불러오는데 실패했습니다.');
+      console.error('코드 블록을 가져오는데 실패했습니다:', error);
+      setError('코드 블록을 가져오는데 실패했습니다.');
       setCodeBlocks([]);
       setTotalPages(1);
     } finally {
@@ -63,12 +65,12 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
   };
 
   useEffect(() => {
-    fetchCodeBlocks(currentPage);
-  }, [currentPage, activeTab]);
+    fetchCodeBlocks();
+  }, [currentPage, blocksPerPage, activeTab, currentUser?.id]);
 
   useEffect(() => {
     if (shouldRefresh) {
-      fetchCodeBlocks(currentPage);
+      fetchCodeBlocks();
     }
   }, [shouldRefresh]);
 
@@ -96,7 +98,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
       try {
         await codeBlockApi.deleteCodeBlocks(selectedBlocks);
         setSelectedBlocks([]);
-        fetchCodeBlocks(currentPage);
+        fetchCodeBlocks();
         onDeleteComplete();
       } catch (error) {
         console.error('코드 블록 삭제 중 오류:', error);

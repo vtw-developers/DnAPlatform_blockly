@@ -146,18 +146,19 @@ export class CodeBlockApi {
     };
   }
 
-  async getCodeBlocks(page: number = 1, limit: number = 10): Promise<CodeBlocksResponse> {
+  async getCodeBlocks(page: number = 1, limit: number = 10, filterType: 'my' | 'others' = 'my'): Promise<CodeBlocksResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/code-blocks?page=${page}&limit=${limit}`, {
-        headers: this.getHeaders()
+      const response = await axios.get<CodeBlocksResponse>(`${this.baseUrl}/code-blocks`, {
+        params: {
+          page,
+          limit,
+          filter_type: filterType
+        }
       });
-      if (!response.ok) {
-        throw new Error('코드 블록을 가져오는데 실패했습니다.');
-      }
-      return await response.json();
+      return response.data;
     } catch (error) {
-      console.error('코드 블록 가져오기 오류:', error);
-      return { blocks: [], total: 0 };
+      console.error('코드 블록 조회 중 오류 발생:', error);
+      throw error;
     }
   }
 

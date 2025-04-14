@@ -124,36 +124,57 @@ async def update_code_block(code_block_id: int, code_block: CodeBlockUpdate):
 async def get_code_blocks(
     page: int = 1,
     limit: int = 5,
+    filter_type: str = 'my',  # 'my' 또는 'others'
     current_user: dict = Depends(get_current_user)
 ):
-    """모든 코드 블록 조회"""
+    """코드 블록 조회 (필터링 지원)"""
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         
+        # WHERE 절 구성
+        where_clause = ""
+        query_params = []
+        
+        if filter_type == 'my':
+            where_clause = "WHERE cb.user_id = %s"
+            query_params.append(current_user["id"])
+        elif filter_type == 'others':
+            where_clause = "WHERE cb.user_id != %s"
+            query_params.append(current_user["id"])
+        
         # 전체 개수 조회
-        cur.execute("SELECT COUNT(*) as total FROM code_blocks")
+        count_query = f"""
+            SELECT COUNT(*) as total 
+            FROM code_blocks cb 
+            {where_clause}
+        """
+        cur.execute(count_query, query_params)
         total = cur.fetchone()['total']
         
         # 페이지네이션된 데이터 조회
         offset = (page - 1) * limit
-        cur.execute("""
+        query_params.extend([limit, offset])
+        
+        blocks_query = f"""
             SELECT 
                 cb.id, 
                 cb.title, 
                 cb.description, 
                 cb.code, 
                 cb.blockly_xml, 
-                cb.user_id, 
                 cb.created_at, 
                 cb.updated_at,
                 u.name as user_name,
                 u.email as user_email
             FROM code_blocks cb
             LEFT JOIN users u ON cb.user_id = u.id
+            {where_clause}
             ORDER BY cb.created_at DESC
             LIMIT %s OFFSET %s
-        """, (limit, offset))
+        """
+        
+        cur.execute(blocks_query, query_params)
         blocks = cur.fetchall()
         
         # 작성자 정보 포맷팅
