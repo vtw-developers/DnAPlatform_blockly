@@ -657,7 +657,7 @@ const formatElapsedTime = (seconds: number): string => {
   return `${minutes > 0 ? `${minutes}분 ` : ''}${remainingSeconds}초`;
 };
 
-export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
+const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const [currentCode, setCurrentCode] = useState<string>('');
@@ -1446,4 +1446,6 @@ export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenera
       )}
     </div>
   );
-}; 
+};
+
+export default BlocklyWorkspace; 

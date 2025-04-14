@@ -1,27 +1,49 @@
-import React, { useState } from 'react';
-import { BlocklyWorkspace } from './components/BlocklyWorkspace';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import BlocklyWorkspace from './components/BlocklyWorkspace';
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import ProfilePage from './pages/auth/ProfilePage';
+import UserManagementPage from './pages/auth/UserManagementPage';
+import Navbar from './components/common/Navbar';
 
-const App: React.FC = () => {
-  const [generatedCode, setGeneratedCode] = useState('');
+function App() {
+  // 임시 인증 상태
+  const isAuthenticated = false;
+  const isAdmin = false;
+  const userEmail = '';
 
   const handleCodeGenerate = (code: string) => {
-    setGeneratedCode(code);
-    console.log('Generated Code:', code); // For debugging
+    console.log('Generated code:', code);
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>DnA Blockly</h1>
-      </header>
-      <main className="app-main">
-        <div className="blockly-container">
-          <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
-        </div>
-      </main>
-    </div>
+    <Router>
+      <Navbar isAuthenticated={isAuthenticated} isAdmin={isAdmin} userEmail={userEmail} />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route 
+          path="/profile" 
+          element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} 
+        />
+        <Route 
+          path="/admin/users" 
+          element={isAuthenticated && isAdmin ? <UserManagementPage /> : <Navigate to="/" />} 
+        />
+        <Route 
+          path="/" 
+          element={
+            isAuthenticated ? (
+              <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+      </Routes>
+    </Router>
   );
-};
+}
 
 export default App; 
