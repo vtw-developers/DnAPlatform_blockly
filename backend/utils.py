@@ -58,6 +58,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
 
+async def get_current_admin_user(current_user: dict = Depends(get_current_user)) -> dict:
+    """현재 사용자가 관리자인지 확인"""
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다."
+        )
+    return current_user
+
 def execute_python_code(code: str, timeout: int = 10) -> tuple[str, Optional[str]]:
     """
     Python 코드를 실행하고 결과를 반환합니다.

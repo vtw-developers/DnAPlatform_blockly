@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
@@ -58,6 +58,7 @@ class UserBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=50)
     organization: Optional[str] = Field(None, max_length=100)
     role: UserRole = UserRole.USER
+    is_active: bool = True
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
@@ -69,11 +70,12 @@ class UserLogin(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=50)
     organization: Optional[str] = Field(None, max_length=100)
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=8)
 
 class User(UserBase):
     id: int
-    is_active: bool = True
     created_at: datetime
     updated_at: datetime
 
@@ -86,4 +88,8 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: str
-    role: UserRole 
+    role: UserRole
+
+class UserListResponse(BaseModel):
+    users: List[User]
+    total: int 
