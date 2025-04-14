@@ -132,6 +132,9 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
                 >
                   <h4>{block.title}</h4>
                   <p>{block.description}</p>
+                  {block.user && (
+                    <small className="author-info">작성자: {block.user.name}</small>
+                  )}
                   {!block.blockly_xml && (
                     <small className="warning">Blockly XML 없음</small>
                   )}

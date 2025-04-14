@@ -107,6 +107,13 @@
   display: block;
 }
 
+.code-block-content .author-info {
+  display: block;
+  color: #666;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
 .pagination {
   display: flex;
   justify-content: center;

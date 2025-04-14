@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 모델 정의
+class UserInfo(BaseModel):
+    name: str
+    email: str
+
 class CodeBlockBase(BaseModel):
     title: str
     description: str
@@ -20,6 +24,7 @@ class CodeBlockBase(BaseModel):
 
 class CodeBlock(CodeBlockBase):
     id: int
+    user: Optional[UserInfo] = None
     created_at: datetime
     updated_at: datetime
 
