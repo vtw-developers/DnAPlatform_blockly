@@ -64,7 +64,7 @@ class AuthApi {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = `${API_BASE_URL}/api/auth`;
+    this.baseUrl = `${API_BASE_URL}/auth`;
     console.log('Using API URL:', API_BASE_URL);
   }
 

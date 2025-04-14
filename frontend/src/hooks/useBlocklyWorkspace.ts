@@ -76,7 +76,7 @@ export const useBlocklyWorkspace = ({ onCodeGenerate }: UseBlocklyWorkspaceProps
   const loadBlocks = (xml: string) => {
     if (workspace) {
       try {
-        const dom = Blockly.Xml.textToDom(xml);
+        const dom = Blockly.utils.xml.textToDom(xml);
         workspace.clear();
         Blockly.Xml.domToWorkspace(dom, workspace);
         const code = pythonGenerator.workspaceToCode(workspace);
