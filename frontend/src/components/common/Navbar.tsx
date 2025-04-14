@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import PersonIcon from '@mui/icons-material/Person';
 import { authApi } from '../../services/auth';
+import logo from '../../assets/logo.png';
 
 interface NavbarProps {
   isAuthenticated: boolean;
@@ -43,14 +44,24 @@ const Navbar = ({ isAuthenticated, isAdmin, userEmail }: NavbarProps) => {
   return (
     <AppBar position="static">
       <Toolbar>
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ flexGrow: 1, cursor: 'pointer' }}
+        <Box
+          sx={{
+            flexGrow: 1,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center'
+          }}
           onClick={() => navigate('/')}
         >
-          DnA Blockly
-        </Typography>
+          <img
+            src={logo}
+            alt="DnA Blockly Logo"
+            style={{
+              height: '40px',
+              marginRight: '10px'
+            }}
+          />
+        </Box>
 
         {isAuthenticated ? (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
