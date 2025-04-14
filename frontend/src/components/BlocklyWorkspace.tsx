@@ -1,11 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
+import 'blockly/blocks';
+import 'blockly/javascript';
+import 'blockly/python';
 import { CodeBlock } from '../types/CodeBlock';
 import { CodeBlockList } from './CodeBlockList';
 import { codeBlockApi } from '../services/api';
 import type { ModelInfo } from '../services/api';
 import './BlocklyWorkspace.css';
+
+// Blockly 블록 정의 로드
+import '@blockly/block-plus-minus';
 
 interface BlocklyWorkspaceProps {
   onCodeGenerate: (code: string) => void;
