@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional
 from database import get_db_connection
-from models import UserCreate, User, Token, UserLogin
+from models import UserCreate, User, Token, UserLogin, UserUpdate
 from utils import (
     verify_password,
     get_password_hash,
@@ -37,10 +37,10 @@ async def register(user: UserCreate):
         
         # 사용자 등록
         cur.execute("""
-            INSERT INTO users (email, name, password_hash, role)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, email, name, role, is_active, created_at, updated_at
-        """, (user.email, user.name, hashed_password, user.role))
+            INSERT INTO users (email, name, password_hash, role, organization)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, email, name, role, organization, is_active, created_at, updated_at
+        """, (user.email, user.name, hashed_password, user.role, user.organization))
         
         new_user = cur.fetchone()
         conn.commit()
@@ -87,12 +87,62 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
     try:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE email = %s",
+            "SELECT id, email, name, role, organization, is_active, created_at, updated_at FROM users WHERE email = %s",
             (current_user["email"],)
         )
         user = cur.fetchone()
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
         return user
+    finally:
+        conn.close()
+
+@router.patch("/me", response_model=User)
+async def update_user_profile(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
+    """현재 로그인한 사용자 정보 수정"""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        update_fields = []
+        update_values = []
+        
+        if user_update.name is not None:
+            update_fields.append("name = %s")
+            update_values.append(user_update.name)
+            
+        if user_update.organization is not None:
+            update_fields.append("organization = %s")
+            update_values.append(user_update.organization)
+            
+        if user_update.password is not None:
+            update_fields.append("password_hash = %s")
+            update_values.append(get_password_hash(user_update.password))
+            
+        if not update_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="수정할 정보가 없습니다."
+            )
+            
+        update_values.append(current_user["email"])
+        
+        query = f"""
+            UPDATE users 
+            SET {", ".join(update_fields)}, updated_at = CURRENT_TIMESTAMP
+            WHERE email = %s
+            RETURNING id, email, name, role, organization, is_active, created_at, updated_at
+        """
+        
+        cur.execute(query, update_values)
+        updated_user = cur.fetchone()
+        
+        if updated_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="사용자를 찾을 수 없습니다."
+            )
+            
+        conn.commit()
+        return updated_user
     finally:
         conn.close() 

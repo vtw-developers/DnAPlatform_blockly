@@ -88,12 +88,30 @@ def create_tables():
                     name VARCHAR(50) NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
                     role VARCHAR(20) NOT NULL DEFAULT 'user',
+                    organization VARCHAR(100),
                     is_active BOOLEAN NOT NULL DEFAULT true,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             logger.info("users 테이블이 성공적으로 생성되었습니다.")
+        else:
+            # organization 컬럼이 존재하는지 확인
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'users' AND column_name = 'organization'
+                ) as exists;
+            """)
+            result = cur.fetchone()
+            organization_exists = result['exists']
+
+            if not organization_exists:
+                cur.execute("""
+                    ALTER TABLE users
+                    ADD COLUMN organization VARCHAR(100);
+                """)
+                logger.info("users 테이블에 organization 컬럼이 추가되었습니다.")
 
         conn.commit()
             

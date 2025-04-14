@@ -99,6 +99,7 @@ class AuthApi {
   async getProfile(): Promise<User> {
     try {
       const response = await axios.get(`${this.baseUrl}/me`);
+      console.log('Profile response:', response.data);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {

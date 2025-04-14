@@ -56,6 +56,7 @@ class UserRole(str, Enum):
 class UserBase(BaseModel):
     email: EmailStr
     name: str = Field(..., min_length=2, max_length=50)
+    organization: Optional[str] = Field(None, max_length=100)
     role: UserRole = UserRole.USER
 
 class UserCreate(UserBase):
@@ -67,6 +68,7 @@ class UserLogin(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=50)
+    organization: Optional[str] = Field(None, max_length=100)
     password: Optional[str] = Field(None, min_length=8)
 
 class User(UserBase):
