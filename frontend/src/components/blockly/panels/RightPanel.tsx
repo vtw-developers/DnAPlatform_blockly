@@ -4,7 +4,6 @@ import { Model } from '../types/model.types';
 import { CodeBlock } from '../../../types/codeBlock.types';
 import { CodeInputSection } from '../sections/CodeInputSection';
 import { ActionButtons } from '../sections/ActionButtons';
-import { PythonCodeSection } from '../sections/PythonCodeSection';
 import { ConvertedCodeSection } from '../sections/ConvertedCodeSection';
 import { VerificationSection } from '../sections/VerificationSection';
 import { SavedCodesSection } from '../sections/SavedCodesSection';
@@ -98,15 +97,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         onReset={onReset}
         onSave={() => onSave(currentUser?.id ?? null)}
         onToggleShare={() => onToggleShare(currentUser?.id ?? null)}
-        isShared={isShared}
-        showShareButton={selectedBlocks.length > 0 && currentUser?.id === selectedBlockUserId}
-      />
-
-      <PythonCodeSection
-        code={currentCode}
         onExecute={onExecute}
         onConvert={handleConvert}
+        isShared={isShared}
+        showShareButton={selectedBlocks.length > 0 && currentUser?.id === selectedBlockUserId}
         isConverting={isConverting}
+        code={currentCode}
       />
 
       <ConvertedCodeSection
