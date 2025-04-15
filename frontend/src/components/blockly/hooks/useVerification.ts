@@ -1,135 +1,120 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { codeBlockApi } from '../../../services/api';
 
-interface VerificationResponse {
-  value?: string;
-  error?: string;
-  status?: {
-    state: 'queued' | 'running' | 'success' | 'failed';
-    message?: string;
-  };
+interface UseVerificationProps {
+  onError?: (error: string) => void;
+  pollingInterval?: number;
+  maxPollingTime?: number;
 }
 
-export const useVerification = () => {
+interface VerificationResult {
+  value?: string;
+  error?: string;
+}
+
+export const useVerification = ({ 
+  onError,
+  pollingInterval = 5000, // 5초
+  maxPollingTime = 300000 // 5분
+}: UseVerificationProps = {}) => {
   const [isVerificationPopupOpen, setIsVerificationPopupOpen] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState('');
-  const [verificationResult, setVerificationResult] = useState('');
-  const [verificationElapsedTime, setVerificationElapsedTime] = useState(0);
+  const [verificationStatus, setVerificationStatus] = useState<string>('');
+  const [verificationResult, setVerificationResult] = useState<string>('');
+  const [verificationElapsedTime, setVerificationElapsedTime] = useState<number>(0);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationDagRunId, setVerificationDagRunId] = useState<string | null>(null);
-  const [verificationError, setVerificationError] = useState<string | null>(null);
-  const verificationTimerRef = { current: null as NodeJS.Timeout | null };
-  const elapsedTimeTimerRef = { current: null as NodeJS.Timeout | null };
+  const [verificationDagRunId, setVerificationDagRunId] = useState<string>('');
+  const [verificationError, setVerificationError] = useState<string>('');
+
+  const pollingTimeoutRef = useRef<NodeJS.Timeout>();
+  const startTimeRef = useRef<number>(0);
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleVerifyCode = async (code: string, model: string) => {
-    if (!code || !model) return;
+    if (!code.trim() || !model) {
+      onError?.('코드와 모델을 모두 선택해주세요.');
+      return;
+    }
 
-    setIsVerificationPopupOpen(true);
-    setVerificationStatus('검증 시작...');
-    setVerificationResult('');
-    setVerificationError(null);
     setIsVerifying(true);
+    setIsVerificationPopupOpen(true);
+    setVerificationStatus('시작됨');
+    setVerificationResult('');
+    setVerificationError('');
     setVerificationElapsedTime(0);
 
     try {
       const response = await codeBlockApi.verifyCode(code, model);
-      
-      if (response.dag_run_id) {
-        setVerificationDagRunId(response.dag_run_id);
-        setVerificationStatus('검증 진행 중...');
-        
-        // 상태 폴링 시작 (10초 간격)
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-        }
-        verificationTimerRef.current = setInterval(() => {
-          checkVerificationResult(response.dag_run_id);
-        }, 10000); // 10초로 변경
+      setVerificationDagRunId(response.dag_run_id);
+      startTimeRef.current = Date.now();
 
-        // 첫 번째 체크는 즉시 실행
-        checkVerificationResult(response.dag_run_id);
+      const checkStatus = async () => {
+        try {
+          // 최대 폴링 시간 체크
+          const elapsedTime = Date.now() - startTimeRef.current;
+          if (elapsedTime >= maxPollingTime) {
+            throw new Error('검증 시간이 초과되었습니다.');
+          }
 
-        // 경과 시간 타이머 시작
-        if (elapsedTimeTimerRef.current) {
-          clearInterval(elapsedTimeTimerRef.current);
+          // DAG 상태 확인
+          const dagStatus = await codeBlockApi.getDagRunStatus(response.dag_run_id);
+          setVerificationElapsedTime(Math.floor(elapsedTime / 1000));
+
+          if (dagStatus.state === 'success') {
+            // DAG가 성공적으로 완료되면 결과 조회
+            const result = await codeBlockApi.getVerificationResult(response.dag_run_id);
+            setVerificationStatus('완료');
+            setVerificationResult(result.value || '검증 결과가 없습니다.');
+            setIsVerifying(false);
+          } else if (dagStatus.state === 'failed' || dagStatus.state === 'error') {
+            setVerificationStatus('실패');
+            setVerificationError(dagStatus.error || '알 수 없는 오류가 발생했습니다.');
+            setIsVerifying(false);
+          } else if (dagStatus.state === 'queued' || dagStatus.state === 'running') {
+            // 이전 타이머 정리
+            if (pollingTimeoutRef.current) {
+              clearTimeout(pollingTimeoutRef.current);
+            }
+            // 다음 폴링 예약
+            pollingTimeoutRef.current = setTimeout(checkStatus, pollingInterval);
+          } else {
+            throw new Error('알 수 없는 상태입니다: ' + dagStatus.state);
+          }
+        } catch (error) {
+          console.error('Error checking verification status:', error);
+          setVerificationStatus('실패');
+          setVerificationError(error instanceof Error ? error.message : '검증 상태 확인 중 오류가 발생했습니다.');
+          setIsVerifying(false);
         }
-        elapsedTimeTimerRef.current = setInterval(() => {
-          setVerificationElapsedTime(prev => prev + 1);
-        }, 1000);
-      } else {
-        throw new Error('DAG 실행 ID를 받지 못했습니다.');
-      }
+      };
+
+      checkStatus();
     } catch (error) {
-      console.error('Error during verification:', error);
-      setVerificationStatus('검증 시작 실패');
-      setVerificationError(error instanceof Error ? error.message : '검증 시작 중 오류 발생');
+      console.error('Error verifying code:', error);
+      setVerificationStatus('실패');
+      setVerificationError('코드 검증 요청 중 오류가 발생했습니다.');
       setIsVerifying(false);
     }
   };
 
-  const checkVerificationResult = async (runId: string) => {
-    try {
-      const resultResponse = await codeBlockApi.getVerificationResult(runId);
-      console.log("Verification result check:", resultResponse);
-
-      // 결과가 있는 경우
-      if (resultResponse.value) {
-        setVerificationStatus('검증 성공');
-        setVerificationResult(resultResponse.value);
-        stopTimers();
-        setIsVerifying(false);
-      }
-      // 에러가 있고 404가 아닌 경우 (실제 오류)
-      else if (resultResponse.error && !resultResponse.error.includes('404')) {
-        setVerificationStatus('검증 실패');
-        setVerificationError(resultResponse.error);
-        stopTimers();
-        setIsVerifying(false);
-      }
-      // 404 에러는 아직 결과가 준비되지 않은 것이므로 계속 진행
-      else if (resultResponse.error?.includes('404')) {
-        setVerificationStatus('검증 진행 중...');
-        // 폴링 계속 진행
-      }
-      // 기타 상태 처리
-      else {
-        setVerificationStatus('검증 진행 중...');
-      }
-    } catch (error) {
-      // 404 에러는 정상적인 모니터링 과정으로 처리
-      if (error instanceof Error && error.message.includes('404')) {
-        setVerificationStatus('검증 진행 중...');
-        // 폴링 계속 진행
-      } else {
-        console.error('Error checking verification status:', error);
-        setVerificationStatus('검증 상태 확인 실패');
-        setVerificationError(error instanceof Error ? error.message : '상태 확인 중 오류 발생');
-        stopTimers();
-        setIsVerifying(false);
-      }
-    }
-  };
-
-  const stopTimers = () => {
-    if (verificationTimerRef.current) {
-      clearInterval(verificationTimerRef.current);
-      verificationTimerRef.current = null;
-    }
-    if (elapsedTimeTimerRef.current) {
-      clearInterval(elapsedTimeTimerRef.current);
-      elapsedTimeTimerRef.current = null;
-    }
-  };
-
   const handleCloseVerificationPopup = () => {
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+    }
     setIsVerificationPopupOpen(false);
     setVerificationStatus('');
     setVerificationResult('');
-    setVerificationError(null);
-    setIsVerifying(false);
-    setVerificationDagRunId(null);
+    setVerificationError('');
     setVerificationElapsedTime(0);
-    stopTimers();
+    setVerificationDagRunId('');
+    setIsVerifying(false);
   };
 
   return {

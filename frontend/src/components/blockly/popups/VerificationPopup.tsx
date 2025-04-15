@@ -1,101 +1,103 @@
 import React, { useState } from 'react';
-import { codeBlockApi } from '../../../services/api';
-import { VerificationPopupProps } from '../types/blockly.types';
-import { formatElapsedTime } from '../utils/time';
-import '../styles/Popup.css';
+import './VerificationPopup.css';
+
+interface VerificationPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  status: string;
+  result: string;
+  error?: string;
+  elapsedTime: number;
+  dagRunId?: string;
+  code?: string;
+  isVerifying: boolean;
+  onExecute?: (code: string) => void;
+  executionResult?: string;
+  isExecuting?: boolean;
+}
 
 export const VerificationPopup: React.FC<VerificationPopupProps> = ({
   isOpen,
   onClose,
   status,
   result,
+  error,
   elapsedTime,
   dagRunId,
-  error
+  code,
+  isVerifying,
+  onExecute,
+  executionResult,
+  isExecuting
 }) => {
-  const [executionOutput, setExecutionOutput] = useState<string | null>(null);
-  const [isExecuting, setIsExecuting] = useState(false);
-
   if (!isOpen) return null;
 
-  const handleExecuteCode = async () => {
-    if (!result) return;
-
-    try {
-      setIsExecuting(true);
-      const executeResult = await codeBlockApi.executeCode(result);
-      setExecutionOutput(executeResult.output || '실행 결과가 없습니다.');
-    } catch (error) {
-      console.error('코드 실행 중 오류:', error);
-      setExecutionOutput(error instanceof Error ? error.message : '코드 실행에 실패했습니다.');
-    } finally {
-      setIsExecuting(false);
-    }
-  };
-
   return (
-    <div className="popup-overlay">
-      <div className="popup-content verification-popup">
-        <div className="popup-header">
+    <div className="verification-popup-overlay">
+      <div className="verification-popup">
+        <div className="verification-popup-header">
           <h2>코드 검증</h2>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         
-        <div className="popup-body">
-          <div className="status-section">
-            <div className="status-info">
-              <p><strong>상태:</strong> {status}</p>
-              <p><strong>경과 시간:</strong> {formatElapsedTime(elapsedTime)}</p>
-              {dagRunId && (
-                <p><strong>DAG 실행 ID:</strong> {dagRunId}</p>
+        <div className="verification-popup-content">
+          {code && (
+            <div className="verification-code-section">
+              <h3>검증할 코드</h3>
+              <pre className="code-display">{code}</pre>
+            </div>
+          )}
+
+          <div className="verification-status-section">
+            <div className="status-row">
+              <span className="status-label">상태:</span>
+              <span className={`status-value ${status.toLowerCase()}`}>{status}</span>
+            </div>
+            
+            {elapsedTime > 0 && (
+              <div className="status-row">
+                <span className="status-label">경과 시간:</span>
+                <span className="status-value">{elapsedTime}초</span>
+              </div>
+            )}
+
+            {dagRunId && (
+              <div className="status-row">
+                <span className="status-label">DAG Run ID:</span>
+                <span className="status-value">{dagRunId}</span>
+              </div>
+            )}
+          </div>
+
+          {(result || error) && (
+            <div className="verification-result-section">
+              <h3>검증 결과</h3>
+              {error ? (
+                <div className="error-message">{error}</div>
+              ) : (
+                <>
+                  <pre className="result-display">{result}</pre>
+                  {result && onExecute && code && (
+                    <div className="result-actions">
+                      <button 
+                        className="execute-button"
+                        onClick={() => onExecute(code)}
+                        disabled={isExecuting}
+                      >
+                        {isExecuting ? '실행 중...' : '검증된 코드 실행'}
+                      </button>
+                    </div>
+                  )}
+                  {executionResult && (
+                    <div className="execution-result-section">
+                      <h3>실행 결과</h3>
+                      <pre className="result-display">{executionResult}</pre>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-
-            {error ? (
-              <div className="error-section">
-                <h3>오류 발생</h3>
-                <div className="error-message">
-                  {error}
-                </div>
-              </div>
-            ) : result ? (
-              <div className="result-section">
-                <div className="code-header">
-                  <h3>검증 결과</h3>
-                  <button 
-                    className="execute-button"
-                    onClick={handleExecuteCode}
-                    disabled={isExecuting}
-                  >
-                    {isExecuting ? '실행 중...' : '실행'}
-                  </button>
-                </div>
-                <div className="code-container">
-                  <pre className="code-block">
-                    <code>{result}</code>
-                  </pre>
-                </div>
-                {executionOutput && (
-                  <div className="execution-output">
-                    <h3>실행 결과</h3>
-                    <pre className="output-block">
-                      <code>{executionOutput}</code>
-                    </pre>
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="popup-footer">
-          <button 
-            className="popup-button primary" 
-            onClick={onClose}
-            disabled={status === '검증 진행 중...'}
-          >
-            확인
-          </button>
+          )}
         </div>
       </div>
     </div>
