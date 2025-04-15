@@ -1,10 +1,12 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { BlocklyWorkspaceProps } from './types/blockly.types';
 import { useBlocklySetup } from './hooks/useBlocklySetup';
 import { useCodeExecution } from './hooks/useCodeExecution';
 import { useVerification } from './hooks/useVerification';
 import { useConversion } from './hooks/useConversion';
 import { useCodeBlock } from './hooks/useCodeBlock';
+import { useModels } from './hooks/useModels';
+import { usePopups } from './hooks/usePopups';
 import { ExecutionPopup } from './popups/ExecutionPopup';
 import { NaturalLanguagePopup } from './popups/NaturalLanguagePopup';
 import { VerificationPopup } from './popups/VerificationPopup';
@@ -12,19 +14,21 @@ import { ConversionPopup } from './popups/ConversionPopup';
 import { CodeBlockList } from '../../components/CodeBlockList';
 import { useAuth } from '../../contexts/AuthContext';
 import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
-import { codeBlockApi } from '../../services/api';
 import './styles/BlocklyWorkspace.css';
 
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [currentCode, setCurrentCode] = useState<string>('');
-  const [isNaturalLanguagePopupOpen, setIsNaturalLanguagePopupOpen] = useState(false);
-  const [isExecutionPopupOpen, setIsExecutionPopupOpen] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const { user } = useAuth();
-  const [selectedModel, setSelectedModel] = useState<string>('');
-  const [models, setModels] = useState<Array<{ name: string; type: string; description?: string }>>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  
+  const { isOpen, openPopup, closePopup } = usePopups();
+  const {
+    models,
+    selectedModel,
+    setSelectedModel,
+    isLoadingModels
+  } = useModels();
 
   const { workspace, resetWorkspace } = useBlocklySetup({
     workspaceRef,
@@ -67,7 +71,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   } = useConversion();
 
   const {
-    isVerificationPopupOpen,
     verificationStatus,
     verificationResult,
     verificationElapsedTime,
@@ -85,29 +88,12 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     closeExecutionPopup
   } = useCodeExecution();
 
-  useEffect(() => {
-    const loadModels = async () => {
-      setIsLoadingModels(true);
-      try {
-        const response = await codeBlockApi.getModels();
-        setModels(response);
-      } catch (error) {
-        console.error('Error loading models:', error);
-      } finally {
-        setIsLoadingModels(false);
-      }
-    };
-
-    loadModels();
-  }, []);
-
   const handleExecute = () => {
-    setIsExecutionPopupOpen(true);
+    openPopup('execution');
     executeCode(currentCode);
   };
 
-  const handleExecuteVerifiedCode = (code: string) => {
-    setIsExecutionPopupOpen(true);
+  const handleExecuteVerifiedCode = async (code: string) => {
     executeCode(code);
   };
 
@@ -122,7 +108,17 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
 
   const handleCloseExecutionPopup = () => {
     closeExecutionPopup();
-    setIsExecutionPopupOpen(false);
+    closePopup('execution');
+  };
+
+  const handleConvertCode = (code: string) => {
+    openPopup('conversion');
+    handleConvert(code);
+  };
+
+  const handleVerifyCodeWithModel = (code: string, model: string) => {
+    openPopup('verification');
+    handleVerifyCode(code, model);
   };
 
   return (
@@ -175,7 +171,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
             </button>
             <button 
               className="action-button" 
-              onClick={() => handleConvert(currentCode)}
+              onClick={() => handleConvertCode(currentCode)}
               disabled={!currentCode.trim() || isConverting}
             >
               {isConverting ? '변환 중...' : '코드 변환'}
@@ -224,7 +220,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
               )}
             </select>
             <button
-              onClick={() => handleVerifyCode(currentCode, selectedModel)}
+              onClick={() => handleVerifyCodeWithModel(currentCode, selectedModel)}
               disabled={isVerifying || !currentCode || !selectedModel || isLoadingModels}
               className="verify-button"
             >
@@ -249,21 +245,24 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
       </div>
 
       <ExecutionPopup
-        isOpen={isExecutionPopupOpen}
+        isOpen={isOpen.execution}
         onClose={handleCloseExecutionPopup}
         status={executionStatus}
         result={executionResult}
       />
 
       <NaturalLanguagePopup
-        isOpen={isNaturalLanguagePopupOpen}
-        onClose={() => setIsNaturalLanguagePopupOpen(false)}
+        isOpen={isOpen.naturalLanguage}
+        onClose={() => closePopup('naturalLanguage')}
         onCreateBlock={handleCreateBlock}
       />
 
       <VerificationPopup
-        isOpen={isVerificationPopupOpen}
-        onClose={handleCloseVerificationPopup}
+        isOpen={isOpen.verification}
+        onClose={() => {
+          handleCloseVerificationPopup();
+          closePopup('verification');
+        }}
         status={verificationStatus}
         result={verificationResult}
         error={verificationError}
@@ -271,14 +270,17 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         dagRunId={verificationDagRunId}
         code={currentCode}
         isVerifying={isVerifying}
-        onExecute={executeCode}
+        onExecute={handleExecuteVerifiedCode}
         executionResult={executionResult?.output || executionResult?.error}
         isExecuting={executionStatus === '실행 중'}
       />
 
       <ConversionPopup
-        isOpen={isConversionPopupOpen}
-        onClose={handleCloseConversionPopup}
+        isOpen={isOpen.conversion}
+        onClose={() => {
+          handleCloseConversionPopup();
+          closePopup('conversion');
+        }}
         status={conversionStatus}
         dagRunId={conversionDagRunId}
         error={conversionError}
