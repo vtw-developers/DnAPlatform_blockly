@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import BlocklyWorkspace from './components/BlocklyWorkspace';
+import BlocklyWorkspace from './components/blockly/BlocklyWorkspace';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ProfilePage from './pages/auth/ProfilePage';
