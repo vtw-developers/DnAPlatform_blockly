@@ -20,7 +20,8 @@
   padding: 8px;
   border: 1px solid #ced4da;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 1rem;  
+  max-width: 380px;
 }
 
 .code-description-input {
@@ -29,7 +30,8 @@
   border-radius: 4px;
   min-height: 80px;
   resize: vertical;
-  font-size: 1rem;
+  font-size: 1rem;  
+  max-width: 380px;
 }
 
 .button-container {
@@ -106,6 +108,7 @@ button:disabled {
   border-radius: 4px;
   font-family: monospace;
   resize: vertical;
+  max-width: 380px;
 }
 
 .code-actions {
@@ -122,7 +125,7 @@ button:disabled {
 .verify-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 10px;  
 }
 
 .model-select {
