@@ -146,9 +146,10 @@ export class CodeBlockApi {
     };
   }
 
-  async getCodeBlocks(page: number = 1, limit: number = 10, filterType: 'my' | 'others' = 'my'): Promise<CodeBlocksResponse> {
+  async getCodeBlocks(page: number = 1, limit: number = 10, filterType: 'my' | 'shared' = 'my'): Promise<CodeBlocksResponse> {
     try {
       const response = await axios.get<CodeBlocksResponse>(`${this.baseUrl}/code-blocks`, {
+        headers: this.getHeaders(),
         params: {
           page,
           limit,
@@ -425,34 +426,20 @@ export class CodeBlockApi {
     console.log(`Checking verification status via backend for runId: ${runId}`);
     try {
       const response = await axios.get<DagStatusResponse>(
-        `${this.baseUrl}/code/verify/status/${runId}` // <<< Call backend status endpoint
+        `${this.baseUrl}/code/verify/status/${runId}`
       );
       console.log('Verification status from backend:', response.data);
-      // Ensure a valid state is returned
       return {
-          ...response.data,
-          state: response.data?.state || 'unknown'
+        ...response.data,
+        state: response.data?.state || 'unknown'
       };
     } catch (error) {
-      console.error(`백엔드를 통한 검증 상태 조회 중 오류 (${runId}):`, error);
-      // Return error state matching DagStatusResponse
-       return {
-          dag_run_id: runId,
-          state: 'error',
-          error: '백엔드 상태 조회 실패'
-       };
-    }
-  }
-
-  async getCurrentUser() {
-    try {
-      const response = await axios.get(`${this.baseUrl}/auth/me`, {
-        headers: this.getHeaders()
-      });
-      return response.data;
-    } catch (error) {
-      console.error('사용자 정보 조회 실패:', error);
-      throw error;
+      console.error('백엔드를 통한 검증 상태 조회 중 오류:', error);
+      return {
+        dag_run_id: runId,
+        state: 'error',
+        error: '백엔드 상태 조회 실패'
+      };
     }
   }
 }
@@ -533,4 +520,4 @@ export class UserManagementApi {
   }
 }
 
-export const userManagementApi = UserManagementApi.getInstance(); 
+export const userManagementApi = UserManagementApi.getInstance();
