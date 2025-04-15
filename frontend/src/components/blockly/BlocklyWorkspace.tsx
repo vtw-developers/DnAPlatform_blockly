@@ -13,6 +13,7 @@ import { CodeBlock } from '../../types/CodeBlock';
 import * as Blockly from 'blockly';
 import { codeBlockApi } from '../../services/api';
 import './styles/BlocklyWorkspace.css';
+import { useVerification } from './hooks/useVerification';
 
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -21,7 +22,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const [currentCode, setCurrentCode] = useState<string>('');
   const [isNaturalLanguagePopupOpen, setIsNaturalLanguagePopupOpen] = useState(false);
   const [isExecutionPopupOpen, setIsExecutionPopupOpen] = useState(false);
-  const [isVerificationPopupOpen, setIsVerificationPopupOpen] = useState(false);
   const [isConversionPopupOpen, setIsConversionPopupOpen] = useState(false);
   const [selectedBlocks, setSelectedBlocks] = useState<string[]>([]);
   const [isShared, setIsShared] = useState(false);
@@ -38,13 +38,17 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [models, setModels] = useState<Array<{ name: string; type: string; description?: string }>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<string>('');
-  const [verificationResult, setVerificationResult] = useState<any>(null);
-  const [verificationElapsedTime, setVerificationElapsedTime] = useState<number>(0);
-  const verificationElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
-  const [verificationDagRunId, setVerificationDagRunId] = useState<string | null>(null);
-  const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    isVerificationPopupOpen,
+    verificationStatus,
+    verificationResult,
+    verificationElapsedTime,
+    isVerifying,
+    handleVerifyCode,
+    handleCloseVerificationPopup,
+    verificationDagRunId,
+    verificationError
+  } = useVerification();
   const [selectedBlockUserId, setSelectedBlockUserId] = useState<number | null>(null);
 
   const { workspace, resetWorkspace } = useBlocklySetup({
@@ -305,146 +309,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     }
   };
 
-  const checkVerificationResult = async (runId: string) => {
-    try {
-      const resultResponse = await codeBlockApi.getVerificationResult(runId);
-      console.log("Verification result check:", resultResponse);
-
-      if (resultResponse.value) {
-        setVerificationStatus('검증 완료');
-        // 검증 결과를 팝업에서 사용할 형식으로 변환
-        setVerificationResult({
-          verificationResult: {
-            result_code: resultResponse.value,
-            message: '검증이 완료되었습니다.'
-          },
-          dag_run_id: verificationDagRunId
-        });
-        setIsVerifying(false);
-        
-        // 타이머 정리
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-          verificationTimerRef.current = null;
-        }
-        if (verificationElapsedTimeRef.current) {
-          clearInterval(verificationElapsedTimeRef.current);
-          verificationElapsedTimeRef.current = null;
-        }
-      } else if (resultResponse.error && resultResponse.error.includes('404')) {
-        // 404 오류는 아직 결과가 준비되지 않은 것으로 처리
-        setVerificationStatus('검증 진행 중...');
-      } else if (resultResponse.error) {
-        // 404가 아닌 다른 오류는 실패로 처리
-        setVerificationStatus('검증 실패');
-        setVerificationResult({ error: resultResponse.error });
-        setIsVerifying(false);
-        
-        // 타이머 정리
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-          verificationTimerRef.current = null;
-        }
-        if (verificationElapsedTimeRef.current) {
-          clearInterval(verificationElapsedTimeRef.current);
-          verificationElapsedTimeRef.current = null;
-        }
-      } else {
-        setVerificationStatus('검증 진행 중...');
-      }
-    } catch (error) {
-      // 네트워크 오류 등 예외 상황 처리
-      console.error('Error checking verification result:', error);
-      if (error instanceof Error && error.message.includes('404')) {
-        // 404 오류는 아직 결과가 준비되지 않은 것으로 처리
-        setVerificationStatus('검증 진행 중...');
-      } else {
-        setVerificationStatus('검증 상태 확인 실패');
-        setVerificationResult({ 
-          error: error instanceof Error ? error.message : '상태 확인 중 오류 발생'
-        });
-        
-        // 타이머 정리
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-          verificationTimerRef.current = null;
-        }
-        if (verificationElapsedTimeRef.current) {
-          clearInterval(verificationElapsedTimeRef.current);
-          verificationElapsedTimeRef.current = null;
-        }
-        setIsVerifying(false);
-      }
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!currentCode || !selectedModel) return;
-    
-    setIsVerifying(true);
-    setIsVerificationPopupOpen(true);
-    setVerificationStatus('검증 요청 중...');
-    setVerificationResult(null);
-    setVerificationElapsedTime(0);
-    setVerificationDagRunId(null);
-    
-    // 경과 시간 타이머 시작
-    if (verificationElapsedTimeRef.current) {
-      clearInterval(verificationElapsedTimeRef.current);
-    }
-    verificationElapsedTimeRef.current = setInterval(() => {
-      setVerificationElapsedTime(prev => prev + 1);
-    }, 1000);
-
-    try {
-      setVerificationStatus('검증 진행 중...');
-      const response = await codeBlockApi.verifyCode(currentCode, selectedModel);
-      
-      if (response.dag_run_id) {
-        setVerificationDagRunId(response.dag_run_id);
-        
-        // 상태 폴링 시작 (10초 간격)
-        if (verificationTimerRef.current) {
-          clearInterval(verificationTimerRef.current);
-        }
-        verificationTimerRef.current = setInterval(() => {
-          checkVerificationResult(response.dag_run_id);
-        }, 10000);
-
-      } else {
-        throw new Error('DAG 실행 ID를 받지 못했습니다.');
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-      setVerificationStatus('검증 실패');
-      setVerificationResult({ 
-        error: error instanceof Error ? error.message : '검증 중 오류가 발생했습니다.'
-      });
-      setIsVerifying(false);
-      if (verificationElapsedTimeRef.current) {
-        clearInterval(verificationElapsedTimeRef.current);
-        verificationElapsedTimeRef.current = null;
-      }
-    }
-  };
-
-  const handleCloseVerificationPopup = () => {
-    setIsVerificationPopupOpen(false);
-    setVerificationStatus('');
-    setVerificationResult(null);
-    setVerificationElapsedTime(0);
-    setVerificationDagRunId(null);
-    
-    if (verificationTimerRef.current) {
-      clearInterval(verificationTimerRef.current);
-      verificationTimerRef.current = null;
-    }
-    if (verificationElapsedTimeRef.current) {
-      clearInterval(verificationElapsedTimeRef.current);
-      verificationElapsedTimeRef.current = null;
-    }
-  };
-
   const handleReset = () => {
     resetWorkspace();
     // 제목과 설명 초기화
@@ -579,8 +443,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
               )}
             </select>
             <button
-              onClick={handleVerifyCode}
-              disabled={isVerifying || !currentCode || !selectedModel}
+              onClick={() => handleVerifyCode(currentCode, selectedModel)}
+              disabled={isVerifying || !currentCode || !selectedModel || isLoadingModels}
               className="verify-button"
             >
               {isVerifying ? '검증 중...' : '코드 검증'}
@@ -622,6 +486,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         status={verificationStatus}
         result={verificationResult}
         elapsedTime={verificationElapsedTime}
+        dagRunId={verificationDagRunId}
+        error={verificationError}
       />
 
       <ConversionPopup

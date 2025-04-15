@@ -323,4 +323,153 @@
 .python-actions button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+.verification-popup {
+  width: 800px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.verification-popup .popup-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.status-info {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.status-info p {
+  margin: 8px 0;
+  color: #495057;
+}
+
+.status-info strong {
+  color: #212529;
+  margin-right: 8px;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.code-header h3 {
+  margin: 0;
+  color: #212529;
+}
+
+.execute-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.execute-button:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.execute-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.code-container {
+  background-color: #282c34;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.code-block {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #e9ecef;
+}
+
+.execution-output {
+  margin-top: 20px;
+  border-top: 1px solid #dee2e6;
+  padding-top: 20px;
+}
+
+.output-block {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #212529;
+  overflow-x: auto;
+}
+
+.error-section {
+  background-color: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.error-section h3 {
+  color: #e53e3e;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.error-message {
+  color: #c53030;
+  font-family: 'Consolas', 'Monaco', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.popup-footer {
+  border-top: 1px solid #dee2e6;
+  padding: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.popup-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.popup-button.primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.popup-button.primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.popup-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
 } 
