@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { codeBlockApi } from '../../../services/api';
-
-export interface Model {
-  name: string;
-  type: string;
-  description?: string;
-}
+import { Model } from '../types/model.types';
 
 export interface UseModelsReturn {
   models: Model[];
@@ -24,7 +19,11 @@ export const useModels = (): UseModelsReturn => {
       setIsLoadingModels(true);
       try {
         const response = await codeBlockApi.getModels();
-        setModels(response);
+        setModels(response.map(model => ({
+          ...model,
+          type: model.type as 'openai' | 'ollama',
+          isAvailable: true
+        })));
       } catch (error) {
         console.error('Error loading models:', error);
       } finally {
