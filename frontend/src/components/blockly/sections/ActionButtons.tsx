@@ -16,11 +16,8 @@ interface ActionButtonsProps {
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onReset,
   onSave,
-  onToggleShare,
   onExecute,
   onConvert,
-  isShared,
-  showShareButton,
   isConverting,
   code
 }) => {
@@ -32,15 +29,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         </button>
         <button className="save-button" onClick={onSave}>
           저장
-        </button>
-        {showShareButton && onToggleShare && (
-          <button 
-            className={`share-button ${isShared ? 'shared' : ''}`} 
-            onClick={onToggleShare}
-          >
-            {isShared ? '공유 해제' : '공유하기'}
-          </button>
-        )}
+        </button>       
         <button className="action-button" onClick={onExecute}>
           코드실행
         </button>
