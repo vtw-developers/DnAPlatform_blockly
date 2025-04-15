@@ -8,7 +8,7 @@
 .blockly-workspace-container {
   flex: 1;
   position: relative;
-  min-width: 0;
+  overflow: hidden;
 }
 
 .blockly-workspace {
