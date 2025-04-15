@@ -185,6 +185,7 @@ async def get_code_blocks(
                 cb.created_at, 
                 cb.updated_at,
                 cb.user_id,
+                cb.is_shared,
                 u.name as user_name,
                 u.email as user_email
             FROM code_blocks cb
@@ -221,7 +222,7 @@ async def get_code_block(code_block_id: int):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, title, description, code, blockly_xml, user_id, created_at, updated_at
+            SELECT id, title, description, code, blockly_xml, user_id, is_shared, created_at, updated_at
             FROM code_blocks
             WHERE id = %s
         """, (code_block_id,))
