@@ -1,5 +1,5 @@
 import React from 'react';
-import { Model } from '../hooks/useModels';
+import { Model } from '../types/model.types';
 import '../styles/Sections.css';
 
 interface VerificationSectionProps {

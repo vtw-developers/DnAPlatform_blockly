@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { codeBlockApi } from '../../../services/api';
-import { CodeBlock } from '../../../types/CodeBlock';
+import { CodeBlock } from '../../../types/codeBlock.types';
 import * as Blockly from 'blockly';
 
 interface UseCodeBlockProps {
@@ -47,11 +47,9 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
       };
 
       if (selectedBlocks.length > 0) {
-        // 수정
         await codeBlockApi.updateCodeBlock(parseInt(selectedBlocks[0]), codeBlock);
         alert('코드가 수정되었습니다.');
       } else {
-        // 새로 저장
         await codeBlockApi.createCodeBlock(codeBlock);
         alert('코드가 저장되었습니다.');
       }
@@ -89,7 +87,7 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
       setTitle(block.title || '');
       setDescription(block.description || '');
       setIsShared(block.is_shared || false);
-      setSelectedBlocks([block.id.toString()]);
+      setSelectedBlocks([block.id]);
       setSelectedBlockUserId(block.user_id || null);
     }
   };
