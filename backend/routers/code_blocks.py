@@ -143,7 +143,7 @@ async def update_code_block(code_block_id: int, code_block: CodeBlockUpdate):
 async def get_code_blocks(
     page: int = 1,
     limit: int = 5,
-    filter_type: str = 'my',  # 'my' 또는 'others'
+    filter_type: str = 'my',  # 'my' 또는 'shared'
     current_user: dict = Depends(get_current_user)
 ):
     """코드 블록 조회 (필터링 지원)"""
@@ -158,8 +158,8 @@ async def get_code_blocks(
         if filter_type == 'my':
             where_clause = "WHERE cb.user_id = %s"
             query_params.append(current_user["id"])
-        elif filter_type == 'others':
-            where_clause = "WHERE cb.user_id != %s"
+        elif filter_type == 'shared':
+            where_clause = "WHERE cb.user_id != %s AND cb.is_shared = true"
             query_params.append(current_user["id"])
         
         # 전체 개수 조회

@@ -20,7 +20,7 @@ interface CodeBlocksResponse {
   total: number;
 }
 
-type TabType = 'my' | 'others';
+type TabType = 'my' | 'shared';
 
 export const CodeBlockList: React.FC<CodeBlockListProps> = ({
   onSelectBlock,
@@ -48,7 +48,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
         activeTab
       });
       
-      const response = await codeBlockApi.getCodeBlocks(currentPage, blocksPerPage, activeTab as 'my' | 'others');
+      const response = await codeBlockApi.getCodeBlocks(currentPage, blocksPerPage, activeTab as 'my' | 'shared');
       console.log('Fetched code blocks:', response);
       
       setCodeBlocks(response.blocks);
@@ -121,10 +121,10 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
           내 코드
         </button>
         <button
-          className={`tab-button ${activeTab === 'others' ? 'active' : ''}`}
-          onClick={() => setActiveTab('others')}
+          className={`tab-button ${activeTab === 'shared' ? 'active' : ''}`}
+          onClick={() => setActiveTab('shared')}
         >
-          다른 사람의 코드
+          공유된 코드
         </button>
       </div>
 
@@ -143,7 +143,7 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
         <div className="loading">로딩 중...</div>
       ) : codeBlocks.length === 0 ? (
         <div className="empty-message">
-          {activeTab === 'my' ? '저장된 코드가 없습니다.' : '다른 사용자의 코드가 없습니다.'}
+          {activeTab === 'my' ? '저장된 코드가 없습니다.' : '공유된 코드가 없습니다.'}
         </div>
       ) : (
         <>
