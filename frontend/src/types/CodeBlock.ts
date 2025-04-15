@@ -5,6 +5,7 @@ export interface CodeBlock {
   code: string;
   blockly_xml: string;
   user_id?: number;
+  is_shared: boolean;
   user?: {
     name: string;
     email: string;

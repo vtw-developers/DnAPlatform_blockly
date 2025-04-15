@@ -191,14 +191,30 @@ export class CodeBlockApi {
   }
 
   async deleteCodeBlocks(ids: number[]): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/code-blocks`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      body: JSON.stringify({ ids }),
-    });
+    try {
+      await axios.delete(`${this.baseUrl}/code-blocks`, {
+        headers: this.getHeaders(),
+        data: { ids }
+      });
+    } catch (error) {
+      console.error('코드 블록 삭제 실패:', error);
+      throw error;
+    }
+  }
 
-    if (!response.ok) {
-      throw new Error('코드 블록 삭제에 실패했습니다.');
+  async toggleShareCodeBlock(id: number): Promise<CodeBlock> {
+    try {
+      const response = await axios.patch(
+        `${this.baseUrl}/code-blocks/${id}/share`,
+        {},
+        {
+          headers: this.getHeaders()
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('코드 블록 공유 상태 변경 실패:', error);
+      throw error;
     }
   }
 

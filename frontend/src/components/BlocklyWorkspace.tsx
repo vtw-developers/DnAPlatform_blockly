@@ -10,6 +10,9 @@ import { codeBlockApi } from '../services/api';
 import type { ModelInfo } from '../services/api';
 import './BlocklyWorkspace.css';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '@mui/material';
+import { Lock, LockOpen } from '@mui/icons-material';
+import { toast } from 'react-hot-toast';
 
 // Blockly 블록 정의 로드
 import '@blockly/block-plus-minus';
@@ -706,7 +709,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const [isConverting, setIsConverting] = useState<boolean>(false);
   const conversionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const conversionElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
-  const [conversionElapsedTime, setConversionElapsedTime] = useState<number>(0);
+  const [conversionElapsedTime, setConversionElapsedTime] = useState<number>(0);  
+  const [isSharing, setIsSharing] = useState<boolean>(false);
 
   useEffect(() => {
     if (workspaceRef.current && !blocklyRef.current) {
@@ -1262,6 +1266,22 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     return user.id === selectedBlock.user_id;
   };
 
+  const handleToggleShare = async () => {
+    if (!selectedBlock) return;
+    
+    try {
+      setIsSharing(true);
+      const updatedBlock = await codeBlockApi.toggleShareCodeBlock(selectedBlock.id);
+      setSelectedBlock(updatedBlock);
+      toast.success(updatedBlock.is_shared ? '코드가 공유되었습니다.' : '코드 공유가 해제되었습니다.');
+    } catch (error) {
+      console.error('공유 상태 변경 실패:', error);
+      toast.error('공유 상태를 변경하는데 실패했습니다.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div className="blockly-container">
       <div className="blockly-workspace-container">
@@ -1285,6 +1305,16 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
             >
               {isSaving ? '저장 중...' : (selectedBlock ? '수정' : '저장')}
             </button>
+            {selectedBlock && isBlockOwner() && (
+              <Button
+                onClick={handleToggleShare}
+                disabled={isSharing}
+                variant="contained"
+                color={selectedBlock?.is_shared ? "secondary" : "primary"}
+              >
+                {selectedBlock?.is_shared ? "공유 취소" : "공유하기"}
+              </Button>
+            )}
           </div>
           <input
             type="text"

@@ -25,6 +25,7 @@ class CodeBlockBase(BaseModel):
 class CodeBlock(CodeBlockBase):
     id: int
     user_id: int
+    is_shared: bool = False
     user: Optional[UserInfo] = None
     created_at: datetime
     updated_at: datetime
@@ -253,6 +254,68 @@ async def delete_code_blocks(delete_request: DeleteCodeBlocks):
         return {"message": "Code blocks deleted successfully"}
     except Exception as e:
         logger.error(f"코드 블록 삭제 중 오류 발생: {e}")
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+@router.patch("/code-blocks/{code_block_id}/share", response_model=CodeBlock)
+async def toggle_share_code_block(
+    code_block_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # 먼저 코드 블록의 소유자 확인
+        cur.execute("""
+            SELECT user_id, is_shared
+            FROM code_blocks
+            WHERE id = %s
+        """, (code_block_id,))
+        block = cur.fetchone()
+        
+        if not block:
+            raise HTTPException(status_code=404, detail="Code block not found")
+            
+        if block['user_id'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to share this code block")
+        
+        # 공유 상태 토글
+        cur.execute("""
+            UPDATE code_blocks
+            SET is_shared = NOT is_shared,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING id, title, description, code, blockly_xml, user_id, is_shared, created_at, updated_at
+        """, (code_block_id,))
+        
+        result = cur.fetchone()
+        
+        # 사용자 정보 조회
+        cur.execute("""
+            SELECT name, email
+            FROM users
+            WHERE id = %s
+        """, (result['user_id'],))
+        user_info = cur.fetchone()
+        
+        formatted_block = dict(result)
+        if user_info:
+            formatted_block['user'] = {
+                'name': user_info['name'],
+                'email': user_info['email']
+            }
+            
+        conn.commit()
+        return formatted_block
+        
+    except Exception as e:
+        logger.error(f"코드 블록 공유 상태 변경 중 오류 발생: {e}")
         if conn:
             conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
