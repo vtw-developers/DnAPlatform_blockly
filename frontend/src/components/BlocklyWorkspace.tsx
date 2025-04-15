@@ -965,19 +965,27 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   };
 
   const resetWorkspace = () => {
-    // Blockly 작업화면 초기화
+    console.log('초기화 버튼 클릭됨');
+    console.log('현재 선택된 블록:', selectedBlock);
+    
     const workspace = blocklyRef.current;
+    console.log('워크스페이스 참조:', workspace ? '존재함' : '없음');
+    
     if (workspace) {
+      console.log('워크스페이스 초기화 시작');
       workspace.clear();
       const code = pythonGenerator.workspaceToCode(workspace);
+      console.log('생성된 코드:', code);
       handleCodeGeneration(code);
+      console.log('코드 생성 완료');
     }
 
-    // 입력 필드 초기화
+    console.log('상태 초기화 시작');
+    setSelectedBlock(null);
     setTitle('');
     setDescription('');
-    setSelectedBlock(null);
     setExecutionResult(null);
+    console.log('상태 초기화 완료');
   };
 
   const handleSaveCode = async () => {
@@ -1256,14 +1264,16 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
 
   // 현재 사용자가 블록 소유자인지 확인하는 함수
   const isBlockOwner = () => {
-    if (!selectedBlock) return true;
-    if (!user) return false;
+    console.log('isBlockOwner 함수 호출됨');
+    console.log('selectedBlock:', selectedBlock);
+    console.log('user:', user);
     
-    console.log('현재 로그인한 사용자 ID:', user.id);
-    console.log('선택된 블록의 소유자 ID:', selectedBlock.user_id);
-    console.log('소유자 여부:', user.id === selectedBlock.user_id);
+    if (!selectedBlock) return true;  // 선택된 블록이 없으면 true 반환
+    if (!user) return false;          // 로그인하지 않은 경우 false 반환
     
-    return user.id === selectedBlock.user_id;
+    const isOwner = user.id === selectedBlock.user_id;
+    console.log('블록 소유자 여부:', isOwner);
+    return isOwner;
   };
 
   const handleToggleShare = async () => {
@@ -1294,7 +1304,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
               onClick={resetWorkspace}
               className="reset-button"
               type="button"
-              disabled={!isBlockOwner()}
             >
               초기화
             </button>
