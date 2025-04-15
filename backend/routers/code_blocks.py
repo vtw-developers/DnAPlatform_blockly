@@ -24,6 +24,7 @@ class CodeBlockBase(BaseModel):
 
 class CodeBlock(CodeBlockBase):
     id: int
+    user_id: int
     user: Optional[UserInfo] = None
     created_at: datetime
     updated_at: datetime
@@ -103,14 +104,31 @@ async def update_code_block(code_block_id: int, code_block: CodeBlockUpdate):
                 blockly_xml = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
-            RETURNING id, title, description, code, blockly_xml, created_at, updated_at
+            RETURNING id, title, description, code, blockly_xml, user_id, created_at, updated_at
         """, (code_block.title, code_block.description, code_block.code, code_block.blockly_xml, code_block_id))
+        
         result = cur.fetchone()
         if result is None:
             raise HTTPException(status_code=404, detail="Code block not found")
+            
+        # 사용자 정보 조회
+        cur.execute("""
+            SELECT name, email
+            FROM users
+            WHERE id = %s
+        """, (result['user_id'],))
+        user_info = cur.fetchone()
+        
+        formatted_block = dict(result)
+        if user_info:
+            formatted_block['user'] = {
+                'name': user_info['name'],
+                'email': user_info['email']
+            }
+            
         conn.commit()
-        logger.info(f"코드 블록이 수정되었습니다. ID: {result['id']}")
-        return dict(result)
+        return formatted_block
+        
     except Exception as e:
         logger.error(f"코드 블록 수정 중 오류 발생: {e}")
         if conn:
@@ -165,6 +183,7 @@ async def get_code_blocks(
                 cb.blockly_xml, 
                 cb.created_at, 
                 cb.updated_at,
+                cb.user_id,
                 u.name as user_name,
                 u.email as user_email
             FROM code_blocks cb
@@ -201,7 +220,7 @@ async def get_code_block(code_block_id: int):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, title, description, code, blockly_xml, created_at, updated_at
+            SELECT id, title, description, code, blockly_xml, user_id, created_at, updated_at
             FROM code_blocks
             WHERE id = %s
         """, (code_block_id,))

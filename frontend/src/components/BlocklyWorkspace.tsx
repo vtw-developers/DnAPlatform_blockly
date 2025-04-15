@@ -665,14 +665,14 @@ const formatElapsedTime = (seconds: number): string => {
 };
 
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const blocklyRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const { user } = useAuth();
-  const blocklyDiv = useRef<HTMLDivElement>(null);
-  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const [currentCode, setCurrentCode] = useState<string>('');
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [selectedBlockId, setSelectedBlockId] = useState<number | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<CodeBlock | null>(null);
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -709,9 +709,9 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const [conversionElapsedTime, setConversionElapsedTime] = useState<number>(0);
 
   useEffect(() => {
-    if (blocklyDiv.current && !workspaceRef.current) {
+    if (workspaceRef.current && !blocklyRef.current) {
       try {
-        const workspace = Blockly.inject(blocklyDiv.current, {
+        const workspace = Blockly.inject(workspaceRef.current, {
           toolbox: TOOLBOX_CONFIG,
           scrollbars: true,
           move: {
@@ -736,7 +736,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           renderer: 'geras'
         });
 
-        workspaceRef.current = workspace;
+        blocklyRef.current = workspace;
 
         const onWorkspaceChange = (event: Blockly.Events.Abstract) => {
           if (!workspace) return;
@@ -778,7 +778,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
             workspace.removeChangeListener(onWorkspaceChange);
             window.removeEventListener('resize', handleResize);
             workspace.dispose();
-            workspaceRef.current = null;
+            blocklyRef.current = null;
           }
         };
       } catch (error) {
@@ -962,7 +962,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
 
   const resetWorkspace = () => {
     // Blockly 작업화면 초기화
-    const workspace = workspaceRef.current;
+    const workspace = blocklyRef.current;
     if (workspace) {
       workspace.clear();
       const code = pythonGenerator.workspaceToCode(workspace);
@@ -972,7 +972,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     // 입력 필드 초기화
     setTitle('');
     setDescription('');
-    setSelectedBlockId(null);
+    setSelectedBlock(null);
     setExecutionResult(null);
   };
 
@@ -984,7 +984,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
 
     try {
       setIsSaving(true);
-      const workspace = workspaceRef.current;
+      const workspace = blocklyRef.current;
       if (!workspace) {
         throw new Error('워크스페이스를 찾을 수 없습니다.');
       }
@@ -992,8 +992,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
       const dom = Blockly.Xml.workspaceToDom(workspace);
       const blockly_xml = Blockly.Xml.domToText(dom);
 
-      if (selectedBlockId) {
-        await codeBlockApi.updateCodeBlock(selectedBlockId, {
+      if (selectedBlock) {
+        await codeBlockApi.updateCodeBlock(selectedBlock.id, {
           title,
           description,
           code: currentCode,
@@ -1025,7 +1025,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   };
 
   const handleBlockSelect = async (block: CodeBlock) => {
-    const workspace = workspaceRef.current;
+    const workspace = blocklyRef.current;
     if (!workspace || !block.blockly_xml) {
       throw new Error('워크스페이스를 찾을 수 없거나 Blockly XML이 없습니다.');
     }
@@ -1039,7 +1039,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
       // 제목과 설명 설정
       setTitle(block.title);
       setDescription(block.description);
-      setSelectedBlockId(block.id);
+      setSelectedBlock(block);
       
       // 코드 설정
       setCurrentCode(block.code);
@@ -1096,7 +1096,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   };
 
   const handleCreateBlock = (blockXml: string) => {
-    const workspace = workspaceRef.current;
+    const workspace = blocklyRef.current;
     if (!workspace) return;
 
     try {
@@ -1250,10 +1250,22 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     setConversionDagRunId(null);
   };
 
+  // 현재 사용자가 블록 소유자인지 확인하는 함수
+  const isBlockOwner = () => {
+    if (!selectedBlock) return true;
+    if (!user) return false;
+    
+    console.log('현재 로그인한 사용자 ID:', user.id);
+    console.log('선택된 블록의 소유자 ID:', selectedBlock.user_id);
+    console.log('소유자 여부:', user.id === selectedBlock.user_id);
+    
+    return user.id === selectedBlock.user_id;
+  };
+
   return (
     <div className="blockly-container">
       <div className="blockly-workspace-container">
-        <div ref={blocklyDiv} id="blocklyDiv" className="blockly-workspace" />
+        <div ref={workspaceRef} id="blocklyDiv" className="blockly-workspace" />
       </div>
       <div className="right-panel">
         <div className="code-input-container">
@@ -1262,15 +1274,16 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
               onClick={resetWorkspace}
               className="reset-button"
               type="button"
+              disabled={!isBlockOwner()}
             >
               초기화
             </button>
             <button
               onClick={handleSaveCode}
-              disabled={isSaving || !currentCode || !title || !description}
+              disabled={!isBlockOwner() || isSaving}
               className="save-button"
             >
-              {isSaving ? '저장 중...' : (selectedBlockId ? '수정' : '저장')}
+              {isSaving ? '저장 중...' : (selectedBlock ? '수정' : '저장')}
             </button>
           </div>
           <input
@@ -1401,7 +1414,11 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
             shouldRefresh={shouldRefresh}
             onRefreshComplete={handleRefreshComplete}
             onDeleteComplete={resetWorkspace}
-            currentUser={user}
+            currentUser={user ? {
+              id: user.id,
+              email: user.email,
+              name: user.name
+            } : undefined}
           />
         </div>
       </div>
