@@ -111,18 +111,6 @@ export const TOOLBOX_CONFIG = {
       name: '함수',
       categorystyle: 'procedure_category',
       custom: 'PROCEDURE'
-    },
-    {
-      kind: 'category',
-      name: '자연어 코드',
-      categorystyle: 'procedure_category',
-      contents: [
-        {
-          kind: 'button',
-          text: '자연어로 블록 생성',
-          callbackKey: 'NATURAL_LANGUAGE'
-        }
-      ]
     }
   ]
 }; 
