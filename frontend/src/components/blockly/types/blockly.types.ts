@@ -23,15 +23,10 @@ export interface VerificationPopupProps {
   isOpen: boolean;
   onClose: () => void;
   status: string;
-  result: {
-    dag_run_id?: string;
-    error?: string;
-    verificationResult?: {
-      result_code?: string;
-      message?: string;
-    };
-  } | null;
+  result: string;
   elapsedTime: number;
+  dagRunId: string | null;
+  error: string | null;
 }
 
 export interface ChatMessage {
