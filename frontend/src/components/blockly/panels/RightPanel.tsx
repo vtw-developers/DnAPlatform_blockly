@@ -1,8 +1,13 @@
-import React from 'react';
-import { CodeBlockList } from '../../../components/CodeBlockList';
+import React, { useCallback } from 'react';
 import { User } from '../../../types/auth.types';
 import { Model } from '../types/model.types';
 import { CodeBlock } from '../../../types/codeBlock.types';
+import { CodeInputSection } from '../sections/CodeInputSection';
+import { ActionButtons } from '../sections/ActionButtons';
+import { PythonCodeSection } from '../sections/PythonCodeSection';
+import { ConvertedCodeSection } from '../sections/ConvertedCodeSection';
+import { VerificationSection } from '../sections/VerificationSection';
+import { SavedCodesSection } from '../sections/SavedCodesSection';
 import './RightPanel.css';
 
 interface RightPanelProps {
@@ -62,128 +67,63 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onRefreshComplete,
   onDeleteComplete,
 }) => {
+  const handleConvert = useCallback(() => {
+    onConvert(currentCode);
+  }, [onConvert, currentCode]);
+
+  const handleVerify = useCallback(() => {
+    onVerify(currentCode, selectedModel);
+  }, [onVerify, currentCode, selectedModel]);
+
   return (
     <div className="right-panel">
-      <div className="code-input-container">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          placeholder="코드 제목"
-          className="code-title-input"
-        />
-        <textarea
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="코드 설명"
-          className="code-description-input"
-        />
-      </div>
+      <CodeInputSection
+        title={title}
+        description={description}
+        onTitleChange={onTitleChange}
+        onDescriptionChange={onDescriptionChange}
+      />
       
-      <div className="button-container">
-        <button className="reset-button" onClick={onReset}>
-          초기화
-        </button>
-        <button className="save-button" onClick={() => onSave(currentUser?.id ?? null)}>
-          저장
-        </button>
-        {selectedBlocks.length > 0 && currentUser && currentUser.id === selectedBlockUserId && (
-          <button 
-            className={`share-button ${isShared ? 'shared' : ''}`} 
-            onClick={() => onToggleShare(currentUser?.id ?? null)}
-          >
-            {isShared ? '공유 해제' : '공유하기'}
-          </button>
-        )}
-      </div>
+      <ActionButtons
+        onReset={onReset}
+        onSave={() => onSave(currentUser?.id ?? null)}
+        onToggleShare={() => onToggleShare(currentUser?.id ?? null)}
+        isShared={isShared}
+        showShareButton={selectedBlocks.length > 0 && currentUser?.id === selectedBlockUserId}
+      />
 
-      <div className="code-group">
-        <h3 className="section-title">생성된 Python 코드</h3>
-        <textarea
-          value={currentCode}
-          readOnly
-          className="python-code-display"
-        />
-        <div className="code-actions">
-          <button className="action-button" onClick={onExecute}>
-            코드 실행
-          </button>
-          <button 
-            className="action-button" 
-            onClick={() => onConvert(currentCode)}
-            disabled={!currentCode.trim() || isConverting}
-          >
-            {isConverting ? '변환 중...' : '코드 변환'}
-          </button>
-        </div>
-      </div>
+      <PythonCodeSection
+        code={currentCode}
+        onExecute={onExecute}
+        onConvert={handleConvert}
+        isConverting={isConverting}
+      />
 
-      <div className="code-group">
-        <h3 className="section-title">변환된 코드</h3>
-        <textarea
-          value={convertedCode}
-          readOnly
-          placeholder="변환된 코드가 여기에 표시됩니다"
-          className="python-code-display"
-        />
-      </div>
+      <ConvertedCodeSection
+        convertedCode={convertedCode}
+      />
 
-      <div className="verification-section">
-        <h3 className="section-title">코드 검증</h3>
-        <div className="verify-container">
-          <select
-            value={selectedModel}
-            onChange={(e) => onModelSelect(e.target.value)}
-            className="model-select"
-            disabled={isLoadingModels || models.length === 0}
-          >
-            {isLoadingModels ? (
-              <option key="loading" value="">모델 목록 로딩 중...</option>
-            ) : models.length === 0 ? (
-              <option key="empty" value="">사용 가능한 모델이 없습니다</option>
-            ) : (
-              <>
-                <optgroup label="OpenAI 모델" key="openai-group">
-                  {models.filter(m => m.type === 'openai').map((model) => (
-                    <option key={`verify-openai-${model.name}`} value={model.name}>
-                      {model.name} {model.description ? `- ${model.description}` : ''}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Ollama 모델" key="ollama-group">
-                  {models.filter(m => m.type === 'ollama').map((model) => (
-                    <option key={`verify-ollama-${model.name}`} value={model.name}>
-                      {model.name} {model.description ? `- ${model.description}` : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              </>
-            )}
-          </select>
-          <button
-            onClick={() => onVerify(currentCode, selectedModel)}
-            disabled={isVerifying || !currentCode || !selectedModel || isLoadingModels}
-            className="verify-button"
-          >
-            {isVerifying ? '검증 중...' : '코드 검증'}
-          </button>
-        </div>
-      </div>
+      <VerificationSection
+        selectedModel={selectedModel}
+        models={models}
+        isLoadingModels={isLoadingModels}
+        isVerifying={isVerifying}
+        onModelSelect={onModelSelect}
+        onVerify={handleVerify}
+        disabled={isVerifying || !currentCode || !selectedModel || isLoadingModels}
+      />
 
-      <div className="saved-codes-section">
-        <h3 className="section-title">저장된 코드 목록</h3>
-        <CodeBlockList
-          onSelectBlock={onBlockSelect}
-          shouldRefresh={shouldRefresh}
-          onRefreshComplete={onRefreshComplete}
-          onDeleteComplete={onDeleteComplete}
-          currentUser={currentUser ? {
-            id: currentUser.id,
-            email: currentUser.email,
-            name: currentUser.name
-          } : undefined}
-        />
-      </div>
+      <SavedCodesSection
+        onSelectBlock={onBlockSelect}
+        shouldRefresh={shouldRefresh}
+        onRefreshComplete={onRefreshComplete}
+        onDeleteComplete={onDeleteComplete}
+        currentUser={currentUser ? {
+          id: currentUser.id,
+          email: currentUser.email,
+          name: currentUser.name
+        } : undefined}
+      />
     </div>
   );
 }; 
