@@ -8,6 +8,7 @@ import { PythonCodeSection } from '../sections/PythonCodeSection';
 import { ConvertedCodeSection } from '../sections/ConvertedCodeSection';
 import { VerificationSection } from '../sections/VerificationSection';
 import { SavedCodesSection } from '../sections/SavedCodesSection';
+import { PopupType } from '../hooks/usePopups';
 import './RightPanel.css';
 
 interface RightPanelProps {
@@ -37,6 +38,7 @@ interface RightPanelProps {
   onBlockSelect: (block: CodeBlock) => void;
   onRefreshComplete: () => void;
   onDeleteComplete: () => void;
+  openPopup: (type: PopupType) => void;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -66,6 +68,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onBlockSelect,
   onRefreshComplete,
   onDeleteComplete,
+  openPopup,
 }) => {
   const handleConvert = useCallback(() => {
     onConvert(currentCode);
@@ -77,6 +80,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
   return (
     <div className="right-panel">
+      <button
+        className="action-button"
+        style={{ marginBottom: '10px' }}
+        onClick={() => openPopup('naturalLanguage')}
+      >
+        자연어로 블록 생성
+      </button>
       <CodeInputSection
         title={title}
         description={description}

@@ -154,6 +154,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         onBlockSelect={handleBlockSelect}
         onRefreshComplete={handleRefreshComplete}
         onDeleteComplete={resetWorkspace}
+        openPopup={openPopup}
       />
 
       <ExecutionPopup
