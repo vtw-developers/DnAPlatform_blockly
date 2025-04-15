@@ -1,0 +1,229 @@
+.verification-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.verification-popup {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 80%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.verification-popup-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.verification-popup-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.verification-popup-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.verification-code-section {
+  margin-bottom: 24px;
+}
+
+.verification-code-section h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+}
+
+.code-display {
+  background-color: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.verify-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.verify-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.verification-status-section {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+}
+
+.status-row {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.status-row:last-child {
+  margin-bottom: 0;
+}
+
+.status-label {
+  font-weight: bold;
+  min-width: 100px;
+  color: #666;
+}
+
+.status-value {
+  color: #333;
+}
+
+.status-value.시작됨 {
+  color: #2196F3;
+}
+
+.status-value.완료 {
+  color: #4CAF50;
+}
+
+.status-value.실패 {
+  color: #f44336;
+}
+
+.verification-result-section {
+  margin-top: 24px;
+}
+
+.verification-result-section h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+}
+
+.result-display {
+  background-color: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.error-message {
+  color: #f44336;
+  padding: 12px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.result-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.execute-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.execute-button:hover {
+  background-color: #45a049;
+}
+
+.execute-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.execution-result-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.execution-result-section h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.result-display {
+  background-color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: monospace;
+  margin: 0;
+}
+
+.execute-button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.execute-button:hover {
+  background-color: #218838;
+}
+
+.execute-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+} 
