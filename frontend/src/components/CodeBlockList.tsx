@@ -13,6 +13,7 @@ interface CodeBlockListProps {
     email: string;
     name: string;
   };
+  onToggleShare?: (block: CodeBlock) => void;
 }
 
 interface CodeBlocksResponse {
@@ -27,7 +28,8 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
   shouldRefresh = false,
   onRefreshComplete,
   onDeleteComplete,
-  currentUser
+  currentUser,
+  onToggleShare
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('my');
   const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
@@ -175,6 +177,17 @@ export const CodeBlockList: React.FC<CodeBlockListProps> = ({
                     <small className="warning">Blockly XML 없음</small>
                   )}
                 </div>
+                {activeTab === 'my' && typeof block.is_shared !== 'undefined' && onToggleShare && (
+                  <button
+                    className={`share-button${block.is_shared ? ' shared' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleShare(block);
+                    }}
+                  >
+                    {block.is_shared ? '공유 해제' : '공유하기'}
+                  </button>
+                )}
               </div>
             ))}
           </div>

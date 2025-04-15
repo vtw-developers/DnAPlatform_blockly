@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { User } from '../../../types/auth.types';
 import { Model } from '../types/model.types';
-import { CodeBlock } from '../../../types/codeBlock.types';
+import { CodeBlock } from '../../../types/CodeBlock';
 import { CodeInputSection } from '../sections/CodeInputSection';
 import { ActionButtons } from '../sections/ActionButtons';
 import { ConvertedCodeSection } from '../sections/ConvertedCodeSection';
@@ -29,7 +29,7 @@ interface RightPanelProps {
   onDescriptionChange: (description: string) => void;
   onReset: () => void;
   onSave: (userId: number | null) => Promise<void>;
-  onToggleShare: (userId: number | null) => Promise<void>;
+  onToggleShare: (userId: number | null, block: CodeBlock) => Promise<void>;
   onExecute: () => void;
   onConvert: (code: string) => void;
   onVerify: (code: string, model: string) => void;
@@ -96,11 +96,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
       <ActionButtons
         onReset={onReset}
         onSave={() => onSave(currentUser?.id ?? null)}
-        onToggleShare={() => onToggleShare(currentUser?.id ?? null)}
         onExecute={onExecute}
         onConvert={handleConvert}
-        isShared={isShared}
-        showShareButton={selectedBlocks.length > 0 && currentUser?.id === selectedBlockUserId}
         isConverting={isConverting}
         code={currentCode}
       />
@@ -129,6 +126,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           email: currentUser.email,
           name: currentUser.name
         } : undefined}
+        onToggleShare={(block) => onToggleShare(currentUser?.id ?? null, block)}
       />
     </div>
   );

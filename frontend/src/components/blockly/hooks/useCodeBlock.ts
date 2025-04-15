@@ -92,22 +92,29 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
     }
   };
 
-  const handleToggleShare = async (userId: number | null) => {
-    if (!selectedBlocks.length) {
+  const handleToggleShare = async (userId: number | null, block?: CodeBlock) => {
+    let blockId: number | null = null;
+    let isSharedValue: boolean = false;
+    if (block) {
+      blockId = block.id;
+      isSharedValue = block.is_shared;
+    } else if (selectedBlocks.length) {
+      blockId = parseInt(selectedBlocks[0]);
+      isSharedValue = isShared;
+    }
+    if (!blockId) {
       alert('공유할 코드를 선택해주세요.');
       return;
     }
-
     if (selectedBlockUserId !== null && (!userId || userId !== selectedBlockUserId)) {
       alert('자신이 작성한 코드만 공유할 수 있습니다.');
       return;
     }
-
     try {
-      await codeBlockApi.toggleShareCodeBlock(parseInt(selectedBlocks[0]));
-      setIsShared(!isShared);
+      await codeBlockApi.toggleShareCodeBlock(blockId);
+      setIsShared(!isSharedValue);
       onRefresh?.();
-      alert(isShared ? '공유가 해제되었습니다.' : '코드가 공유되었습니다.');
+      alert(isSharedValue ? '공유가 해제되었습니다.' : '코드가 공유되었습니다.');
     } catch (error) {
       console.error('Error toggling share:', error);
       alert('공유 상태 변경에 실패했습니다.');

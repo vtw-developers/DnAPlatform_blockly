@@ -1,6 +1,6 @@
 import React from 'react';
 import { CodeBlockList } from '../../../components/CodeBlockList';
-import { CodeBlock } from '../../../types/codeBlock.types';
+import { CodeBlock } from '../../../types/CodeBlock';
 import '../styles/Sections.css';
 
 interface SavedCodesSectionProps {
@@ -13,6 +13,7 @@ interface SavedCodesSectionProps {
     email: string;
     name: string;
   };
+  onToggleShare?: (block: CodeBlock) => void;
 }
 
 export const SavedCodesSection: React.FC<SavedCodesSectionProps> = ({
@@ -20,7 +21,8 @@ export const SavedCodesSection: React.FC<SavedCodesSectionProps> = ({
   shouldRefresh,
   onRefreshComplete,
   onDeleteComplete,
-  currentUser
+  currentUser,
+  onToggleShare
 }) => {
   return (
     <div className="saved-codes-section">
@@ -31,6 +33,7 @@ export const SavedCodesSection: React.FC<SavedCodesSectionProps> = ({
         onRefreshComplete={onRefreshComplete}
         onDeleteComplete={onDeleteComplete}
         currentUser={currentUser}
+        onToggleShare={onToggleShare}
       />
     </div>
   );
