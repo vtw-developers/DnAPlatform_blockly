@@ -9,9 +9,9 @@ import { useModels } from './hooks/useModels';
 import { usePopups } from './hooks/usePopups';
 import { ExecutionPopup } from './popups/ExecutionPopup';
 import { NaturalLanguagePopup } from './popups/NaturalLanguagePopup';
-import { VerificationPopup } from './popups/VerificationPopup';
+import VerificationPopup from './popups/VerificationPopup';
 import { ConversionPopup } from './popups/ConversionPopup';
-import { CodeBlockList } from '../../components/CodeBlockList';
+import { RightPanel } from './panels/RightPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
 import './styles/BlocklyWorkspace.css';
@@ -126,123 +126,35 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
       <div className="blockly-workspace-container">
         <div ref={workspaceRef} className="blockly-workspace" />
       </div>
-      <div className="right-panel">
-        <div className="code-input-container">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="코드 제목"
-            className="code-title-input"
-          />
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="코드 설명"
-            className="code-description-input"
-          />
-        </div>
-        <div className="button-container">
-          <button className="reset-button" onClick={handleReset}>
-            초기화
-          </button>
-          <button className="save-button" onClick={() => handleSave(user?.id ?? null)}>
-            저장
-          </button>
-          {selectedBlocks.length > 0 && user && user.id === selectedBlockUserId && (
-            <button 
-              className={`share-button ${isShared ? 'shared' : ''}`} 
-              onClick={() => handleToggleShare(user?.id ?? null)}
-            >
-              {isShared ? '공유 해제' : '공유하기'}
-            </button>
-          )}
-        </div>
-        <div className="code-group">
-          <h3 className="section-title">생성된 Python 코드</h3>
-          <textarea
-            value={currentCode}
-            readOnly
-            className="python-code-display"
-          />
-          <div className="code-actions">
-            <button className="action-button" onClick={handleExecute}>
-              코드 실행
-            </button>
-            <button 
-              className="action-button" 
-              onClick={() => handleConvertCode(currentCode)}
-              disabled={!currentCode.trim() || isConverting}
-            >
-              {isConverting ? '변환 중...' : '코드 변환'}
-            </button>
-          </div>
-        </div>
-        <div className="code-group">
-          <h3 className="section-title">변환된 코드</h3>
-          <textarea
-            value={convertedCode}
-            readOnly
-            placeholder="변환된 코드가 여기에 표시됩니다"
-            className="python-code-display"
-          />
-        </div>
-        <div className="verification-section">
-          <h3 className="section-title">코드 검증</h3>
-          <div className="verify-container">
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="model-select"
-              disabled={isLoadingModels || models.length === 0}
-            >
-              {isLoadingModels ? (
-                <option key="loading" value="">모델 목록 로딩 중...</option>
-              ) : models.length === 0 ? (
-                <option key="empty" value="">사용 가능한 모델이 없습니다</option>
-              ) : (
-                <>
-                  <optgroup label="OpenAI 모델" key="openai-group">
-                    {models.filter(m => m.type === 'openai').map((model) => (
-                      <option key={`verify-openai-${model.name}`} value={model.name}>
-                        {model.name} {model.description ? `- ${model.description}` : ''}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Ollama 모델" key="ollama-group">
-                    {models.filter(m => m.type === 'ollama').map((model) => (
-                      <option key={`verify-ollama-${model.name}`} value={model.name}>
-                        {model.name} {model.description ? `- ${model.description}` : ''}
-                      </option>
-                    ))}
-                  </optgroup>
-                </>
-              )}
-            </select>
-            <button
-              onClick={() => handleVerifyCodeWithModel(currentCode, selectedModel)}
-              disabled={isVerifying || !currentCode || !selectedModel || isLoadingModels}
-              className="verify-button"
-            >
-              {isVerifying ? '검증 중...' : '코드 검증'}
-            </button>
-          </div>
-        </div>
-        <div className="saved-codes-section">
-          <h3 className="section-title">저장된 코드 목록</h3>
-          <CodeBlockList
-            onSelectBlock={handleBlockSelect}
-            shouldRefresh={shouldRefresh}
-            onRefreshComplete={handleRefreshComplete}
-            onDeleteComplete={resetWorkspace}
-            currentUser={user ? {
-              id: user.id,
-              email: user.email,
-              name: user.name
-            } : undefined}
-          />
-        </div>
-      </div>
+
+      <RightPanel
+        title={title}
+        description={description}
+        currentCode={currentCode}
+        convertedCode={convertedCode}
+        isShared={isShared}
+        selectedBlocks={selectedBlocks}
+        selectedBlockUserId={selectedBlockUserId}
+        isConverting={isConverting}
+        isVerifying={isVerifying}
+        models={models}
+        selectedModel={selectedModel}
+        isLoadingModels={isLoadingModels}
+        shouldRefresh={shouldRefresh}
+        currentUser={user}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onReset={handleReset}
+        onSave={handleSave}
+        onToggleShare={handleToggleShare}
+        onExecute={handleExecute}
+        onConvert={handleConvertCode}
+        onVerify={handleVerifyCodeWithModel}
+        onModelSelect={setSelectedModel}
+        onBlockSelect={handleBlockSelect}
+        onRefreshComplete={handleRefreshComplete}
+        onDeleteComplete={resetWorkspace}
+      />
 
       <ExecutionPopup
         isOpen={isOpen.execution}
@@ -271,7 +183,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         code={currentCode}
         isVerifying={isVerifying}
         onExecute={handleExecuteVerifiedCode}
-        executionResult={executionResult?.output || executionResult?.error}
+        executionResult={executionResult?.output ?? executionResult?.error ?? null}
         isExecuting={executionStatus === '실행 중'}
       />
 
