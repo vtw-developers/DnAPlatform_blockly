@@ -3,6 +3,7 @@
   height: calc(100vh - 100px); /* 상단 네비게이션 바 높이 고려 */
   width: 99.9%;
   overflow: hidden;
+  flex-direction: row;
 }
 
 .blockly-workspace-container {
@@ -23,7 +24,7 @@
 
 .right-panel {
   width: 400px;
-  padding: 20px;
+  padding: 15px;
   background-color: #f5f5f5;
   overflow-y: auto;
   display: flex;
@@ -32,25 +33,34 @@
   flex-shrink: 0;
 }
 
-.code-input-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.code-input-container,
+.code-group,
+.verification-section,
+.saved-codes-section {
+  width: 100%;
+  max-width: 100%;
 }
 
 .button-container {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .reset-button,
-.save-button {
-  padding: 8px 16px;
+.save-button,
+.action-button,
+.verify-button {
+  padding: 8px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+  font-size: 14px;
+  white-space: nowrap;
+  min-width: 80px;
 }
 
 .reset-button {
@@ -71,20 +81,15 @@
   background-color: #45a049;
 }
 
-.code-title-input {
+.code-title-input,
+.code-description-input,
+.python-code-display,
+.model-select {
+  width: 100%;
+  box-sizing: border-box;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
-}
-
-.code-description-input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  min-height: 80px;
-  max-height: 120px;
-  resize: vertical;
   font-size: 14px;
 }
 
@@ -133,15 +138,14 @@
 
 .verify-container {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .model-select {
   flex: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  min-width: 120px;
 }
 
 .verification-section {
@@ -176,4 +180,97 @@
   gap: 8px;
   min-height: 150px;
   max-height: 200px;
+}
+
+/* 자연어 블록 생성 버튼 스타일 */
+.natural-language-button {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  white-space: normal;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.natural-language-button:hover {
+  background-color: #1976D2;
+}
+
+.natural-language-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 768px) {
+  .blockly-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .blockly-workspace-container {
+    height: 60vh;
+    min-height: 400px;
+  }
+
+  .right-panel {
+    width: 100%;
+    height: auto;
+    max-height: none;
+  }
+
+  .button-container {
+    justify-content: center;
+  }
+
+  .reset-button,
+  .save-button,
+  .action-button,
+  .verify-button {
+    min-width: 120px;
+  }
+
+  .verify-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .model-select {
+    width: 100%;
+  }
+
+  .saved-codes-section {
+    max-height: none;
+  }
+}
+
+/* 작은 화면 최적화 */
+@media screen and (max-width: 480px) {
+  .blockly-workspace-container {
+    height: 50vh;
+    min-height: 300px;
+  }
+
+  .right-panel {
+    padding: 10px;
+  }
+
+  .button-container {
+    flex-direction: column;
+  }
+
+  .reset-button,
+  .save-button,
+  .action-button,
+  .verify-button {
+    width: 100%;
+    max-width: none;
+  }
 } 
