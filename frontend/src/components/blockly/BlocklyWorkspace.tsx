@@ -15,6 +15,10 @@ import { RightPanel } from './panels/RightPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
 import './styles/BlocklyWorkspace.css';
+import * as BlocklyPython from 'blockly/python';
+import { registerJpypeBlocks } from './customBlocks/jpypeBlocks';
+
+registerJpypeBlocks(BlocklyPython);
 
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const workspaceRef = useRef<HTMLDivElement>(null);

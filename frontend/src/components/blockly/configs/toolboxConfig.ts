@@ -111,6 +111,16 @@ export const TOOLBOX_CONFIG = {
       name: '함수',
       categorystyle: 'procedure_category',
       custom: 'PROCEDURE'
+    },
+    {
+      kind: 'category',
+      name: 'JPype',
+      categorystyle: 'logic_category',
+      contents: [
+        { kind: 'block', type: 'jpype_start_jvm' },
+        { kind: 'block', type: 'jpype_shutdown_jvm' },
+        { kind: 'block', type: 'jpype_java_method_call' }
+      ]
     }
   ]
 }; 
