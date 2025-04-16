@@ -1,3 +1,4 @@
+/* Layout */
 .blockly-container {
   display: flex;
   height: calc(100vh - 100px); /* 상단 네비게이션 바 높이 고려 */
@@ -15,7 +16,6 @@
   min-width: 0;
 }
 
-
 .blockly-workspace {
   position: absolute;
   top: 0;
@@ -25,6 +25,7 @@
   height: 100%;
 }
 
+/* Right Panel */
 .right-panel {
   width: 35%;
   min-width: 580px;
@@ -40,6 +41,16 @@
   border-left: 1px solid #ddd;
 }
 
+/* Common Input Styles */
+.input-base {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin: 0;
+}
+
 .code-input-container {
   display: flex;
   flex-direction: column;
@@ -48,60 +59,28 @@
   box-sizing: border-box;
 }
 
-.code-title-input,
-.code-description-input,
-.python-code-display,
-.converted-code-display {
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-}
-
 .code-title-input {
-  width: 100%;
-  box-sizing: border-box;
+  composes: input-base;
   padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
   height: 36px;
 }
 
 .code-description-input {
+  composes: input-base;
   padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
   min-height: 60px;
   height: calc(10vh);
   max-height: 120px;
   resize: vertical;
-  flex: 1;
 }
 
-.code-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.section-title {
-  margin: 0 0 4px 0;
-  font-size: 14px;
-  font-weight: bold;
-  color: #333;
-}
-
-.python-code-display,
-.converted-code-display {
+/* Code Display */
+.code-display-base {
+  composes: input-base;
   min-height: 100px;
   height: calc(12vh);
   max-height: 200px;
   padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
   font-family: monospace;
   font-size: 13px;
   line-height: 1.4;
@@ -109,13 +88,24 @@
   background-color: #fff;
   overflow-y: auto;
   white-space: pre-wrap;
-  flex-grow: 1;
-  flex-shrink: 1;
-  flex-basis: auto;
 }
 
-.converted-code-section {
-  margin-top: 8px;
+.python-code-display,
+.converted-code-display {
+  composes: code-display-base;
+}
+
+/* Button Styles */
+.button-base {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  white-space: nowrap;
+  height: 32px;
+  box-sizing: border-box;
 }
 
 .button-container {
@@ -133,39 +123,41 @@
   flex: 1;
 }
 
-.reset-button,
-.save-button,
-.action-button {
-  padding: 8px 10px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
 .reset-button {
+  composes: button-base;
   background-color: #ff4444;
   color: white;
+  flex: 1;
 }
 
 .save-button {
+  composes: button-base;
   background-color: #4CAF50;
   color: white;
+  flex: 1;
 }
 
 .action-button {
+  composes: button-base;
   background-color: #2196F3;
   color: white;
+  flex: 1;
 }
 
-.action-button:last-child {
-  margin-left: auto;
+.natural-language-button {
+  composes: button-base;
+  width: 100%;
+  background-color: #2196F3;
+  color: white;
+  text-align: center;
+  line-height: 20px;
 }
 
+.natural-language-button:hover {
+  background-color: #1976D2;
+}
+
+/* Verification Section */
 .verify-container {
   display: flex;
   gap: 8px;
@@ -178,20 +170,11 @@
   min-width: 120px;
 }
 
-.verification-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .verify-button {
-  padding: 8px 16px;
+  composes: button-base;
   background-color: #9C27B0;
   color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
+  padding: 8px 16px;
 }
 
 .verify-button:hover {
@@ -203,54 +186,16 @@
   cursor: not-allowed;
 }
 
-.saved-codes-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 150px;
-  max-height: 200px;
-}
-
-/* 자연어 블록 생성 버튼 스타일 */
-.natural-language-button {
-  width: 100%;
-  padding: 6px 10px;
-  background-color: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
-  text-align: center;
-  margin: 0;
-  height: 32px;
-  box-sizing: border-box;
-  line-height: 20px;
-}
-
-.natural-language-button:hover {
-  background-color: #1976D2;
-}
-
-/* 반응형 디자인 */
+/* Media Queries */
 @media screen and (max-width: 1400px) {
   .right-panel {
     width: 40%;
     min-width: 520px;
   }
-  .button-container {
-    gap: 0.8%;
-  }
-  
+
+  .button-container,
   .button-group {
     gap: 0.8%;
-  }
-
-  .code-input-container,
-  .code-group {
-    max-width: calc(100% - 20px);
   }
 
   .code-description-input {
@@ -258,8 +203,7 @@
     max-height: 110px;
   }
 
-  .python-code-display,
-  .converted-code-display {
+  .code-display-base {
     height: calc(11vh);
     max-height: 180px;
   }
@@ -270,24 +214,15 @@
     width: 45%;
     min-width: 480px;
   }
-  .button-container {
-    gap: 0.6%;
-  }
-  
+
+  .button-container,
   .button-group {
     gap: 0.6%;
   }
-  
-  .reset-button,
-  .save-button,
-  .action-button {
+
+  .button-base {
     padding: 8px 8px;
     font-size: 13px;
-  }
-
-  .code-input-container,
-  .code-group {
-    max-width: calc(100% - 16px);
   }
 
   .code-description-input {
@@ -295,8 +230,7 @@
     max-height: 100px;
   }
 
-  .python-code-display,
-  .converted-code-display {
+  .code-display-base {
     height: calc(10vh);
     max-height: 160px;
   }
@@ -307,24 +241,15 @@
     width: 50%;
     min-width: 450px;
   }
-  .button-container {
-    gap: 0.5%;
-  }
-  
+
+  .button-container,
   .button-group {
     gap: 0.5%;
   }
-  
-  .reset-button,
-  .save-button,
-  .action-button {
+
+  .button-base {
     padding: 8px 6px;
     font-size: 12px;
-  }
-
-  .code-input-container,
-  .code-group {
-    max-width: calc(100% - 12px);
   }
 
   .code-description-input {
@@ -332,8 +257,7 @@
     max-height: 90px;
   }
 
-  .python-code-display,
-  .converted-code-display {
+  .code-display-base {
     height: calc(9vh);
     max-height: 140px;
   }
@@ -355,21 +279,12 @@
     width: 100%;
     min-width: auto;
     max-width: none;
-    height: auto;
-    max-height: none;
     padding: 15px 20px;
   }
 
   .button-container {
     flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: space-between;
     gap: 8px;
-  }
-
-  .button-group {
-    flex: 0 0 auto;
-    justify-content: flex-start;
   }
 
   .verify-container {
@@ -381,47 +296,25 @@
     width: 100%;
   }
 
-  .saved-codes-section {
-    max-height: none;
-  }
-
-  .code-input-container,
-  .code-group {
-    width: 100%;
-  }
-
-  .code-title-input,
-  .code-description-input,
-  .python-code-display,
-  .converted-code-display {
-    width: 100%;
+  .input-base {
+    font-size: 13px;
   }
 
   .code-title-input {
     height: 32px;
-    font-size: 13px;
   }
 
   .code-description-input {
-    min-height: 60px;
     height: calc(10vh);
     max-height: 120px;
   }
 
-  .python-code-display,
-  .converted-code-display {
-    min-height: 100px;
+  .code-display-base {
     height: calc(12vh);
     max-height: 160px;
   }
-
-  .natural-language-button {
-    height: 32px;
-    padding: 6px 10px;
-  }
 }
 
-/* 작은 화면 최적화 */
 @media screen and (max-width: 480px) {
   .blockly-workspace-container {
     height: 50vh;
@@ -443,15 +336,11 @@
     width: 100%;
   }
 
-  .reset-button,
-  .save-button,
-  .action-button {
+  .button-base {
     width: 100%;
-    margin: 0;
-  }
-
-  .code-input-container {
-    gap: 10px;
+    height: 30px;
+    padding: 5px 8px;
+    font-size: 13px;
   }
 
   .code-title-input {
@@ -461,21 +350,12 @@
   }
 
   .code-description-input {
-    min-height: 50px;
     height: calc(8vh);
     max-height: 100px;
   }
 
-  .python-code-display,
-  .converted-code-display {
-    min-height: 80px;
+  .code-display-base {
     height: calc(10vh);
     max-height: 120px;
-  }
-
-  .natural-language-button {
-    height: 30px;
-    padding: 5px 8px;
-    font-size: 13px;
   }
 } 
