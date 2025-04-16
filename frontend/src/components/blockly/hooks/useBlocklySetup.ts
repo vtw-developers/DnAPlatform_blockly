@@ -16,56 +16,65 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
   useEffect(() => {
     if (!workspaceRef.current || workspaceInitialized.current) return;
 
-    // JPype 블록과 generator를 워크스페이스 생성 직전에 등록
-    registerJpypeBlocks(pythonGenerator);
+    try {
+      // JPype 블록 등록
+      registerJpypeBlocks();
 
-    workspaceInitialized.current = true;
-    const newWorkspace = Blockly.inject(workspaceRef.current, {
-      toolbox: toolboxConfig,
-      scrollbars: true,
-      move: {
-        wheel: true,
-      },
-      zoom: {
-        controls: true,
-        wheel: true,
-        startScale: 1.0,
-        maxScale: 3,
-        minScale: 0.3,
-        scaleSpeed: 1.2,
-      },
-      grid: {
-        spacing: 20,
-        length: 3,
-        colour: '#ccc',
-        snap: true,
-      },
-    });
+      workspaceInitialized.current = true;
+      const newWorkspace = Blockly.inject(workspaceRef.current, {
+        toolbox: toolboxConfig,
+        scrollbars: true,
+        move: {
+          wheel: true,
+        },
+        zoom: {
+          controls: true,
+          wheel: true,
+          startScale: 1.0,
+          maxScale: 3,
+          minScale: 0.3,
+          scaleSpeed: 1.2,
+        },
+        grid: {
+          spacing: 20,
+          length: 3,
+          colour: '#ccc',
+          snap: true,
+        },
+      });
 
-    setWorkspace(newWorkspace);
+      // Python 생성기 초기화
+      pythonGenerator.init(newWorkspace);
 
-    // 작업 공간 변경 이벤트 리스너 추가
-    const changeListener = () => {
-      try {
-        // Python 코드 생성
-        const code = pythonGenerator.workspaceToCode(newWorkspace);
-        onCodeChange(code);
-      } catch (error) {
-        console.error('Error generating code:', error);
-      }
-    };
+      setWorkspace(newWorkspace);
 
-    // 변경 이벤트 등록
-    newWorkspace.addChangeListener(changeListener);
+      // 작업 공간 변경 이벤트 리스너 추가
+      const changeListener = () => {
+        try {
+          // Python 코드 생성
+          const code = pythonGenerator.workspaceToCode(newWorkspace);
+          onCodeChange(code);
+        } catch (error) {
+          console.error('Error generating code:', error);
+          onCodeChange(''); // 에러 발생 시 빈 코드 전달
+        }
+      };
 
-    // 컴포넌트 언마운트 시 정리
-    return () => {
-      if (newWorkspace) {
-        newWorkspace.removeChangeListener(changeListener);
-        newWorkspace.dispose();
-        workspaceInitialized.current = false;
-      }
-    };
+      // 변경 이벤트 등록
+      newWorkspace.addChangeListener(changeListener);
+
+      // 컴포넌트 언마운트 시 정리
+      return () => {
+        if (newWorkspace) {
+          newWorkspace.removeChangeListener(changeListener);
+          newWorkspace.dispose();
+          workspaceInitialized.current = false;
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing Blockly workspace:', error);
+      workspaceInitialized.current = false;
+    }
   }, []);
 
   useEffect(() => {
@@ -81,7 +90,6 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
   const resetWorkspace = () => {
     if (workspace) {
       workspace.clear();
-      // 작업 공간을 초기화한 후 빈 코드 전달
       onCodeChange('');
     }
   };
