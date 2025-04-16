@@ -16,7 +16,7 @@ interface RightPanelProps {
   currentCode: string;
   convertedCode: string;
   isShared: boolean;
-  selectedBlocks: string[];
+  selectedBlocks: number[];
   selectedBlockUserId: number | null;
   isConverting: boolean;
   isVerifying: boolean;

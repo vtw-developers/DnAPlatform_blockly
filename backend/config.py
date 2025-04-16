@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     
     # CORS 설정
     CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5050",
+        "http://localhost:5000",
+        "http://192.168.0.2:5050",
         "http://121.65.128.115:5050",
         "http://121.65.128.115:8000"
     ]
