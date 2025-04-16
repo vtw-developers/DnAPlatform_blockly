@@ -29,27 +29,17 @@ export function registerJpypeBlocks(pythonGen: any) {
     }
   };
 
-  // 3. Java 메서드 호출 블록
+  // 3. 파이썬 코드 직접 입력 블록
   Blockly.Blocks['jpype_java_method_call'] = {
     init: function() {
       this.appendDummyInput()
-        .appendField("Java 클래스")
-        .appendField(new Blockly.FieldTextInput("org.apache.commons.codec.binary.Base64"), "CLASS_NAME")
-        .appendField("의");
+        .appendField("파이썬 코드 입력");
       this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput("encodeBase64"), "METHOD_NAME")
-        .appendField("메서드 호출");
-      this.appendValueInput("ARGS")
-        .setCheck(null)
-        .appendField("인자");
-      this.appendDummyInput()
-        .appendField("결과를")
-        .appendField(new Blockly.FieldTextInput("encoded_bytes"), "RESULT_VAR")
-        .appendField("에 저장");
+        .appendField(new Blockly.FieldMultilineInput("# 여기에 파이썬 코드를 입력하세요"), "PY_CODE");
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(160);
-      this.setTooltip("Java 메서드를 호출하고 결과를 변수에 저장합니다.");
+      this.setTooltip("직접 입력한 파이썬 코드를 실행합니다.");
       this.setHelpUrl("");
     }
   };
@@ -66,13 +56,8 @@ export function registerJpypeBlocks(pythonGen: any) {
     };
 
     pythonGen['jpype_java_method_call'] = function(block: Blockly.Block) {
-      const class_name = block.getFieldValue('CLASS_NAME');
-      const method_name = block.getFieldValue('METHOD_NAME');
-      const arg = pythonGen.valueToCode(block, 'ARGS', pythonGen.ORDER_ATOMIC) || '';
-      const result_var = block.getFieldValue('RESULT_VAR');
-      const import_code = `from ${class_name.substring(0, class_name.lastIndexOf('.') )} import ${class_name.split('.').pop()}\n`;
-      const code = `${import_code}${result_var} = ${class_name.split('.').pop()}.${method_name}(${arg})\n`;
-      return code;
+      const pyCode = block.getFieldValue('PY_CODE') || '';
+      return pyCode + '\n';
     };
   }
 } 
