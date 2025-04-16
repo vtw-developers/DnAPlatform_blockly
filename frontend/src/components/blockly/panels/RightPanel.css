@@ -21,8 +21,7 @@
   border: 1px solid #ced4da;
   border-radius: 4px;
   font-size: 1rem;
-  width: 100%;
-  max-width: 380px;
+  width: 100%;  
 }
 
 .code-description-input {
@@ -33,7 +32,6 @@
   resize: vertical;
   font-size: 1rem;
   width: 100%;
-  max-width: 380px;
 }
 
 .button-container {
@@ -109,8 +107,7 @@ button:disabled {
   border: 1px solid #ced4da;
   border-radius: 4px;
   font-family: monospace;
-  resize: vertical;
-  max-width: 380px;
+  resize: vertical;  
 }
 
 .code-actions {
