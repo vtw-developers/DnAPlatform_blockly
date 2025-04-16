@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { codeBlockApi } from '../../../services/api';
-import { CodeBlock } from '../../../types/codeBlock.types';
+import { CodeBlock } from '../../../types/CodeBlock';
 import * as Blockly from 'blockly';
 
 interface UseCodeBlockProps {
@@ -13,7 +13,7 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isShared, setIsShared] = useState(false);
-  const [selectedBlocks, setSelectedBlocks] = useState<string[]>([]);
+  const [selectedBlocks, setSelectedBlocks] = useState<number[]>([]);
   const [selectedBlockUserId, setSelectedBlockUserId] = useState<number | null>(null);
 
   const handleSave = async (userId: number | null) => {
@@ -47,7 +47,7 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
       };
 
       if (selectedBlocks.length > 0) {
-        await codeBlockApi.updateCodeBlock(parseInt(selectedBlocks[0]), codeBlock);
+        await codeBlockApi.updateCodeBlock(selectedBlocks[0], codeBlock);
         alert('코드가 수정되었습니다.');
       } else {
         await codeBlockApi.createCodeBlock(codeBlock);
@@ -99,7 +99,7 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
       blockId = block.id;
       isSharedValue = block.is_shared;
     } else if (selectedBlocks.length) {
-      blockId = parseInt(selectedBlocks[0]);
+      blockId = selectedBlocks[0];
       isSharedValue = isShared;
     }
     if (!blockId) {
