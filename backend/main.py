@@ -3,7 +3,7 @@ import logging
 import string
 import base64
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -16,6 +16,7 @@ import random
 from pydantic import BaseModel
 from routers import code_blocks, ai_services, proxy, auth
 from database import wait_for_db, create_tables
+import shutil
 
 # 환경 설정 로드
 env = os.getenv('ENV', 'development')
@@ -418,6 +419,15 @@ async def get_verification_dag_result(run_id: str):
         except Exception as e:
            logger.exception(f"Unexpected error getting Verification DAG result for {run_id}")
            return XComResponse(error=f"내부 서버 오류: {e}")
+
+@app.post("/api/upload-jar")
+async def upload_jar(file: UploadFile = File(...)):
+    save_dir = "/data/workspace/DnAPlatform_blockly/jars"
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, file.filename)
+    with open(save_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"path": save_path}
 
 @app.get("/")
 async def root():
