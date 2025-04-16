@@ -1,9 +1,11 @@
 .blockly-container {
   display: flex;
   height: calc(100vh - 100px); /* 상단 네비게이션 바 높이 고려 */
-  width: 99.9%;
+  width: 100%;
   overflow: hidden;
   flex-direction: row;
+  gap: 0;
+  box-sizing: border-box;
 }
 
 .blockly-workspace-container {
@@ -11,6 +13,7 @@
   position: relative;
   overflow: hidden;
   min-width: 0; /* flex item 최소 너비 제한 해제 */
+  max-width: calc(100% - 520px);
 }
 
 .blockly-workspace {
@@ -23,44 +26,126 @@
 }
 
 .right-panel {
-  width: 400px;
-  padding: 15px;
+  width: 520px;
+  padding: 15px 20px;
   background-color: #f5f5f5;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 15px;
   flex-shrink: 0;
+  box-sizing: border-box;
+  border-left: 1px solid #ddd;
 }
 
-.code-input-container,
-.code-group,
-.verification-section,
-.saved-codes-section {
+.code-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
-  max-width: 100%;
+}
+
+.code-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  height: 36px;
+}
+
+.code-description-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-height: 60px;
+  max-height: 100px;
+  resize: vertical;
+}
+
+.code-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
+.python-code-display {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100px;
+  max-height: 200px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+  background-color: #fff;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.converted-code-section {
+  margin-top: 8px;
+}
+
+.converted-code-display {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100px;
+  max-height: 200px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+  background-color: #fff;
+  overflow-y: auto;
+  white-space: pre-wrap;
 }
 
 .button-container {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
   width: 100%;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex: 0 0 auto;
 }
 
 .reset-button,
 .save-button,
-.action-button,
-.verify-button {
-  padding: 8px 12px;
+.action-button {
+  padding: 8px 16px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
   font-size: 14px;
   white-space: nowrap;
-  min-width: 80px;
+  flex: 0 0 auto;
+  min-width: 100px;
 }
 
 .reset-button {
@@ -73,67 +158,13 @@
   color: white;
 }
 
-.reset-button:hover {
-  background-color: #cc0000;
-}
-
-.save-button:hover {
-  background-color: #45a049;
-}
-
-.code-title-input,
-.code-description-input,
-.python-code-display,
-.model-select {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.code-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.section-title {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.python-code-display {
-  width: 100%;
-  min-height: 120px;
-  max-height: 150px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-family: monospace;
-  resize: vertical;
-  background-color: #fff;
-}
-
 .action-button {
-  padding: 8px 16px;
   background-color: #2196F3;
   color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
 }
 
-.action-button:hover {
-  background-color: #1976D2;
-}
-
-.action-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+.action-button:last-child {
+  margin-left: auto;
 }
 
 .verify-container {
@@ -185,7 +216,7 @@
 /* 자연어 블록 생성 버튼 스타일 */
 .natural-language-button {
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 16px;
   background-color: #2196F3;
   color: white;
   border: none;
@@ -193,18 +224,8 @@
   cursor: pointer;
   font-weight: bold;
   font-size: 14px;
-  white-space: normal;
   text-align: center;
-  margin-bottom: 8px;
-}
-
-.natural-language-button:hover {
-  background-color: #1976D2;
-}
-
-.natural-language-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+  margin: 12px 0;
 }
 
 /* 반응형 디자인 */
@@ -218,23 +239,34 @@
   .blockly-workspace-container {
     height: 60vh;
     min-height: 400px;
+    max-width: 100%;
   }
 
   .right-panel {
     width: 100%;
     height: auto;
     max-height: none;
+    padding: 15px 20px;
   }
 
   .button-container {
-    justify-content: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .button-group {
+    flex: 0 0 auto;
+    justify-content: flex-start;
   }
 
   .reset-button,
   .save-button,
-  .action-button,
-  .verify-button {
-    min-width: 120px;
+  .action-button {
+    flex: 0 0 auto;
+    min-width: 80px;
+    padding: 8px 12px;
   }
 
   .verify-container {
@@ -249,6 +281,17 @@
   .saved-codes-section {
     max-height: none;
   }
+
+  .code-description-input {
+    min-height: 80px;
+    max-height: 120px;
+  }
+
+  .python-code-display,
+  .converted-code-display {
+    min-height: 120px;
+    max-height: 180px;
+  }
 }
 
 /* 작은 화면 최적화 */
@@ -259,18 +302,39 @@
   }
 
   .right-panel {
-    padding: 10px;
+    padding: 10px 15px;
+    gap: 12px;
   }
 
   .button-container {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button-group {
+    flex-direction: column;
+    width: 100%;
   }
 
   .reset-button,
   .save-button,
-  .action-button,
-  .verify-button {
+  .action-button {
     width: 100%;
-    max-width: none;
+    margin: 0;
+  }
+
+  .code-input-container {
+    gap: 10px;
+  }
+
+  .code-description-input {
+    min-height: 60px;
+    max-height: 100px;
+  }
+
+  .python-code-display,
+  .converted-code-display {
+    min-height: 100px;
+    max-height: 150px;
   }
 } 
