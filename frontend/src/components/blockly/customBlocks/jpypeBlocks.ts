@@ -1,17 +1,18 @@
 import * as Blockly from 'blockly/core';
+import { FieldFileUpload } from './FieldFileUpload';
 
 export function registerJpypeBlocks(pythonGen: any) {
-  // 1. JVM 시작 블록
+  // 1. JVM 시작 블록 (JAR 업로드)
   Blockly.Blocks['jpype_start_jvm'] = {
     init: function() {
       this.appendDummyInput()
-        .appendField("JAR 파일 경로")
-        .appendField(new Blockly.FieldTextInput("/path/to/your-file.jar"), "JAR_PATH")
+        .appendField("JAR 파일 업로드")
+        .appendField(new FieldFileUpload(""), "JAR_PATH")
         .appendField("으로 JVM 시작");
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(230);
-      this.setTooltip("JAR 파일을 로드하고 JVM을 시작합니다.");
+      this.setTooltip("JAR 파일을 업로드하고 JVM을 시작합니다.");
       this.setHelpUrl("");
     }
   };
