@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
+import { registerJpypeBlocks } from '../customBlocks/jpypeBlocks';
 
 interface UseBlocklySetupProps {
   workspaceRef: React.RefObject<HTMLDivElement>;
@@ -14,6 +15,9 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
 
   useEffect(() => {
     if (!workspaceRef.current || workspaceInitialized.current) return;
+
+    // JPype 블록과 generator를 워크스페이스 생성 직전에 등록
+    registerJpypeBlocks(pythonGenerator);
 
     workspaceInitialized.current = true;
     const newWorkspace = Blockly.inject(workspaceRef.current, {
