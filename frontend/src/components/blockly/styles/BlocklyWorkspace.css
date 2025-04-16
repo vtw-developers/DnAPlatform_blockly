@@ -12,6 +12,7 @@
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 
@@ -24,7 +25,10 @@
   height: 100%;
 }
 
-.right-panel {  
+.right-panel {
+  width: 35%;
+  min-width: 580px;
+  max-width: 700px;
   padding: 12px;
   background-color: #f5f5f5;
   overflow-y: auto;
@@ -41,6 +45,16 @@
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  box-sizing: border-box;
+}
+
+.code-title-input,
+.code-description-input,
+.python-code-display,
+.converted-code-display {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .code-title-input {
@@ -54,22 +68,23 @@
 }
 
 .code-description-input {
-  width: 100%;
-  box-sizing: border-box;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
   min-height: 60px;
-  max-height: 100px;
+  height: calc(10vh);
+  max-height: 120px;
   resize: vertical;
+  flex: 1;
 }
 
 .code-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title {
@@ -79,10 +94,10 @@
   color: #333;
 }
 
-.python-code-display {
-  width: 100%;
-  box-sizing: border-box;
+.python-code-display,
+.converted-code-display {
   min-height: 100px;
+  height: calc(12vh);
   max-height: 200px;
   padding: 12px;
   border: 1px solid #ddd;
@@ -94,32 +109,18 @@
   background-color: #fff;
   overflow-y: auto;
   white-space: pre-wrap;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: auto;
 }
 
 .converted-code-section {
   margin-top: 8px;
 }
 
-.converted-code-display {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 100px;
-  max-height: 200px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 13px;
-  line-height: 1.4;
-  resize: vertical;
-  background-color: #fff;
-  overflow-y: auto;
-  white-space: pre-wrap;
-}
-
 .button-container {
   display: flex;
-  gap: 6px;
+  gap: 1%;
   margin-bottom: 12px;
   width: 100%;
   justify-content: space-between;
@@ -128,8 +129,8 @@
 
 .button-group {
   display: flex;
-  gap: 6px;
-  flex: 0 0 auto;
+  gap: 1%;
+  flex: 1;
 }
 
 .reset-button,
@@ -142,8 +143,8 @@
   font-weight: bold;
   font-size: 14px;
   white-space: nowrap;
-  flex: 0 0 auto;
-  min-width: 90px;
+  flex: 1;
+  min-width: 0;
 }
 
 .reset-button {
@@ -214,7 +215,7 @@
 /* 자연어 블록 생성 버튼 스타일 */
 .natural-language-button {
   width: 100%;
-  padding: 8px 16px;
+  padding: 6px 10px;
   background-color: #2196F3;
   color: white;
   border: none;
@@ -223,10 +224,121 @@
   font-weight: bold;
   font-size: 14px;
   text-align: center;
-  margin: 12px 0;
+  margin: 0;
+  height: 32px;
+  box-sizing: border-box;
+  line-height: 20px;
+}
+
+.natural-language-button:hover {
+  background-color: #1976D2;
 }
 
 /* 반응형 디자인 */
+@media screen and (max-width: 1400px) {
+  .right-panel {
+    width: 40%;
+    min-width: 520px;
+  }
+  .button-container {
+    gap: 0.8%;
+  }
+  
+  .button-group {
+    gap: 0.8%;
+  }
+
+  .code-input-container,
+  .code-group {
+    max-width: calc(100% - 20px);
+  }
+
+  .code-description-input {
+    height: calc(9vh);
+    max-height: 110px;
+  }
+
+  .python-code-display,
+  .converted-code-display {
+    height: calc(11vh);
+    max-height: 180px;
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .right-panel {
+    width: 45%;
+    min-width: 480px;
+  }
+  .button-container {
+    gap: 0.6%;
+  }
+  
+  .button-group {
+    gap: 0.6%;
+  }
+  
+  .reset-button,
+  .save-button,
+  .action-button {
+    padding: 8px 8px;
+    font-size: 13px;
+  }
+
+  .code-input-container,
+  .code-group {
+    max-width: calc(100% - 16px);
+  }
+
+  .code-description-input {
+    height: calc(8vh);
+    max-height: 100px;
+  }
+
+  .python-code-display,
+  .converted-code-display {
+    height: calc(10vh);
+    max-height: 160px;
+  }
+}
+
+@media screen and (max-width: 992px) {
+  .right-panel {
+    width: 50%;
+    min-width: 450px;
+  }
+  .button-container {
+    gap: 0.5%;
+  }
+  
+  .button-group {
+    gap: 0.5%;
+  }
+  
+  .reset-button,
+  .save-button,
+  .action-button {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .code-input-container,
+  .code-group {
+    max-width: calc(100% - 12px);
+  }
+
+  .code-description-input {
+    height: calc(7vh);
+    max-height: 90px;
+  }
+
+  .python-code-display,
+  .converted-code-display {
+    height: calc(9vh);
+    max-height: 140px;
+  }
+}
+
 @media screen and (max-width: 768px) {
   .blockly-container {
     flex-direction: column;
@@ -237,11 +349,12 @@
   .blockly-workspace-container {
     height: 60vh;
     min-height: 400px;
-    max-width: 100%;
   }
 
   .right-panel {
     width: 100%;
+    min-width: auto;
+    max-width: none;
     height: auto;
     max-height: none;
     padding: 15px 20px;
@@ -259,14 +372,6 @@
     justify-content: flex-start;
   }
 
-  .reset-button,
-  .save-button,
-  .action-button {
-    flex: 0 0 auto;
-    min-width: 80px;
-    padding: 8px 12px;
-  }
-
   .verify-container {
     flex-direction: column;
     align-items: stretch;
@@ -280,15 +385,39 @@
     max-height: none;
   }
 
+  .code-input-container,
+  .code-group {
+    width: 100%;
+  }
+
+  .code-title-input,
+  .code-description-input,
+  .python-code-display,
+  .converted-code-display {
+    width: 100%;
+  }
+
+  .code-title-input {
+    height: 32px;
+    font-size: 13px;
+  }
+
   .code-description-input {
-    min-height: 80px;
+    min-height: 60px;
+    height: calc(10vh);
     max-height: 120px;
   }
 
   .python-code-display,
   .converted-code-display {
-    min-height: 120px;
-    max-height: 180px;
+    min-height: 100px;
+    height: calc(12vh);
+    max-height: 160px;
+  }
+
+  .natural-language-button {
+    height: 32px;
+    padding: 6px 10px;
   }
 }
 
@@ -325,14 +454,28 @@
     gap: 10px;
   }
 
+  .code-title-input {
+    height: 30px;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
   .code-description-input {
-    min-height: 60px;
+    min-height: 50px;
+    height: calc(8vh);
     max-height: 100px;
   }
 
   .python-code-display,
   .converted-code-display {
-    min-height: 100px;
-    max-height: 150px;
+    min-height: 80px;
+    height: calc(10vh);
+    max-height: 120px;
+  }
+
+  .natural-language-button {
+    height: 30px;
+    padding: 5px 8px;
+    font-size: 13px;
   }
 } 
