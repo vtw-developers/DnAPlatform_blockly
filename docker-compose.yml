@@ -13,6 +13,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
+    networks:
+      - blockly_network
 
   backend:
     build:
@@ -32,6 +34,9 @@ services:
     privileged: true
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - blockly_network
+      - dna-platform-network
 
   frontend:
     build:
@@ -45,6 +50,16 @@ services:
     depends_on:
       - backend
     restart: always
+    networks:
+      - blockly_network
 
 volumes:
   postgres_data: 
+
+networks:
+  blockly_network:
+    driver: bridge
+  dna-platform-network:
+    name: dna-platform-network
+    driver: bridge
+    external: true 
