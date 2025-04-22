@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from routers import code_blocks, ai_services, proxy, auth
 from database import wait_for_db, create_tables
 import shutil
+from routes import deploy
 
 # 환경 설정 로드
 env = os.getenv('ENV', 'development')
@@ -77,6 +78,7 @@ app.include_router(code_blocks.router, prefix="/api", tags=["code-blocks"])
 app.include_router(ai_services.router, prefix="/api", tags=["ai-services"])
 app.include_router(proxy.router, prefix="/api/proxy", tags=["proxy"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(deploy.router, prefix="/api/deploy", tags=["deploy"])
 
 # <<<< ADDED: Pydantic models for verify endpoint >>>>
 class CodeVerifyRequest(BaseModel):

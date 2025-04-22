@@ -26,25 +26,35 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     try {
       setDeployLogs(prev => [...prev, `배포 시작: 포트 ${port} 사용`]);
       
-      const response = await fetch('/api/deploy', {
+      const response = await fetch('/api/deploy/deploy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ port }),
+        body: JSON.stringify({ 
+          port,
+          code 
+        }),
       });
 
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || '배포 중 오류가 발생했습니다.');
+        throw new Error(data.detail?.message || data.detail || '배포 중 오류가 발생했습니다.');
       }
 
-      setDeployLogs(prev => [...prev, '배포가 성공적으로 완료되었습니다.']);
-      setTimeout(() => {
-        setIsDeployPopupOpen(false);
-        setDeployLogs([]);
-      }, 3000);
+      // 로그 업데이트
+      if (data.logs) {
+        setDeployLogs(prev => [...prev, ...data.logs]);
+      }
+
+      // 성공 시 3초 후 팝업 닫기
+      if (data.status === 'success') {
+        setTimeout(() => {
+          setIsDeployPopupOpen(false);
+          setDeployLogs([]);
+        }, 3000);
+      }
     } catch (error: any) {
       setDeployLogs(prev => [...prev, `오류: ${error.message}`]);
     }
