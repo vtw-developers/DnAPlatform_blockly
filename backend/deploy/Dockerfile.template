@@ -1,0 +1,19 @@
+FROM ghcr.io/graalvm/graalvm-ce:latest
+
+WORKDIR /app
+
+# 필요한 시스템 패키지 설치
+RUN microdnf install -y python3-pip && microdnf clean all
+
+# Python 패키지 설치
+RUN pip3 install fastapi uvicorn
+
+# 애플리케이션 파일 복사
+COPY app.py .
+
+# 포트 설정
+ENV PORT=8000
+EXPOSE ${PORT}
+
+# 애플리케이션 실행
+CMD ["python3", "app.py"] 
