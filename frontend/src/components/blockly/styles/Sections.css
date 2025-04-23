@@ -1,12 +1,7 @@
-.code-input-container {
-  margin-bottom: 20px;
-  width: 100%;
-}
-
 .code-title-input {
   width: 100%;
   padding: 12px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
@@ -21,8 +16,7 @@
   border-radius: 4px;
   resize: vertical;
   font-size: 14px;
-  box-sizing: border-box;
-  margin-bottom: 15px;
+  box-sizing: border-box;  
 }
 
 .python-code-display {
@@ -36,8 +30,7 @@
   font-size: 13px;
   line-height: 1.4;
   resize: vertical;
-  box-sizing: border-box;
-  margin-bottom: 15px;
+  box-sizing: border-box;  
 }
 
 .section-title {

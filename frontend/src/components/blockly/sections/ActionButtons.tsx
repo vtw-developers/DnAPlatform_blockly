@@ -9,6 +9,7 @@ interface ActionButtonsProps {
   onSave: () => void;
   onExecute: () => void;
   onConvert: () => void;
+  onLapping: () => void;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -18,6 +19,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onSave,
   onExecute,
   onConvert,
+  onLapping,
 }) => {
   const [isDeployPopupOpen, setIsDeployPopupOpen] = useState(false);
 
@@ -33,20 +35,6 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         <button className="action-button" onClick={onExecute}>
           코드실행
         </button>
-        <button 
-          className="action-button" 
-          onClick={onConvert} 
-          disabled={!code?.trim() || isConverting}
-        >
-          {isConverting ? '변환 중...' : '코드변환'}
-        </button>
-        <button 
-          className="deploy-button" 
-          onClick={() => setIsDeployPopupOpen(true)}
-          disabled={!code?.trim()}
-        >
-          운영배포
-        </button>
       </div>
       <div className="code-group">
         <h3 className="section-title">생성된 Python 코드</h3>
@@ -55,6 +43,25 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           readOnly
           className="python-code-display"
         />
+      </div>
+      <div className="button-container">
+        <button 
+          className="action-button" 
+          onClick={onConvert} 
+          disabled={!code?.trim() || isConverting}
+        >
+          {isConverting ? '변환 중...' : '코드변환'}
+        </button>
+        <button className="action-button" onClick={onLapping} disabled={!code?.trim()}>
+          코드랩핑
+        </button>
+        <button 
+          className="deploy-button" 
+          onClick={() => setIsDeployPopupOpen(true)}
+          disabled={!code?.trim()}
+        >
+          운영배포
+        </button>
       </div>
       <DeployPopup
         isOpen={isDeployPopupOpen}

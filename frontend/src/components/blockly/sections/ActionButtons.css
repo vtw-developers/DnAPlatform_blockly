@@ -6,6 +6,7 @@
 
 .reset-button,
 .save-button,
+.action-button,
 .deploy-button {
   padding: 8px 16px;
   border: none;
@@ -15,27 +16,40 @@
   transition: background-color 0.2s;
 }
 
-.reset-button {
-  background-color: #f44336;
+.reset-button {  
+  background-color: #ff4444;
   color: white;
+  flex: 1;
+}
+
+.save-button {  
+  background-color: #4CAF50;
+  color: white;
+  flex: 1;
+}
+
+.action-button {  
+  background-color: #17a2b8;
+  color: white;
+  flex: 1;
+}
+
+.deploy-button {
+  background-color: #ff9800;
+  color: white;
+  flex: 1;
 }
 
 .reset-button:hover {
   background-color: #da190b;
 }
 
-.save-button {
-  background-color: #2196F3;
-  color: white;
-}
-
 .save-button:hover {
-  background-color: #0b7dda;
+  background-color: #44a047;
 }
 
-.deploy-button {
-  background-color: #ff9800;
-  color: white;
+.action-button:hover {
+  background-color: #117989;
 }
 
 .deploy-button:hover {
