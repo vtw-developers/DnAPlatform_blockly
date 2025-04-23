@@ -12,11 +12,8 @@ import {
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../../services/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
-
-interface LoginFormProps {
-  onLoginSuccess: () => Promise<void>;
-}
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   marginTop: theme.spacing(8),
@@ -27,8 +24,9 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   backgroundColor: 'rgba(255, 255, 255, 0.9)',
 }));
 
-const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
+const LoginForm = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -43,7 +41,8 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
       const response = await authApi.login({ email, password });
       if (response && response.access_token) {
         localStorage.setItem('token', response.access_token);
-        await onLoginSuccess();
+        const profile = await authApi.getProfile();
+        setUser(profile);
         navigate('/');
       } else {
         throw new Error('로그인 응답이 올바르지 않습니다.');

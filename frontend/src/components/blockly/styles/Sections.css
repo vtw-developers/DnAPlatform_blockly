@@ -1,22 +1,50 @@
 .code-input-container {
-  margin-bottom: 1rem;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .code-title-input {
   width: 100%;
-  padding: 8px;
-  margin-bottom: 8px;
+  padding: 12px;
+  margin-bottom: 15px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
 }
 
 .code-description-input {
   width: 100%;
   height: 80px;
-  padding: 8px;
+  padding: 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   resize: vertical;
+  font-size: 14px;
+  box-sizing: border-box;
+  margin-bottom: 15px;
+}
+
+.python-code-display {
+  width: 100%;
+  min-height: 140px;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 15px;
+}
+
+.section-title {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 500;
 }
 
 .button-container {
@@ -55,27 +83,6 @@
   background-color: #6c757d;
 }
 
-.code-group {
-  margin-bottom: 1rem;
-}
-
-.section-title {
-  margin: 0 0 8px 0;
-  font-size: 1rem;
-  color: #333;
-}
-
-.python-code-display {
-  width: 100%;
-  height: 150px;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-family: monospace;
-  resize: vertical;
-  background-color: #f8f9fa;
-}
-
 .code-actions {
   display: flex;
   gap: 8px;
@@ -96,10 +103,6 @@
 .action-button:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
-}
-
-.verification-section {
-  margin-bottom: 1rem;
 }
 
 .verify-container {

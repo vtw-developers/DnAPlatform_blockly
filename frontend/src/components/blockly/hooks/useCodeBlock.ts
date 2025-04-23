@@ -28,7 +28,11 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
     }
 
     if (selectedBlocks.length > 0 && selectedBlockUserId !== null) {
-      if (!userId || userId !== selectedBlockUserId) {
+      if (!userId) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+      if (userId !== selectedBlockUserId) {
         alert('자신이 작성한 코드만 수정할 수 있습니다.');
         return;
       }

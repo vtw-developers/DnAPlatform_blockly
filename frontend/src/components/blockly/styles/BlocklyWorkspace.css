@@ -53,30 +53,14 @@
 
 .code-input-container {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: column;  
   width: 100%;
   box-sizing: border-box;
 }
 
-.code-title-input {
-  composes: input-base;
-  padding: 8px 12px;
-  height: 36px;
-}
-
-.code-description-input {
-  composes: input-base;
-  padding: 8px 12px;
-  min-height: 60px;
-  height: calc(10vh);
-  max-height: 120px;
-  resize: vertical;
-}
-
 /* Code Display */
 .code-display-base {
-  composes: input-base;
+  width: 100%;
   min-height: 100px;
   height: calc(12vh);
   max-height: 200px;
@@ -88,11 +72,10 @@
   background-color: #fff;
   overflow-y: auto;
   white-space: pre-wrap;
-}
-
-.python-code-display,
-.converted-code-display {
-  composes: code-display-base;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  margin-bottom: 15px;
 }
 
 /* Button Styles */
@@ -106,12 +89,13 @@
   white-space: nowrap;
   height: 32px;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .button-container {
   display: flex;
-  gap: 1%;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 15px;
   width: 100%;
   justify-content: space-between;
   flex-wrap: nowrap;
@@ -119,7 +103,7 @@
 
 .button-group {
   display: flex;
-  gap: 1%;
+  gap: 10px;
   flex: 1;
 }
 
@@ -151,6 +135,7 @@
   color: white;
   text-align: center;
   line-height: 20px;
+  margin-bottom: 15px;
 }
 
 .natural-language-button:hover {
@@ -198,11 +183,6 @@
     gap: 0.8%;
   }
 
-  .code-description-input {
-    height: calc(9vh);
-    max-height: 110px;
-  }
-
   .code-display-base {
     height: calc(11vh);
     max-height: 180px;
@@ -225,11 +205,6 @@
     font-size: 13px;
   }
 
-  .code-description-input {
-    height: calc(8vh);
-    max-height: 100px;
-  }
-
   .code-display-base {
     height: calc(10vh);
     max-height: 160px;
@@ -250,11 +225,6 @@
   .button-base {
     padding: 8px 6px;
     font-size: 12px;
-  }
-
-  .code-description-input {
-    height: calc(7vh);
-    max-height: 90px;
   }
 
   .code-display-base {
@@ -300,15 +270,6 @@
     font-size: 13px;
   }
 
-  .code-title-input {
-    height: 32px;
-  }
-
-  .code-description-input {
-    height: calc(10vh);
-    max-height: 120px;
-  }
-
   .code-display-base {
     height: calc(12vh);
     max-height: 160px;
@@ -341,17 +302,6 @@
     height: 30px;
     padding: 5px 8px;
     font-size: 13px;
-  }
-
-  .code-title-input {
-    height: 30px;
-    font-size: 12px;
-    padding: 6px 10px;
-  }
-
-  .code-description-input {
-    height: calc(8vh);
-    max-height: 100px;
   }
 
   .code-display-base {
