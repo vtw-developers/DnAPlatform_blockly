@@ -107,20 +107,6 @@
   flex: 1;
 }
 
-.reset-button {
-  composes: button-base;
-  background-color: #ff4444;
-  color: white;
-  flex: 1;
-}
-
-.save-button {
-  composes: button-base;
-  background-color: #4CAF50;
-  color: white;
-  flex: 1;
-}
-
 .natural-language-button {
   composes: button-base;
   width: 100%;
