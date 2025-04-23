@@ -77,7 +77,7 @@
 }
 
 .deploy-button,
-.cancel-button {
+.close-button {
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
@@ -94,11 +94,57 @@
   background-color: #45a049;
 }
 
-.cancel-button {
+.close-button {
   background-color: #f44336;
   color: white;
 }
 
-.cancel-button:hover {
+.close-button:hover {
   background-color: #da190b;
+}
+
+.test-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+}
+
+.test-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.test-button:hover {
+  background-color: #218838;
+}
+
+.test-result {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.test-result h4 {
+  margin: 0 0 10px 0;
+  color: #495057;
+}
+
+.test-result pre {
+  margin: 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #212529;
 } 

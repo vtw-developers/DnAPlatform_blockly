@@ -1,10 +1,20 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 from datetime import datetime
 
 app = FastAPI()
+
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 origin 허용
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 사용자 코드를 여기에 삽입
 USER_CODE = """
@@ -44,6 +54,26 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0"
     }
+
+@app.get("/test")
+async def test_endpoint():
+    """테스트 엔드포인트"""
+    try:
+        result = execute_user_code()
+        return JSONResponse(content={
+            "status": "success",
+            "message": "테스트가 성공적으로 실행되었습니다.",
+            "result": result
+        })
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "테스트 실행 중 오류가 발생했습니다.",
+                "error": str(e)
+            }
+        )
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
