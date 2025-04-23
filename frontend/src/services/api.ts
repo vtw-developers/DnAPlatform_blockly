@@ -483,22 +483,39 @@ export class CodeBlockApi {
   }
 
   async stopContainer(port: number) {
-    const response = await fetch(`${this.baseUrl}/container/stop`, {
+    const url = `${this.baseUrl}/container/stop`;
+    const requestBody = { port: port };
+    console.log('Stopping container with URL:', url);
+    console.log('Request body:', requestBody);
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ port })
+      body: JSON.stringify(requestBody)
     });
+    
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Container stop failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
       throw new Error('컨테이너 중지에 실패했습니다.');
     }
     return await response.json();
   }
 
   async removeContainer(port: number) {
-    const response = await fetch(`${this.baseUrl}/container/remove`, {
+    const url = `${this.baseUrl}/container/remove`;
+    const requestBody = { port: port };
+    console.log('Removing container with URL:', url);
+    console.log('Request body:', requestBody);
+    
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ port })
+      body: JSON.stringify(requestBody)
     });
     if (!response.ok) {
       throw new Error('컨테이너 삭제에 실패했습니다.');

@@ -15,6 +15,14 @@ interface ContainerStatus {
   containerId?: string;
 }
 
+interface ContainerInfo {
+  name: string;
+  port: number;
+  status: string;
+  created_at: string;
+  state: any;
+}
+
 const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   const [port, setPort] = useState<string>('10000');
   const [deployLogs, setDeployLogs] = useState<string[]>([]);
@@ -28,6 +36,19 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [deployedPort, setDeployedPort] = useState<number | null>(null);
+  const [containers, setContainers] = useState<ContainerInfo[]>([]);
+  const [selectedContainer, setSelectedContainer] = useState<ContainerInfo | null>(null);
+
+  const fetchContainers = async () => {
+    try {
+      const response = await fetch(`/api/containers/list`);
+      if (!response.ok) throw new Error('컨테이너 목록 조회 실패');
+      const data = await response.json();
+      setContainers(data);
+    } catch (error) {
+      console.error('컨테이너 목록 조회 오류:', error);
+    }
+  };
 
   const fetchContainerStatus = async () => {
     try {
@@ -68,7 +89,7 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
 
   useEffect(() => {
     if (isOpen) {
-      fetchContainerStatus();
+      fetchContainers();
     }
   }, [isOpen]);
 
@@ -76,7 +97,15 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
     console.log('컨테이너 상태 변경됨:', containerStatus);
   }, [containerStatus]);
 
-  if (!isOpen) return null;
+  const handleContainerSelect = (container: ContainerInfo) => {
+    setSelectedContainer(container);
+    setPort(container.port.toString());
+    setContainerStatus({
+      exists: true,
+      status: container.status,
+      port: container.port
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +176,7 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
     try {
       await codeBlockApi.startContainer(parseInt(port, 10));
       setDeployLogs(prev => [...prev, '컨테이너가 시작되었습니다.']);
-      await fetchContainerStatus();
+      await fetchContainers();
     } catch (error) {
       console.error('컨테이너 시작 실패:', error);
       setDeployLogs(prev => [...prev, '컨테이너 시작 중 오류가 발생했습니다.']);
@@ -157,11 +186,12 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   };
 
   const handleStopContainer = async () => {
+    if (!selectedContainer) return;
     setIsLoading(true);
     try {
-      await codeBlockApi.stopContainer(parseInt(port, 10));
+      await codeBlockApi.stopContainer(selectedContainer.port);
       setDeployLogs(prev => [...prev, '컨테이너가 중지되었습니다.']);
-      await fetchContainerStatus();
+      await fetchContainers();
     } catch (error) {
       console.error('컨테이너 중지 실패:', error);
       setDeployLogs(prev => [...prev, '컨테이너 중지 중 오류가 발생했습니다.']);
@@ -176,7 +206,8 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
       try {
         await codeBlockApi.removeContainer(parseInt(port, 10));
         setDeployLogs(prev => [...prev, '컨테이너가 삭제되었습니다.']);
-        setContainerStatus({ exists: false, status: 'not_found', port: parseInt(port, 10) });
+        setSelectedContainer(null);
+        await fetchContainers();
       } catch (error) {
         console.error('컨테이너 삭제 실패:', error);
         setDeployLogs(prev => [...prev, '컨테이너 삭제 중 오류가 발생했습니다.']);
@@ -199,119 +230,149 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   // 테스트 섹션 표시 조건 수정
   const showTestSection = isDeploySuccess || (containerStatus.exists && containerStatus.status === 'running') || deployedPort === parseInt(port, 10);
 
+  if (!isOpen) return null;
+
   return (
     <div className="deploy-popup-overlay">
       <div className="deploy-popup">
         <h2>운영 배포</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="port-input-container">
-            <label htmlFor="port">서비스 포트:</label>
-            <input
-              type="number"
-              id="port"
-              value={port}
-              onChange={(e) => setPort(e.target.value)}
-              min="10000"
-              max="65535"
-              required
-              disabled={isDeploying}
-            />
+        
+        {/* 컨테이너 목록 섹션 */}
+        <div className="container-list-section">
+          <h3>배포된 서비스 목록</h3>
+          <div className="container-list">
+            <table>
+              <thead>
+                <tr>
+                  <th>서비스명</th>
+                  <th>포트</th>
+                  <th>상태</th>
+                  <th>시작일시</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {containers.map((container) => (
+                  <tr 
+                    key={container.name}
+                    className={selectedContainer?.name === container.name ? 'selected' : ''}
+                    onClick={() => handleContainerSelect(container)}
+                  >
+                    <td>{container.name}</td>
+                    <td>{container.port}</td>
+                    <td>{container.status === 'running' ? '실행 중' : 
+                         container.status === 'exited' ? '중지됨' : container.status}</td>
+                    <td>{container.created_at}</td>
+                    <td>
+                      {container.status === 'running' ? (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedContainer(container);
+                            setPort(container.port.toString());
+                            handleStopContainer();
+                          }}
+                          disabled={isLoading}
+                        >
+                          중지
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedContainer(container);
+                            setPort(container.port.toString());
+                            handleStartContainer();
+                          }}
+                          disabled={isLoading}
+                        >
+                          시작
+                        </button>
+                      )}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveContainer();
+                        }}
+                        disabled={isLoading}
+                        className="remove-button"
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </div>
 
-          <div className="container-status">
-            <h3>컨테이너 상태</h3>
-            <div className="status-info">
-              <p>상태: {
-                containerStatus.exists && containerStatus.status === 'running' ? '실행 중' :
-                containerStatus.exists && containerStatus.status === 'stopped' ? '중지됨' :
-                '없음'
-              }</p>
-              {containerStatus.containerId && (
-                <p>컨테이너 ID: {containerStatus.containerId}</p>
-              )}
+        <div className="deploy-section">
+          <h3>새 서비스 배포</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="port-input-container">
+              <label htmlFor="port">서비스 포트:</label>
+              <input
+                type="number"
+                id="port"
+                value={port}
+                onChange={(e) => setPort(e.target.value)}
+                min="10000"
+                max="65535"
+                required
+                disabled={isDeploying}
+              />
             </div>
-            <div className="container-actions">
-              {containerStatus.exists && containerStatus.status === 'stopped' && (
-                <button
+
+            <div className="deploy-logs">
+              <h3>배포 로그</h3>
+              <div className="logs-container">
+                {deployLogs.map((log, index) => (
+                  <div key={index} className="log-line">{log}</div>
+                ))}
+              </div>
+            </div>
+
+            {(selectedContainer?.status === 'running' || isDeploySuccess) && (
+              <div className="test-section">
+                <h3>서비스 테스트</h3>
+                <button 
                   type="button"
-                  className="start-button"
-                  onClick={handleStartContainer}
+                  className="test-button"
+                  onClick={handleTestService}
                   disabled={isLoading}
                 >
-                  시작
+                  테스트 실행
                 </button>
-              )}
-              {containerStatus.exists && containerStatus.status === 'running' && (
-                <button
-                  type="button"
-                  className="stop-button"
-                  onClick={handleStopContainer}
-                  disabled={isLoading}
-                >
-                  중지
-                </button>
-              )}
-              {containerStatus.exists && (
-                <button
-                  type="button"
-                  className="remove-button"
-                  onClick={handleRemoveContainer}
-                  disabled={isLoading}
-                >
-                  삭제
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="deploy-logs">
-            <h3>배포 로그</h3>
-            <div className="logs-container">
-              {deployLogs.map((log, index) => (
-                <div key={index} className="log-line">{log}</div>
-              ))}
-            </div>
-          </div>
-
-          {showTestSection && (
-            <div className="test-section">
-              <h3>서비스 테스트</h3>
-              <button 
-                type="button"
-                className="test-button"
-                onClick={handleTestService}
-                disabled={isLoading}
-              >
-                테스트 실행
-              </button>
-              {testResult && (
-                <div className="test-result">
-                  <h4>테스트 결과:</h4>
-                  <pre>{testResult}</pre>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="button-container">
-            <button 
-              type="submit" 
-              className="deploy-button"
-              disabled={isDeploying || isLoading}
-            >
-              {isDeploying ? '배포 중...' : '배포 시작'}
-            </button>
-            {!isDeploying && !isLoading && (
-              <button 
-                type="button" 
-                className="close-button" 
-                onClick={handleClose}
-              >
-                닫기
-              </button>
+                {testResult && (
+                  <div className="test-result">
+                    <h4>테스트 결과:</h4>
+                    <pre>{testResult}</pre>
+                  </div>
+                )}
+              </div>
             )}
-          </div>
-        </form>
+
+            <div className="button-container">
+              <button 
+                type="submit" 
+                className="deploy-button"
+                disabled={isDeploying || isLoading}
+              >
+                {isDeploying ? '배포 중...' : '배포 시작'}
+              </button>
+              {!isDeploying && !isLoading && (
+                <button 
+                  type="button" 
+                  className="close-button" 
+                  onClick={handleClose}
+                >
+                  닫기
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

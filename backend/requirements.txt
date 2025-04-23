@@ -10,3 +10,4 @@ python-multipart
 httpx==0.24.1
 docker==7.0.0
 requests<2.32.0 
+pytz==2025.2

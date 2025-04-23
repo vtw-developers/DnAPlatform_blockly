@@ -6,7 +6,6 @@
 
 .reset-button,
 .save-button,
-.action-button,
 .deploy-button {
   padding: 8px 16px;
   border: none;
@@ -34,15 +33,6 @@
   background-color: #0b7dda;
 }
 
-.action-button {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.action-button:hover {
-  background-color: #45a049;
-}
-
 .deploy-button {
   background-color: #ff9800;
   color: white;
@@ -52,8 +42,7 @@
   background-color: #f57c00;
 }
 
-.deploy-button:disabled,
-.action-button:disabled {
+.deploy-button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
 }
