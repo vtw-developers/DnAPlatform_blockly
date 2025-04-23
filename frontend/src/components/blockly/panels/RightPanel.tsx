@@ -38,16 +38,15 @@ interface RightPanelProps {
   onRefreshComplete: () => void;
   onDeleteComplete: () => void;
   openPopup: (type: PopupType) => void;
+  onLapping: () => void;
+  wrappedCode: string;  
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
   title,
   description,
   currentCode,
-  convertedCode,
-  isShared,
-  selectedBlocks,
-  selectedBlockUserId,
+  convertedCode,  
   isConverting,
   isVerifying,
   models,
@@ -68,6 +67,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onRefreshComplete,
   onDeleteComplete,
   openPopup,
+  onLapping,
+  wrappedCode,  
 }) => {
   const handleConvert = useCallback(() => {
     onConvert(currentCode);
@@ -100,10 +101,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         onConvert={handleConvert}
         isConverting={isConverting}
         code={currentCode}
+        onLapping={onLapping}
       />
 
       <ConvertedCodeSection
-        convertedCode={convertedCode}
+        convertedCode={wrappedCode || convertedCode}                
       />
 
       <VerificationSection
