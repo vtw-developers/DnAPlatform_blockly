@@ -11,13 +11,29 @@ class DeployRequest(BaseModel):
     port: int
     code: str
 
+def is_jpype_code(code: str) -> bool:
+    """코드에 jpype 관련 내용이 포함되어 있는지 확인"""
+    jpype_indicators = [
+        "import jpype",
+        "from jpype",
+        "jpype.startJVM",
+        "JClass",
+        "JPackage"
+    ]
+    return any(indicator in code for indicator in jpype_indicators)
+
 @router.post("/deploy")
 async def deploy_application(request: DeployRequest):
     try:
         logger.info(f"Starting deployment process for port {request.port}")
         
-        # 배포 스크립트 경로
-        deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy.sh')
+        # jpype 사용 여부에 따라 스크립트 선택
+        if is_jpype_code(request.code):
+            deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy_jpype.sh')
+            logger.info("Using JPype deployment script")
+        else:
+            deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy.sh')
+            logger.info("Using standard deployment script")
         
         # 스크립트에 실행 권한 부여
         os.chmod(deploy_script, 0o755)

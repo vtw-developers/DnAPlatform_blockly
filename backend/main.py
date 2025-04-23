@@ -423,12 +423,12 @@ async def get_verification_dag_result(run_id: str):
 
 @app.post("/api/upload-jar")
 async def upload_jar(file: UploadFile = File(...)):
-    save_dir = "/data/workspace/DnAPlatform_blockly/jars"
+    save_dir = "/app/jar"  # 백엔드 도커 내부 경로
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, file.filename)
     with open(save_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    return {"path": save_path}
+    return {"path": save_path}  # 도커 내부 경로 반환
 
 @app.get("/")
 async def root():
