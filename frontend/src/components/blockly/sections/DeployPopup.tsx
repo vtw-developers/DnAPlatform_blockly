@@ -12,6 +12,8 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   const [port, setPort] = useState<string>('10000');
   const [deployLogs, setDeployLogs] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isDeploySuccess, setIsDeploySuccess] = useState(false);
+  const [testResult, setTestResult] = useState<string>('');
 
   if (!isOpen) return null;
 
@@ -21,6 +23,8 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
     
     if (portNumber >= 10000 && portNumber <= 65535) {
       setIsDeploying(true);
+      setIsDeploySuccess(false);
+      setTestResult('');
       setDeployLogs([`배포 시작: 포트 ${port} 사용...`]);
 
       try {
@@ -29,9 +33,19 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
         if (response.logs) {
           setDeployLogs(prev => [...prev, ...response.logs]);
         }
+
+        // 배포 성공 여부 확인
+        const lastLog = response.logs?.[response.logs.length - 1] || '';
+        const isSuccess = lastLog.includes('배포 완료') || lastLog.includes('Deployment successful');
+        setIsDeploySuccess(isSuccess);
+
+        if (isSuccess) {
+          setDeployLogs(prev => [...prev, '서비스 테스트가 가능합니다.']);
+        }
       } catch (error) {
         console.error('배포 오류:', error);
         setDeployLogs(prev => [...prev, '배포 중 오류 발생']);
+        setIsDeploySuccess(false);
       } finally {
         setIsDeploying(false);
       }
@@ -40,9 +54,24 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
     }
   };
 
+  const handleTestService = async () => {
+    try {
+      const response = await fetch(`http://localhost:${port}/test`, {
+        method: 'GET',
+      });
+      const data = await response.json();
+      setTestResult(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error('테스트 오류:', error);
+      setTestResult('서비스 테스트 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleClose = () => {
     if (!isDeploying) {
       setDeployLogs([]);
+      setIsDeploySuccess(false);
+      setTestResult('');
       onClose();
     }
   };
@@ -73,6 +102,24 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
               ))}
             </div>
           </div>
+          {isDeploySuccess && (
+            <div className="test-section">
+              <h3>서비스 테스트</h3>
+              <button 
+                type="button"
+                className="test-button"
+                onClick={handleTestService}
+              >
+                테스트 실행
+              </button>
+              {testResult && (
+                <div className="test-result">
+                  <h4>테스트 결과:</h4>
+                  <pre>{testResult}</pre>
+                </div>
+              )}
+            </div>
+          )}
           <div className="button-container">
             <button 
               type="submit" 
@@ -84,10 +131,10 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
             {!isDeploying && (
               <button 
                 type="button" 
-                className="cancel-button" 
+                className="close-button" 
                 onClick={handleClose}
               >
-                취소
+                닫기
               </button>
             )}
           </div>
