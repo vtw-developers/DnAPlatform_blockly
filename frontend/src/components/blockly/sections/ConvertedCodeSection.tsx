@@ -2,7 +2,7 @@ import React from 'react';
 import '../styles/Sections.css';
 
 interface ConvertedCodeSectionProps {
-  convertedCode: string;
+  convertedCode: string;  
 }
 
 export const ConvertedCodeSection: React.FC<ConvertedCodeSectionProps> = ({

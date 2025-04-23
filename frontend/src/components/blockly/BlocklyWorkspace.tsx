@@ -15,7 +15,6 @@ import { RightPanel } from './panels/RightPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
 import './styles/BlocklyWorkspace.css';
-import * as BlocklyPython from 'blockly/python';
 import { registerJpypeBlocks } from './customBlocks/jpypeBlocks';
 import { Spin } from 'antd';
 
@@ -26,6 +25,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const [currentCode, setCurrentCode] = useState<string>('');
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const { user, isLoading } = useAuth();
+  const [wrappedCode, setWrappedCode] = useState<string>('');
+   
   
   useEffect(() => {
     console.log('Auth State:', {
@@ -135,6 +136,63 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     handleVerifyCode(code, model);
   };
 
+  const handleLapping = () => {
+    if (!currentCode.trim()) {
+      alert('랩핑할 Python 코드가 없습니다.');
+      return;
+    }
+
+    try {
+      // Python 코드를 GraalVM Java 코드로 랩핑
+      const wrappedJavaCode = `
+import org.graalvm.polyglot.*;
+
+public class PythonWrapper {
+    private static final String PYTHON_CODE = """
+${currentCode}
+    """;
+
+    private static Context createContext() {
+        return Context.newBuilder()
+                .allowAllAccess(true)
+                .build();
+    }
+
+    public static void main(String[] args) {
+        try (Context context = createContext()) {
+            executePythonCode(context);
+        } catch (Exception e) {
+            handleError(e);
+        }
+    }
+
+    public static Object executePythonCode() {
+        try (Context context = createContext()) {
+            return executePythonCode(context);
+        } catch (Exception e) {
+            handleError(e);
+            return null;
+        }
+    }
+
+    private static Object executePythonCode(Context context) {
+        Value result = context.eval("python", PYTHON_CODE);
+        return result.as(Object.class);
+    }
+
+    private static void handleError(Exception e) {
+        System.err.println("Python 코드 실행 중 오류 발생: " + e.getMessage());
+        e.printStackTrace();
+    }
+}`;
+
+      setWrappedCode(wrappedJavaCode);
+    } catch (error) {
+      console.error('코드 랩핑 중 오류:', error);
+      alert('코드 랩핑 중 오류가 발생했습니다.');
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={{ 
@@ -192,6 +250,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         onRefreshComplete={handleRefreshComplete}
         onDeleteComplete={resetWorkspace}
         openPopup={openPopup}
+        onLapping={handleLapping}
+        wrappedCode={wrappedCode}
       />
 
       <ExecutionPopup
