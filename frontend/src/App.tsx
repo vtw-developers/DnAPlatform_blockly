@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import BlocklyWorkspace from './components/blockly/BlocklyWorkspace';
 import LoginPage from './pages/auth/LoginPage';
@@ -6,100 +6,65 @@ import SignupPage from './pages/auth/SignupPage';
 import ProfilePage from './pages/auth/ProfilePage';
 import UserManagementPage from './pages/auth/UserManagementPage';
 import Navbar from './components/common/Navbar';
-import { authApi } from './services/auth';
-import { CircularProgress, Box } from '@mui/material';
+import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import './App.css';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
-  const [userName, setUserName] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  const updateAuthStatus = async () => {
-    try {
-      const user = await authApi.getProfile();
-      setIsAuthenticated(true);
-      setUserEmail(user.email);
-      setUserName(user.name);
-      setIsAdmin(user.role === 'admin');
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error);
-      localStorage.removeItem('token');
-      setIsAuthenticated(false);
-      setUserName('');
-    }
-  };
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        await updateAuthStatus();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
+const AppContent = () => {
+  const { user, isLoading } = useAuth();
+  
   const handleCodeGenerate = (code: string) => {
     console.log('Generated code:', code);
   };
 
   if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
-      </Box>
-    );
+    return null; // AuthContext에서 이미 로딩 UI를 보여주고 있음
   }
 
   return (
-    <AuthProvider>
-      <Router>
-        <Navbar 
-          isAuthenticated={isAuthenticated === true} 
-          isAdmin={isAdmin} 
-          userEmail={userEmail}
-          userName={userName}
+    <Router>
+      <Navbar 
+        isAuthenticated={!!user} 
+        isAdmin={user?.role === 'admin'} 
+        userEmail={user?.email}
+        userName={user?.name}
+      />
+      <Routes>
+        <Route path="/login" element={
+          user ? <Navigate to="/" /> : <LoginPage />
+        } />
+        <Route path="/signup" element={
+          user ? <Navigate to="/" /> : <SignupPage />
+        } />
+        <Route 
+          path="/profile" 
+          element={user ? <ProfilePage /> : <Navigate to="/login" />} 
         />
-        <Routes>
-          <Route path="/login" element={
-            isAuthenticated ? 
-              <Navigate to="/" /> : 
-              <LoginPage onLoginSuccess={updateAuthStatus} />
-          } />
-          <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <SignupPage />} />
-          <Route 
-            path="/profile" 
-            element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/admin/users" 
-            element={isAuthenticated && isAdmin ? <UserManagementPage /> : <Navigate to="/" />} 
-          />
-          <Route 
-            path="/" 
-            element={
-              isAuthenticated ? (
-                <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            } 
-          />
-        </Routes>
-      </Router>
+        <Route 
+          path="/admin/users" 
+          element={
+            user?.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
+          } 
+        />
+        <Route 
+          path="/" 
+          element={
+            user ? (
+              <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+      </Routes>
+    </Router>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }

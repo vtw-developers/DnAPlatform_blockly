@@ -16,24 +16,6 @@
   gap: 10px;
 }
 
-.code-title-input {
-  padding: 8px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 1rem;
-  width: 100%;  
-}
-
-.code-description-input {
-  padding: 8px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  min-height: 80px;
-  resize: vertical;
-  font-size: 1rem;
-  width: 100%;
-}
-
 .button-container {
   display: flex;
   gap: 10px;
@@ -96,12 +78,11 @@ button:disabled {
 .code-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .python-code-display {
   width: 100%;
-  min-height: 150px;
+  min-height: 140px;
   padding: 10px;
   background-color: #fff;
   border: 1px solid #ced4da;
@@ -117,8 +98,7 @@ button:disabled {
 
 .verification-section {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: column;  
 }
 
 .verify-container {

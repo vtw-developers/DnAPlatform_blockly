@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { BlocklyWorkspaceProps } from './types/blockly.types';
 import { useBlocklySetup } from './hooks/useBlocklySetup';
 import { useCodeExecution } from './hooks/useCodeExecution';
@@ -17,6 +17,7 @@ import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
 import './styles/BlocklyWorkspace.css';
 import * as BlocklyPython from 'blockly/python';
 import { registerJpypeBlocks } from './customBlocks/jpypeBlocks';
+import { Spin } from 'antd';
 
 registerJpypeBlocks();
 
@@ -24,8 +25,17 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [currentCode, setCurrentCode] = useState<string>('');
   const [shouldRefresh, setShouldRefresh] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   
+  useEffect(() => {
+    console.log('Auth State:', {
+      isLoading,
+      user,
+      userId: user?.id,
+      timestamp: new Date().toISOString()
+    });
+  }, [isLoading, user]);
+
   const { isOpen, openPopup, closePopup } = usePopups();
   const {
     models,
@@ -124,6 +134,29 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     openPopup('verification');
     handleVerifyCode(code, model);
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+        gap: '16px',
+        justifyContent: 'center', 
+        alignItems: 'center' 
+      }}>
+        <Spin size="large" />
+        <div>사용자 정보를 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  console.log('BlocklyWorkspace Render:', {
+    hasUser: !!user,
+    userId: user?.id,
+    timestamp: new Date().toISOString()
+  });
 
   return (
     <div className="blockly-container">
