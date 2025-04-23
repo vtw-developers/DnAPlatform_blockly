@@ -7,4 +7,6 @@ pydantic[email]
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
-httpx==0.24.1 
+httpx==0.24.1
+docker==7.0.0
+requests<2.32.0 

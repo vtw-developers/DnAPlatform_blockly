@@ -15,6 +15,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# 도커 권한 설정
+RUN usermod -aG docker root
+
 WORKDIR /app
 
 # Install system dependencies

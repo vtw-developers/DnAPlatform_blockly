@@ -1,15 +1,18 @@
 import os
+import sys
+import json
 import logging
+import docker
+import httpx
 import string
 import base64
-import httpx
-from fastapi import FastAPI, HTTPException, Request, File, UploadFile
+from fastapi import FastAPI, HTTPException, Request, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import StreamingResponse
 from dotenv import load_dotenv
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import time
 import random
@@ -36,6 +39,10 @@ app = FastAPI(
     description="Blockly Platform Backend API",
     version="1.0.0"
 )
+
+# Docker client initialization
+os.environ['DOCKER_HOST'] = 'unix:///var/run/docker.sock'
+docker_client = docker.from_env()
 
 # CORS 설정
 allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5000').split(',')
@@ -433,6 +440,96 @@ async def upload_jar(file: UploadFile = File(...)):
 @app.get("/")
 async def root():
     return {"message": "Blockly Platform API is running"}
+
+@app.get("/api/container/status")
+async def get_container_status(port: int) -> Dict[str, Any]:
+    """Get the status of a deployed container."""
+    try:
+        # Try both container name patterns
+        container_names = [f"dna_platform_{port}", f"jpype-app-{port}"]
+        for container_name in container_names:
+            try:
+                container = docker_client.containers.get(container_name)
+                return {
+                    "exists": True,
+                    "status": container.status,
+                    "port": port,
+                    "created": container.attrs["Created"],
+                    "state": container.attrs["State"]
+                }
+            except docker.errors.NotFound:
+                continue
+        
+        # If no container is found with either name
+        return {
+            "exists": False,
+            "status": "not_found",
+            "port": port
+        }
+    except Exception as e:
+        logging.error(f"Error getting container status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/container/start")
+async def start_container(port: int) -> Dict[str, str]:
+    """Start a stopped container."""
+    try:
+        container_name = f"dna_platform_{port}"
+        container = docker_client.containers.get(container_name)
+        container.start()
+        return {"status": "started", "message": f"Container on port {port} started successfully"}
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
+    except Exception as e:
+        logging.error(f"Error starting container: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/container/stop")
+async def stop_container(port: int) -> Dict[str, str]:
+    """Stop a running container."""
+    try:
+        container_name = f"dna_platform_{port}"
+        container = docker_client.containers.get(container_name)
+        container.stop()
+        return {"status": "stopped", "message": f"Container on port {port} stopped successfully"}
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
+    except Exception as e:
+        logging.error(f"Error stopping container: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/container/remove")
+async def remove_container(port: int) -> Dict[str, str]:
+    """Remove a container."""
+    try:
+        container_name = f"dna_platform_{port}"
+        container = docker_client.containers.get(container_name)
+        container.remove(force=True)
+        return {"status": "removed", "message": f"Container on port {port} removed successfully"}
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
+    except Exception as e:
+        logging.error(f"Error removing container: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/test-service")
+async def test_service(port: int) -> Dict[str, Any]:
+    """Test a deployed service by making a request to its test endpoint."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"http://localhost:{port}/test", timeout=5.0)
+            return {
+                "status": "success",
+                "statusCode": response.status_code,
+                "data": response.json() if response.headers.get("content-type") == "application/json" else response.text
+            }
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Service test timed out")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Error connecting to service: {str(e)}")
+    except Exception as e:
+        logging.error(f"Error testing service: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Example: If running directly with uvicorn
 # if __name__ == "__main__":
