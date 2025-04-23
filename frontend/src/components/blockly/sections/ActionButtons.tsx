@@ -20,45 +20,6 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onConvert,
 }) => {
   const [isDeployPopupOpen, setIsDeployPopupOpen] = useState(false);
-  const [deployLogs, setDeployLogs] = useState<string[]>([]);
-
-  const handleDeploy = async (port: number) => {
-    try {
-      setDeployLogs(prev => [...prev, `배포 시작: 포트 ${port} 사용`]);
-      
-      const response = await fetch('/api/deploy/deploy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          port,
-          code 
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.detail?.message || data.detail || '배포 중 오류가 발생했습니다.');
-      }
-
-      // 로그 업데이트
-      if (data.logs) {
-        setDeployLogs(prev => [...prev, ...data.logs]);
-      }
-
-      // 성공 시 3초 후 팝업 닫기
-      if (data.status === 'success') {
-        setTimeout(() => {
-          setIsDeployPopupOpen(false);
-          setDeployLogs([]);
-        }, 3000);
-      }
-    } catch (error: any) {
-      setDeployLogs(prev => [...prev, `오류: ${error.message}`]);
-    }
-  };
 
   return (
     <div>
@@ -97,12 +58,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
       </div>
       <DeployPopup
         isOpen={isDeployPopupOpen}
-        onClose={() => {
-          setIsDeployPopupOpen(false);
-          setDeployLogs([]);
-        }}
-        onDeploy={handleDeploy}
-        deployLogs={deployLogs}
+        onClose={() => setIsDeployPopupOpen(false)}
+        code={code}
       />
     </div>
   );

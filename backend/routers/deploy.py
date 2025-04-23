@@ -5,7 +5,7 @@ import logging
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter()  # prefix는 main.py에서 설정
 
 class DeployRequest(BaseModel):
     port: int

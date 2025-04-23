@@ -442,6 +442,25 @@ export class CodeBlockApi {
       };
     }
   }
+
+  async deployService(code: string, port: number): Promise<{ success: boolean; logs: string[] }> {
+    try {
+      console.log('Deploying service to:', `${this.baseUrl}/deploy`);
+      const response = await axios.post(
+        `${this.baseUrl}/deploy`,
+        { code, port },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('서비스 배포 중 오류:', error);
+      throw error;
+    }
+  }
 }
 
 export const codeBlockApi = new CodeBlockApi();
