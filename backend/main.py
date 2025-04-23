@@ -472,11 +472,27 @@ async def get_container_status(port: int) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/container/start")
-async def start_container(port: int) -> Dict[str, str]:
+async def start_container(request: Request) -> Dict[str, str]:
     """Start a stopped container."""
     try:
-        container_name = f"dna_platform_{port}"
-        container = docker_client.containers.get(container_name)
+        data = await request.json()
+        port = data.get('port')
+        if not port:
+            raise HTTPException(status_code=422, detail="Port is required")
+        
+        container_names = [f"graalpy-app-{port}", f"jpype-app-{port}"]
+        container = None
+        
+        for container_name in container_names:
+            try:
+                container = docker_client.containers.get(container_name)
+                break
+            except docker.errors.NotFound:
+                continue
+                
+        if not container:
+            raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
+        
         container.start()
         return {"status": "started", "message": f"Container on port {port} started successfully"}
     except docker.errors.NotFound:
