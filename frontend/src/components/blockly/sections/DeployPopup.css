@@ -15,9 +15,9 @@
   background-color: white;
   padding: 20px;
   border-radius: 8px;
-  width: 600px;
-  max-width: 90%;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 1000px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -28,22 +28,108 @@
   color: #333;
 }
 
+.container-list-section {
+  margin-bottom: 30px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.container-list {
+  margin-top: 15px;
+  overflow-x: auto;
+}
+
+.container-list table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.container-list th,
+.container-list td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.container-list th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.container-list tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.container-list tr:hover {
+  background-color: #f8f8f8;
+}
+
+.container-list tr.selected {
+  background-color: #e3f2fd;
+}
+
+.container-list button {
+  margin-right: 8px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
+}
+
+.container-list button:last-child {
+  margin-right: 0;
+}
+
+.container-list button:not(.remove-button) {
+  background-color: #2196f3;
+  color: white;
+}
+
+.container-list button:not(.remove-button):hover {
+  background-color: #1976d2;
+}
+
+.container-list .remove-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.container-list .remove-button:hover {
+  background-color: #d32f2f;
+}
+
+.container-list button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.deploy-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 15px;
+}
+
 .port-input-container {
   margin-bottom: 20px;
 }
 
 .port-input-container label {
   display: block;
-  margin-bottom: 5px;
-  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .port-input-container input {
   width: 100%;
+  max-width: 200px;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 16px;
 }
 
 /* Container Status Styles */
@@ -131,7 +217,7 @@
 
 /* Deploy Logs Styles */
 .deploy-logs {
-  margin-bottom: 20px;
+  margin: 20px 0;
 }
 
 .deploy-logs h3 {
@@ -143,55 +229,46 @@
 
 .logs-container {
   background-color: #f5f5f5;
-  padding: 10px;
+  padding: 15px;
   border-radius: 4px;
   max-height: 200px;
   overflow-y: auto;
-  font-family: monospace;
 }
 
 .log-line {
-  margin: 5px 0;
-  font-size: 12px;
-  color: #333;
+  font-family: monospace;
+  margin-bottom: 4px;
 }
 
 /* Test Section Styles */
 .test-section {
-  margin-top: 20px;
+  margin: 20px 0;
   padding: 15px;
   background-color: #f8f9fa;
-  border-radius: 5px;
-  border: 1px solid #e9ecef;
+  border-radius: 4px;
 }
 
 .test-button {
-  background-color: #28a745;
+  background-color: #4caf50;
   color: white;
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  margin-top: 10px;
+  transition: background-color 0.2s;
 }
 
 .test-button:hover {
-  background-color: #218838;
+  background-color: #388e3c;
 }
 
 .test-button:disabled {
-  background-color: #6c757d;
+  background-color: #cccccc;
   cursor: not-allowed;
-  opacity: 0.65;
 }
 
 .test-result {
   margin-top: 15px;
-  padding: 10px;
-  background-color: #fff;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
 }
 
 .test-result h4 {
@@ -200,22 +277,18 @@
 }
 
 .test-result pre {
-  margin: 0;
-  padding: 10px;
-  background-color: #f8f9fa;
+  background-color: #f5f5f5;
+  padding: 15px;
   border-radius: 4px;
   overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #212529;
+  white-space: pre-wrap;
 }
 
 /* Button Container Styles */
 .button-container {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
   margin-top: 20px;
+  display: flex;
+  gap: 10px;
 }
 
 .deploy-button,
@@ -224,31 +297,28 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  min-width: 100px;
+  transition: background-color 0.2s;
 }
 
 .deploy-button {
-  background-color: #4CAF50;
+  background-color: #2196f3;
   color: white;
 }
 
 .deploy-button:hover {
-  background-color: #45a049;
+  background-color: #1976d2;
 }
 
 .close-button {
-  background-color: #f44336;
+  background-color: #757575;
   color: white;
 }
 
 .close-button:hover {
-  background-color: #da190b;
+  background-color: #616161;
 }
 
-.deploy-button:disabled,
-.close-button:disabled {
-  background-color: #6c757d;
+button:disabled {
+  background-color: #cccccc;
   cursor: not-allowed;
-  opacity: 0.65;
 } 

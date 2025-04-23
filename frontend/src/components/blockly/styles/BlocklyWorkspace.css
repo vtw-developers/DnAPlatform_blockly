@@ -121,13 +121,6 @@
   flex: 1;
 }
 
-.action-button {
-  composes: button-base;
-  background-color: #2196F3;
-  color: white;
-  flex: 1;
-}
-
 .natural-language-button {
   composes: button-base;
   width: 100%;

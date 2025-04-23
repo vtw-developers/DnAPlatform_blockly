@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from routers import code_blocks, ai_services, proxy, auth, deploy
 from database import wait_for_db, create_tables
 import shutil
+import pytz
 
 # 환경 설정 로드
 env = os.getenv('ENV', 'development')
@@ -485,11 +486,28 @@ async def start_container(port: int) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/container/stop")
-async def stop_container(port: int) -> Dict[str, str]:
+async def stop_container(request: Request) -> Dict[str, str]:
     """Stop a running container."""
     try:
-        container_name = f"dna_platform_{port}"
-        container = docker_client.containers.get(container_name)
+        data = await request.json()
+        port = data.get('port')
+        if not port:
+            raise HTTPException(status_code=422, detail="Port is required")
+            
+        # Try both container name patterns
+        container_names = [f"graalpy-app-{port}", f"jpype-app-{port}"]
+        container = None
+        
+        for container_name in container_names:
+            try:
+                container = docker_client.containers.get(container_name)
+                break
+            except docker.errors.NotFound:
+                continue
+                
+        if not container:
+            raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
+            
         container.stop()
         return {"status": "stopped", "message": f"Container on port {port} stopped successfully"}
     except docker.errors.NotFound:
@@ -499,13 +517,31 @@ async def stop_container(port: int) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/container/remove")
-async def remove_container(port: int) -> Dict[str, str]:
+async def remove_container(request: Request) -> Dict[str, str]:
     """Remove a container."""
     try:
-        container_name = f"dna_platform_{port}"
-        container = docker_client.containers.get(container_name)
+        data = await request.json()
+        port = data.get('port')
+        if not port:
+            raise HTTPException(status_code=422, detail="Port is required")
+            
+        # Try both container name patterns
+        container_names = [f"graalpy-app-{port}", f"jpype-app-{port}"]
+        container = None
+        
+        for container_name in container_names:
+            try:
+                container = docker_client.containers.get(container_name)
+                break
+            except docker.errors.NotFound:
+                continue
+                
+        if not container:
+            raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
+            
         container.remove(force=True)
         return {"status": "removed", "message": f"Container on port {port} removed successfully"}
+    
     except docker.errors.NotFound:
         raise HTTPException(status_code=404, detail=f"Container on port {port} not found")
     except Exception as e:
@@ -529,6 +565,43 @@ async def test_service(port: int) -> Dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"Error connecting to service: {str(e)}")
     except Exception as e:
         logging.error(f"Error testing service: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/containers/list")
+async def list_containers() -> List[Dict[str, Any]]:
+    """Get list of all deployed containers."""
+    try:
+        containers = []
+        # 모든 컨테이너 조회
+        all_containers = docker_client.containers.list(all=True)
+        
+        for container in all_containers:
+            # jpype-app 또는 graalpy-app으로 시작하는 컨테이너만 필터링
+            if container.name.startswith(('jpype-app-', 'graalpy-app-')):
+                # 포트 정보 추출
+                port = None
+                for port_binding in container.attrs['NetworkSettings']['Ports'].items():
+                    if port_binding[1]:
+                        host_port = port_binding[1][0]['HostPort']
+                        port = int(host_port)
+                        break
+
+                # 생성 시간을 KST로 변환
+                created_at = datetime.fromisoformat(container.attrs['Created'].replace('Z', '+00:00'))
+                kst = pytz.timezone('Asia/Seoul')
+                created_at_kst = created_at.astimezone(kst)
+
+                containers.append({
+                    "name": container.name,
+                    "port": port,
+                    "status": container.status,
+                    "created_at": created_at_kst.strftime('%Y-%m-%d %H:%M:%S'),
+                    "state": container.attrs['State']
+                })
+        
+        return containers
+    except Exception as e:
+        logging.error(f"Error listing containers: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Example: If running directly with uvicorn
