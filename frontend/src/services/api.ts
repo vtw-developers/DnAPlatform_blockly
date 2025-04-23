@@ -461,6 +461,50 @@ export class CodeBlockApi {
       throw error;
     }
   }
+
+  async getContainerStatus(port: number) {
+    const response = await fetch(`${this.baseUrl}/container/status?port=${port}`);
+    if (!response.ok) {
+      throw new Error('컨테이너 상태 조회에 실패했습니다.');
+    }
+    return await response.json();
+  }
+
+  async startContainer(port: number) {
+    const response = await fetch(`${this.baseUrl}/container/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ port })
+    });
+    if (!response.ok) {
+      throw new Error('컨테이너 시작에 실패했습니다.');
+    }
+    return await response.json();
+  }
+
+  async stopContainer(port: number) {
+    const response = await fetch(`${this.baseUrl}/container/stop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ port })
+    });
+    if (!response.ok) {
+      throw new Error('컨테이너 중지에 실패했습니다.');
+    }
+    return await response.json();
+  }
+
+  async removeContainer(port: number) {
+    const response = await fetch(`${this.baseUrl}/container/remove`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ port })
+    });
+    if (!response.ok) {
+      throw new Error('컨테이너 삭제에 실패했습니다.');
+    }
+    return await response.json();
+  }
 }
 
 export const codeBlockApi = new CodeBlockApi();
