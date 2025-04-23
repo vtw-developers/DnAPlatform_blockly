@@ -98,12 +98,14 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   }, [containerStatus]);
 
   const handleContainerSelect = (container: ContainerInfo) => {
+    if (!container) return;
+    
     setSelectedContainer(container);
-    setPort(container.port.toString());
+    setPort((container.port || 10000).toString());
     setContainerStatus({
       exists: true,
-      status: container.status,
-      port: container.port
+      status: container.status || 'unknown',
+      port: container.port || 10000
     });
   };
 
@@ -171,10 +173,11 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
     }
   };
 
-  const handleStartContainer = async () => {
+  const handleStartContainer = async (port: number) => {
+    if (!selectedContainer) return;
     setIsLoading(true);
     try {
-      await codeBlockApi.startContainer(parseInt(port, 10));
+      await codeBlockApi.startContainer(port);
       setDeployLogs(prev => [...prev, '컨테이너가 시작되었습니다.']);
       await fetchContainers();
     } catch (error) {
@@ -200,11 +203,11 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
     }
   };
 
-  const handleRemoveContainer = async () => {
+  const handleRemoveContainer = async (containerToRemove: ContainerInfo) => {
     if (window.confirm('컨테이너를 삭제하시겠습니까?')) {
       setIsLoading(true);
       try {
-        await codeBlockApi.removeContainer(parseInt(port, 10));
+        await codeBlockApi.removeContainer(containerToRemove.port);
         setDeployLogs(prev => [...prev, '컨테이너가 삭제되었습니다.']);
         setSelectedContainer(null);
         await fetchContainers();
@@ -276,23 +279,26 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
                         >
                           중지
                         </button>
-                      ) : (
+                      ) : (                      
                         <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={async (e) => {
+                            e.stopPropagation();                           
+                            const portFromName = parseInt(container.name.match(/\d+$/)?.[0] || '10000');                            
                             setSelectedContainer(container);
-                            setPort(container.port.toString());
-                            handleStartContainer();
+                            setPort(portFromName.toString());
+                            // 상태 업데이트가 완료될 때까지 기다린 후 handleStartContainer 호출
+                            await new Promise(resolve => setTimeout(resolve, 0));
+                            handleStartContainer(portFromName);
                           }}
                           disabled={isLoading}
                         >
                           시작
-                        </button>
+                        </button>                        
                       )}
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveContainer();
+                          handleRemoveContainer(container);
                         }}
                         disabled={isLoading}
                         className="remove-button"
