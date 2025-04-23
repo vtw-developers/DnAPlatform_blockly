@@ -15,11 +15,17 @@ export class FieldFileUpload extends Blockly.FieldTextInput {
       if (file) {
         const formData = new FormData();
         formData.append('file', file);
-        // 서버로 업로드
-        const res = await fetch('/api/upload-jar', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.path) {
-          this.setValue(data.path); // 업로드된 경로를 필드 값으로 설정
+        try {
+          // 서버로 업로드
+          const res = await fetch('/api/upload-jar', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.path) {
+            // 백엔드 도커 내부 경로를 필드 값으로 설정
+            this.setValue(data.path);
+          }
+        } catch (error) {
+          console.error('JAR 파일 업로드 실패:', error);
+          alert('JAR 파일 업로드에 실패했습니다.');
         }
       }
     };
