@@ -443,12 +443,12 @@ export class CodeBlockApi {
     }
   }
 
-  async deployService(code: string, port: number): Promise<{ success: boolean; logs: string[] }> {
+  async deployService(code: string, port: number, deployType: 'python' | 'graalvm' = 'python'): Promise<{ success: boolean; logs: string[] }> {
     try {
       console.log('Deploying service to:', `${this.baseUrl}/deploy`);
       const response = await axios.post(
         `${this.baseUrl}/deploy`,
-        { code, port },
+        { code, port, deployType },
         {
           headers: {
             'Content-Type': 'application/json'

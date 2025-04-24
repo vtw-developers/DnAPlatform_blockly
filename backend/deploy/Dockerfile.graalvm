@@ -1,0 +1,28 @@
+# GraalVM Java 베이스 이미지 사용
+FROM ghcr.io/graalvm/graalvm-ce:latest
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# 필요한 패키지 설치
+RUN microdnf install -y python3-pip && \
+    microdnf clean all
+
+# Python 의존성 설치
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 파일 복사
+COPY app.py .
+
+# 환경 변수 설정
+ENV GRAALVM_HOME=/usr/lib/graalvm
+ENV PATH=$GRAALVM_HOME/bin:$PATH
+ENV JAVA_HOME=$GRAALVM_HOME
+
+# 포트 설정 (기본값)
+ENV PORT=10000
+EXPOSE ${PORT}
+
+# 애플리케이션 실행
+CMD ["python3", "app.py"] 

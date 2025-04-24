@@ -101,6 +101,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         onConvert={handleConvert}
         isConverting={isConverting}
         code={currentCode}
+        convertedCode={convertedCode}
+        wrappedCode={wrappedCode}
         onLapping={onLapping}
       />
 
