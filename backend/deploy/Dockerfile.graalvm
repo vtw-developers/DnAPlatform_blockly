@@ -4,10 +4,6 @@ FROM ghcr.io/graalvm/graalvm-ce:22.3.1 AS builder
 # 필수 패키지 설치
 RUN microdnf install -y unzip zip
 
-# GraalVM 컴포넌트 설치
-RUN gu install python && \
-    gu install native-image
-
 # 필요한 패키지 설치 및 GraalVM Python 지원 추가
 RUN microdnf install -y python3 python3-pip && \
     gu install python && \

@@ -52,8 +52,9 @@ docker network create "$DOCKER_NETWORK" 2>/dev/null || true
 # 새 컨테이너 실행 및 결과 캡처
 echo "Java 코드 실행 및 결과 확인 중..."
 if ! RESULT=$(docker run --rm \
-    --name "${CONTAINER_NAME}_test" \
+    --name "${CONTAINER_NAME}" \
     --network "$DOCKER_NETWORK" \
+    -e "TEST_MODE=true" \
     "$CONTAINER_NAME" 2>&1); then
     echo "테스트 실행 실패:"
     echo "$RESULT"
