@@ -14,7 +14,7 @@ echo "jars 디렉토리 생성 완료"
 
 # Dockerfile.jpype 복사
 cp "$(dirname "$0")/Dockerfile.jpype" "$WORK_DIR/Dockerfile"
-cp "$(dirname "$0")/requirements.txt" "$WORK_DIR/"
+cp "$(dirname "$0")/requirements.jpype.txt" "$WORK_DIR/"
 echo "Dockerfile.jpype 복사 완료"
 
 # Python 코드 출력 (디버깅용)

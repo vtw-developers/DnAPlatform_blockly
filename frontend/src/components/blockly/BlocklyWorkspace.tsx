@@ -184,6 +184,7 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -209,10 +210,10 @@ ${currentCode}
         public String toString() {
             StringBuilder result = new StringBuilder();
             if (output != null && !output.isEmpty()) {
-                result.append("출력:\n").append(output);
+                result.append("출력:\\n").append(output);
             }
             if (returnValue != null && !returnValue.isNull()) {
-                if (result.length() > 0) result.append("\n");
+                if (result.length() > 0) result.append("\\n");
                 result.append("반환값: ").append(returnValue);
             }
             return result.toString();
@@ -221,14 +222,17 @@ ${currentCode}
 
     public static PythonResult executePythonCode() {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        PrintStream printStream = new PrintStream(outputStream);
+        PrintStream printStream = new PrintStream(outputStream, true, StandardCharsets.UTF_8);
         
         try (Context context = Context.newBuilder("python")
-                .allowIO(true)           // 출력 캡처를 위해 IO 허용
+                .allowIO(true)
+                .allowExperimentalOptions(true)
+                .allowAllAccess(false)
                 .allowNativeAccess(false)
                 .allowCreateThread(false)
-                .out(printStream)         // 표준 출력 리다이렉션
-                .err(printStream)         // 표준 에러 리다이렉션
+                .option("python.ForceImportSite", "true")
+                .out(printStream)
+                .err(printStream)
                 .build()) {
             
             // Python 코드 실행
@@ -244,8 +248,11 @@ ${currentCode}
     public static Map<String, Value> executePythonFunctions() {
         try (Context context = Context.newBuilder("python")
                 .allowIO(false)
+                .allowExperimentalOptions(true)
+                .allowAllAccess(false)
                 .allowNativeAccess(false)
                 .allowCreateThread(false)
+                .option("python.ForceImportSite", "true")
                 .build()) {
             
             context.eval("python", PYTHON_CODE);

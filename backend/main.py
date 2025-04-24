@@ -447,7 +447,7 @@ async def get_container_status(port: int) -> Dict[str, Any]:
     """Get the status of a deployed container."""
     try:
         # Try both container name patterns
-        container_names = [f"dna_platform_{port}", f"jpype-app-{port}"]
+        container_names = [f"graalpy-app-{port}", f"graalvm-app-{port}", f"jpype-app-{port}"]
         for container_name in container_names:
             try:
                 container = docker_client.containers.get(container_name)
@@ -480,7 +480,7 @@ async def start_container(request: Request) -> Dict[str, str]:
         if not port:
             raise HTTPException(status_code=422, detail="Port is required")
         
-        container_names = [f"graalpy-app-{port}", f"jpype-app-{port}"]
+        container_names = [f"graalpy-app-{port}", f"graalvm-app-{port}", f"jpype-app-{port}"]
         container = None
         
         for container_name in container_names:
@@ -511,7 +511,7 @@ async def stop_container(request: Request) -> Dict[str, str]:
             raise HTTPException(status_code=422, detail="Port is required")
             
         # Try both container name patterns
-        container_names = [f"graalpy-app-{port}", f"jpype-app-{port}"]
+        container_names = [f"graalpy-app-{port}", f"graalvm-app-{port}", f"jpype-app-{port}"]
         container = None
         
         for container_name in container_names:
@@ -542,7 +542,7 @@ async def remove_container(request: Request) -> Dict[str, str]:
             raise HTTPException(status_code=422, detail="Port is required")
             
         # Try both container name patterns
-        container_names = [f"graalpy-app-{port}", f"jpype-app-{port}"]
+        container_names = [f"graalpy-app-{port}", f"graalvm-app-{port}", f"jpype-app-{port}"]
         container = None
         
         for container_name in container_names:
@@ -593,7 +593,7 @@ async def list_containers() -> List[Dict[str, Any]]:
         
         for container in all_containers:
             # jpype-app 또는 graalpy-app으로 시작하는 컨테이너만 필터링
-            if container.name.startswith(('jpype-app-', 'graalpy-app-')):
+            if container.name.startswith(('jpype-app-', 'graalpy-app-', 'graalvm-app-')):
                 # 포트 정보 추출
                 port = None
                 for port_binding in container.attrs['NetworkSettings']['Ports'].items():

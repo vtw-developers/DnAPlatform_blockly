@@ -9,7 +9,7 @@ WORK_DIR=$(mktemp -d)
 echo "작업 디렉토리 생성: $WORK_DIR"
 
 # Dockerfile 복사
-cp "$(dirname "$0")/Dockerfile.template" "$WORK_DIR/Dockerfile"
+cp "$(dirname "$0")/Dockerfile.graalpy" "$WORK_DIR/Dockerfile"
 echo "Dockerfile 복사 완료"
 
 # Python 앱 템플릿에 사용자 코드 삽입

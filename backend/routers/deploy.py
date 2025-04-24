@@ -10,6 +10,7 @@ router = APIRouter()  # prefix는 main.py에서 설정
 class DeployRequest(BaseModel):
     port: int
     code: str
+    deployType: str = 'python'  # 기본값은 'python', 'graalvm'도 가능
 
 def is_jpype_code(code: str) -> bool:
     """코드에 jpype 관련 내용이 포함되어 있는지 확인"""
@@ -27,13 +28,18 @@ async def deploy_application(request: DeployRequest):
     try:
         logger.info(f"Starting deployment process for port {request.port}")
         
-        # jpype 사용 여부에 따라 스크립트 선택
-        if is_jpype_code(request.code):
-            deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy_jpype.sh')
-            logger.info("Using JPype deployment script")
+        # 배포 타입에 따라 스크립트 선택
+        if request.deployType == 'graalvm':
+            deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy_graalvm.sh')
+            logger.info("Using GraalVM deployment script")
         else:
-            deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy.sh')
-            logger.info("Using standard deployment script")
+            # jpype 사용 여부에 따라 스크립트 선택
+            if is_jpype_code(request.code):
+                deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy_jpype.sh')
+                logger.info("Using JPype deployment script")
+            else:
+                deploy_script = os.path.join(os.path.dirname(__file__), '..', 'deploy', 'deploy_graalpy.sh')
+                logger.info("Using Python deployment script")
         
         # 스크립트에 실행 권한 부여
         os.chmod(deploy_script, 0o755)
