@@ -153,6 +153,10 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
           const containerReady = await waitForContainer();
           if (!containerReady) {
             setDeployLogs(prev => [...prev, '컨테이너 상태 확인 실패. 잠시 후 다시 시도해주세요.']);
+          } else {
+            // 배포 성공 후 컨테이너 목록 갱신
+            await fetchContainers();
+            setDeployLogs(prev => [...prev, '서비스 목록이 갱신되었습니다.']);
           }
         }
       } catch (error) {
@@ -173,10 +177,37 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
         method: 'GET',
       });
       const data = await response.json();
-      setTestResult(JSON.stringify(data, null, 2));
+      
+      // 에러 응답 처리
+      if (data.status === 'error') {
+        let errorMessage = data.message || '알 수 없는 오류가 발생했습니다.';
+        if (data.details?.error?.message === 'JVM cannot be restarted') {
+          errorMessage = '서비스를 재시작해야 합니다. 서비스를 중지하고 다시 시작해주세요.';
+        }
+        setTestResult(JSON.stringify({
+          status: 'error',
+          message: errorMessage,
+          details: data.details
+        }, null, 2));
+        
+        // JVM 재시작 오류인 경우 컨테이너 상태 업데이트
+        if (data.details?.error?.message === 'JVM cannot be restarted') {
+          setContainerStatus(prev => ({
+            ...prev,
+            status: 'error',
+            error: 'JVM restart required'
+          }));
+        }
+      } else {
+        setTestResult(JSON.stringify(data, null, 2));
+      }
     } catch (error) {
       console.error('테스트 오류:', error);
-      setTestResult('서비스 테스트 중 오류가 발생했습니다.');
+      setTestResult(JSON.stringify({
+        status: 'error',
+        message: '서비스 테스트 중 오류가 발생했습니다.',
+        details: error instanceof Error ? error.message : String(error)
+      }, null, 2));
     }
   };
 
@@ -245,7 +276,17 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
   return (
     <div className={`deploy-popup ${isOpen ? 'open' : ''}`}>
       <div className="deploy-popup-content">
-        <h2>서비스 배포</h2>
+        <div className="popup-header">
+          <h2>서비스 배포</h2>
+          <button 
+            type="button" 
+            className="close-button" 
+            onClick={handleClose}
+            disabled={isDeploying || isLoading}
+          >
+            ×
+          </button>
+        </div>
         
         {convertedCode && (
           <div className="code-selection">
@@ -280,7 +321,6 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
           </div>
         )}
 
-        {/* 컨테이너 목록 섹션 */}
         <div className="container-list-section">
           <h3>배포된 서비스 목록</h3>
           <div className="container-list">
@@ -326,7 +366,6 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
                             const portFromName = parseInt(container.name.match(/\d+$/)?.[0] || '10000');                            
                             setSelectedContainer(container);
                             setPort(portFromName.toString());
-                            // 상태 업데이트가 완료될 때까지 기다린 후 handleStartContainer 호출
                             await new Promise(resolve => setTimeout(resolve, 0));
                             handleStartContainer(portFromName);
                           }}
@@ -353,9 +392,8 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
           </div>
         </div>
 
-        <div className="deploy-section">
-          <h3>새 서비스 배포</h3>
-          <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
+          <div className="deploy-controls">
             <div className="port-input-container">
               <label htmlFor="port">서비스 포트:</label>
               <input
@@ -370,18 +408,8 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
               />
             </div>
 
-            <div className="deploy-logs">
-              <h3>배포 로그</h3>
-              <div className="logs-container">
-                {deployLogs.map((log, index) => (
-                  <div key={index} className="log-line">{log}</div>
-                ))}
-              </div>
-            </div>
-
             {(selectedContainer?.status === 'running' || isDeploySuccess) && (
               <div className="test-section">
-                <h3>서비스 테스트</h3>
                 <button 
                   type="button"
                   className="test-button"
@@ -390,35 +418,30 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
                 >
                   테스트 실행
                 </button>
-                {testResult && (
-                  <div className="test-result">
-                    <h4>테스트 결과:</h4>
-                    <pre>{testResult}</pre>
-                  </div>
-                )}
               </div>
             )}
 
-            <div className="button-container">
-              <button 
-                type="submit" 
-                className="deploy-button"
-                disabled={isDeploying || isLoading}
-              >
-                {isDeploying ? '배포 중...' : '배포 시작'}
-              </button>
-              {!isDeploying && !isLoading && (
-                <button 
-                  type="button" 
-                  className="close-button" 
-                  onClick={handleClose}
-                >
-                  닫기
-                </button>
+            <button 
+              type="submit" 
+              className="deploy-button"
+              disabled={isDeploying || isLoading || containers.some(container => container.port === parseInt(port, 10))}
+            >
+              {isDeploying ? '배포 중...' : containers.some(container => container.port === parseInt(port, 10)) ? '이미 사용 중인 포트' : '배포 시작'}
+            </button>
+          </div>
+
+          <div className="deploy-logs">
+            <h3>결과 로그</h3>
+            <div className="logs-container">
+              {deployLogs.map((log, index) => (
+                <div key={index} className="log-line">{log}</div>
+              ))}
+              {testResult && (
+                <div className="log-line test-result">{testResult}</div>
               )}
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );
