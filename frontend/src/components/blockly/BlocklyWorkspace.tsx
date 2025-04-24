@@ -315,21 +315,21 @@ ${currentCode}
             HttpHandler handler = new HttpHandler() {
                 @Override
                 public void handle(HttpExchange exchange) throws IOException {
-                    // CORS 헤더 추가
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
-                    
-                    // OPTIONS 요청 처리
-                    if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
-                        exchange.sendResponseHeaders(204, -1);
-                        return;
-                    }
-                    
                     try {
                         // Python 코드 실행
                         PythonResult result = executePythonCode();
                         String response = result.toString();
+                        
+                        // CORS 헤더 설정
+                        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+                        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+                        
+                        // OPTIONS 요청 처리
+                        if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                            exchange.sendResponseHeaders(204, -1);
+                            return;
+                        }
                         
                         exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
                         exchange.sendResponseHeaders(200, response.getBytes("UTF-8").length);
@@ -339,6 +339,12 @@ ${currentCode}
                         }
                     } catch (Exception e) {
                         String error = "Error: " + e.getMessage();
+                        
+                        // CORS 헤더 설정 (에러 응답에도 필요)
+                        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+                        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+                        
                         exchange.sendResponseHeaders(500, error.getBytes().length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(error.getBytes());
@@ -346,6 +352,10 @@ ${currentCode}
                     }
                 }
             };
+            
+            // 루트 경로와 /test 경로에 동일한 핸들러 등록
+            server.createContext("/", handler);
+            server.createContext("/test", handler);
             
             server.setExecutor(null);
             server.start();
