@@ -5,7 +5,8 @@ import './DeployPopup.css';
 interface DeployPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  code: string;
+  pythonCode: string;
+  convertedCode?: string;
 }
 
 interface ContainerStatus {
@@ -23,12 +24,13 @@ interface ContainerInfo {
   state: any;
 }
 
-const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
+const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, convertedCode }) => {
   const [port, setPort] = useState<string>('10000');
   const [deployLogs, setDeployLogs] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [isDeploySuccess, setIsDeploySuccess] = useState(false);
   const [testResult, setTestResult] = useState<string>('');
+  const [selectedCodeType, setSelectedCodeType] = useState<'python' | 'converted'>('python');
   const [containerStatus, setContainerStatus] = useState<ContainerStatus>({ 
     exists: false, 
     status: 'not_found',
@@ -112,6 +114,7 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const portNumber = parseInt(port, 10);
+    const codeToUse = selectedCodeType === 'python' ? pythonCode : convertedCode || '';
     
     if (portNumber >= 10000 && portNumber <= 65535) {
       setIsDeploying(true);
@@ -120,7 +123,11 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
       setDeployLogs([`배포 시작: 포트 ${port} 사용...`]);
 
       try {
-        const response = await codeBlockApi.deployService(code, portNumber);
+        const response = await codeBlockApi.deployService(
+          codeToUse, 
+          portNumber,
+          selectedCodeType === 'converted' ? 'graalvm' : 'python'
+        );
         
         if (response.logs) {
           setDeployLogs(prev => [...prev, ...response.logs]);
@@ -236,10 +243,43 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, code }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="deploy-popup-overlay">
-      <div className="deploy-popup">
-        <h2>운영 배포</h2>
+    <div className={`deploy-popup ${isOpen ? 'open' : ''}`}>
+      <div className="deploy-popup-content">
+        <h2>서비스 배포</h2>
         
+        {convertedCode && (
+          <div className="code-selection">
+            <h3>배포할 코드 선택</h3>
+            <div className="radio-group">
+              <label>
+                <input
+                  type="radio"
+                  value="python"
+                  checked={selectedCodeType === 'python'}
+                  onChange={(e) => setSelectedCodeType('python')}
+                />
+                Python 코드
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  value="converted"
+                  checked={selectedCodeType === 'converted'}
+                  onChange={(e) => setSelectedCodeType('converted')}
+                />
+                변환/랩핑된 코드 (GraalVM)
+              </label>
+            </div>
+            <div className="code-type-description">
+              {selectedCodeType === 'python' ? (
+                <p>Python 코드는 기존 운영환경에 배포됩니다.</p>
+              ) : (
+                <p>변환/랩핑된 코드는 GraalVM Java 환경에 배포됩니다.</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 컨테이너 목록 섹션 */}
         <div className="container-list-section">
           <h3>배포된 서비스 목록</h3>

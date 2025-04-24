@@ -5,6 +5,8 @@ import './ActionButtons.css';
 interface ActionButtonsProps {
   code: string;
   isConverting: boolean;
+  convertedCode?: string;
+  wrappedCode?: string;
   onReset: () => void;
   onSave: () => void;
   onExecute: () => void;
@@ -15,6 +17,8 @@ interface ActionButtonsProps {
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
   code,
   isConverting,
+  convertedCode,
+  wrappedCode,
   onReset,
   onSave,
   onExecute,
@@ -66,7 +70,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
       <DeployPopup
         isOpen={isDeployPopupOpen}
         onClose={() => setIsDeployPopupOpen(false)}
-        code={code}
+        pythonCode={code}
+        convertedCode={convertedCode || wrappedCode}
       />
     </div>
   );
