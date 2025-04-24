@@ -45,6 +45,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         <textarea
           value={code}
           readOnly
+          placeholder="생성된 Python 코드가 여기에 표시됩니다"
           className="python-code-display"
         />
       </div>
