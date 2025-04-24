@@ -28,6 +28,6 @@ RUN javac -encoding UTF-8 \
 EXPOSE $PORT
 
 # 애플리케이션 실행
-ENTRYPOINT ["java", "-Dtruffle.js.AllowExperimentalOptions=true", \
+ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-Dtruffle.js.AllowExperimentalOptions=true", \
     "-cp", "/app:$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar", \
     "PythonWrapper"]

@@ -293,6 +293,10 @@ ${currentCode}
 
     public static void main(String[] args) {
         try {
+            // 콘솔 출력 인코딩 설정
+            System.setOut(new PrintStream(System.out, true, "UTF-8"));
+            System.setErr(new PrintStream(System.err, true, "UTF-8"));
+
             // 테스트 모드 확인
             boolean isTestMode = Boolean.parseBoolean(System.getenv().getOrDefault("TEST_MODE", "false"));
             
@@ -308,9 +312,20 @@ ${currentCode}
             int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
             HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
             
-            server.createContext("/", new HttpHandler() {
+            HttpHandler handler = new HttpHandler() {
                 @Override
                 public void handle(HttpExchange exchange) throws IOException {
+                    // CORS 헤더 추가
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+                    
+                    // OPTIONS 요청 처리
+                    if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                        exchange.sendResponseHeaders(204, -1);
+                        return;
+                    }
+                    
                     try {
                         // Python 코드 실행
                         PythonResult result = executePythonCode();
@@ -330,7 +345,7 @@ ${currentCode}
                         }
                     }
                 }
-            });
+            };
             
             server.setExecutor(null);
             server.start();
