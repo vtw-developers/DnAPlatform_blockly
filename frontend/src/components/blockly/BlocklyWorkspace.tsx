@@ -188,11 +188,19 @@ import java.util.List;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 
 public class PythonWrapper {
     private static final String PYTHON_CODE = """
 ${currentCode}
     """;
+
+    private static Context context;
 
     public static class PythonResult {
         private final Value returnValue;
@@ -224,7 +232,8 @@ ${currentCode}
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PrintStream printStream = new PrintStream(outputStream, true, StandardCharsets.UTF_8);
         
-        try (Context context = Context.newBuilder("python")
+        if (context == null) {
+            context = Context.newBuilder("python")
                 .allowIO(true)
                 .allowExperimentalOptions(true)
                 .allowAllAccess(false)
@@ -233,39 +242,40 @@ ${currentCode}
                 .option("python.ForceImportSite", "true")
                 .out(printStream)
                 .err(printStream)
-                .build()) {
-            
-            // Python 코드 실행
-            Value result = context.eval("python", PYTHON_CODE);
-            
-            // 출력 결과 가져오기
-            String output = outputStream.toString(StandardCharsets.UTF_8);
-            
-            return new PythonResult(result, output);
+                .build();
         }
+            
+        // Python 코드 실행
+        Value result = context.eval("python", PYTHON_CODE);
+        
+        // 출력 결과 가져오기
+        String output = outputStream.toString(StandardCharsets.UTF_8);
+        
+        return new PythonResult(result, output);
     }
 
     public static Map<String, Value> executePythonFunctions() {
-        try (Context context = Context.newBuilder("python")
+        if (context == null) {
+            context = Context.newBuilder("python")
                 .allowIO(false)
                 .allowExperimentalOptions(true)
                 .allowAllAccess(false)
                 .allowNativeAccess(false)
                 .allowCreateThread(false)
                 .option("python.ForceImportSite", "true")
-                .build()) {
-            
-            context.eval("python", PYTHON_CODE);
-            Value bindings = context.getBindings("python");
-            
-            Map<String, Value> functions = new HashMap<>();
-            ${functions.map(func => `
-            if (bindings.hasMember("${func.name}")) {
-                functions.put("${func.name}", bindings.getMember("${func.name}"));
-            }`).join('\n')}
-            
-            return functions;
+                .build();
         }
+        
+        context.eval("python", PYTHON_CODE);
+        Value bindings = context.getBindings("python");
+        
+        Map<String, Value> functions = new HashMap<>();
+        ${functions.map(func => `
+        if (bindings.hasMember("${func.name}")) {
+            functions.put("${func.name}", bindings.getMember("${func.name}"));
+        }`).join('\n')}
+        
+        return functions;
     }
 
     ${functions.map(func => `
@@ -283,35 +293,54 @@ ${currentCode}
 
     public static void main(String[] args) {
         try {
-            // 1. 전체 Python 코드 실행
-            System.out.println("Python 코드 실행 결과:");
-            PythonResult codeResult = executePythonCode();
-            System.out.println(codeResult);
-            System.out.println();
-
-            // 2. 사용 가능한 함수 확인 및 실행
-            Map<String, Value> functions = executePythonFunctions();
-            if (!functions.isEmpty()) {
-                System.out.println("사용 가능한 Python 함수:");
-                for (String funcName : functions.keySet()) {
-                    System.out.println("  - " + funcName);
-                }
-                System.out.println();
-
-                ${functions.map(func => `
-                // ${func.name} 함수 테스트
-                try {
-                    ${inferJavaReturnType(func.returnType)} result = ${func.name}(${
-                      func.params.map(p => getDefaultValue(p)).join(', ')
-                    });
-                    System.out.println("${func.name} 실행 결과: " + result);
-                } catch (Exception e) {
-                    System.err.println("${func.name} 실행 중 오류: " + e.getMessage());
-                }`).join('\n')}
+            // 테스트 모드 확인
+            boolean isTestMode = Boolean.parseBoolean(System.getenv().getOrDefault("TEST_MODE", "false"));
+            
+            if (isTestMode) {
+                // 테스트 모드: Python 코드만 실행
+                System.out.println("Python 코드 실행 결과:");
+                PythonResult codeResult = executePythonCode();
+                System.out.println(codeResult);
+                return;
             }
+            
+            // 서버 모드: HTTP 서버 시작
+            int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
+            HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+            
+            server.createContext("/", new HttpHandler() {
+                @Override
+                public void handle(HttpExchange exchange) throws IOException {
+                    try {
+                        // Python 코드 실행
+                        PythonResult result = executePythonCode();
+                        String response = result.toString();
+                        
+                        exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
+                        exchange.sendResponseHeaders(200, response.getBytes("UTF-8").length);
+                        
+                        try (OutputStream os = exchange.getResponseBody()) {
+                            os.write(response.getBytes("UTF-8"));
+                        }
+                    } catch (Exception e) {
+                        String error = "Error: " + e.getMessage();
+                        exchange.sendResponseHeaders(500, error.getBytes().length);
+                        try (OutputStream os = exchange.getResponseBody()) {
+                            os.write(error.getBytes());
+                        }
+                    }
+                }
+            });
+            
+            server.setExecutor(null);
+            server.start();
+            
+            System.out.println("서버가 포트 " + port + "에서 시작되었습니다.");
+            
         } catch (Exception e) {
             System.err.println("실행 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
+            System.exit(1);
         }
     }
 }`;
