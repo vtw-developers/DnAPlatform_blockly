@@ -136,6 +136,40 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     handleVerifyCode(code, model);
   };
 
+  const extractFunctions = (pythonCode: string) => {
+    const functionRegex = /def\s+(\w+)\s*\(([^)]*)\)(?:\s*->\s*([^:]+))?\s*:/g;
+    const functions = [];
+    let match;
+
+    while ((match = functionRegex.exec(pythonCode)) !== null) {
+      const funcName = match[1];
+      const params = match[2].split(',')
+        .map(param => param.trim())
+        .filter(param => param)
+        .map(param => {
+          const [name, defaultValue] = param.split('=').map(p => p.trim());
+          return { name, defaultValue };
+        });
+      const returnType = match[3]?.trim();
+      
+      functions.push({
+        name: funcName,
+        params,
+        returnType
+      });
+    }
+
+    return functions;
+  };
+
+  const generateJavaMethodSignature = (func: { name: string, params: Array<{ name: string, defaultValue?: string }>, returnType?: string }) => {
+    const javaParams = func.params
+      .map(p => 'Object ' + p.name)
+      .join(', ');
+    
+    return `public static Value ${func.name}(${javaParams})`;
+  };
+
   const handleLapping = () => {
     if (!currentCode.trim()) {
       alert('랩핑할 Python 코드가 없습니다.');
@@ -143,46 +177,135 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     }
 
     try {
-      // Python 코드를 GraalVM Java 코드로 랩핑
+      const functions = extractFunctions(currentCode);
+      
       const wrappedJavaCode = `
-import org.graalvm.polyglot.*;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Value;
+import java.util.Map;
+import java.util.HashMap;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 
 public class PythonWrapper {
     private static final String PYTHON_CODE = """
 ${currentCode}
     """;
 
-    private static Context createContext() {
-        return Context.newBuilder()
-                .allowAllAccess(true)
-                .build();
+    public static class PythonResult {
+        private final Value returnValue;
+        private final String output;
+
+        public PythonResult(Value returnValue, String output) {
+            this.returnValue = returnValue;
+            this.output = output;
+        }
+
+        public Value getReturnValue() { return returnValue; }
+        public String getOutput() { return output; }
+        
+        @Override
+        public String toString() {
+            StringBuilder result = new StringBuilder();
+            if (output != null && !output.isEmpty()) {
+                result.append("출력:\n").append(output);
+            }
+            if (returnValue != null && !returnValue.isNull()) {
+                if (result.length() > 0) result.append("\n");
+                result.append("반환값: ").append(returnValue);
+            }
+            return result.toString();
+        }
     }
+
+    public static PythonResult executePythonCode() {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream printStream = new PrintStream(outputStream);
+        
+        try (Context context = Context.newBuilder("python")
+                .allowIO(true)           // 출력 캡처를 위해 IO 허용
+                .allowNativeAccess(false)
+                .allowCreateThread(false)
+                .out(printStream)         // 표준 출력 리다이렉션
+                .err(printStream)         // 표준 에러 리다이렉션
+                .build()) {
+            
+            // Python 코드 실행
+            Value result = context.eval("python", PYTHON_CODE);
+            
+            // 출력 결과 가져오기
+            String output = outputStream.toString(StandardCharsets.UTF_8);
+            
+            return new PythonResult(result, output);
+        }
+    }
+
+    public static Map<String, Value> executePythonFunctions() {
+        try (Context context = Context.newBuilder("python")
+                .allowIO(false)
+                .allowNativeAccess(false)
+                .allowCreateThread(false)
+                .build()) {
+            
+            context.eval("python", PYTHON_CODE);
+            Value bindings = context.getBindings("python");
+            
+            Map<String, Value> functions = new HashMap<>();
+            ${functions.map(func => `
+            if (bindings.hasMember("${func.name}")) {
+                functions.put("${func.name}", bindings.getMember("${func.name}"));
+            }`).join('\n')}
+            
+            return functions;
+        }
+    }
+
+    ${functions.map(func => `
+    public static ${inferJavaReturnType(func.returnType)} ${func.name}(${
+      func.params.map(p => `${inferJavaType(p)} ${p.name}`).join(', ')
+    }) {
+        Map<String, Value> functions = executePythonFunctions();
+        Value func = functions.get("${func.name}");
+        if (func == null) {
+            throw new RuntimeException("함수 '${func.name}'를 찾을 수 없습니다.");
+        }
+        Value result = func.execute(${func.params.map(p => p.name).join(', ')});
+        return ${convertPythonToJava(func.returnType)};
+    }`).join('\n\n')}
 
     public static void main(String[] args) {
-        try (Context context = createContext()) {
-            executePythonCode(context);
+        try {
+            // 1. 전체 Python 코드 실행
+            System.out.println("Python 코드 실행 결과:");
+            PythonResult codeResult = executePythonCode();
+            System.out.println(codeResult);
+            System.out.println();
+
+            // 2. 사용 가능한 함수 확인 및 실행
+            Map<String, Value> functions = executePythonFunctions();
+            if (!functions.isEmpty()) {
+                System.out.println("사용 가능한 Python 함수:");
+                for (String funcName : functions.keySet()) {
+                    System.out.println("  - " + funcName);
+                }
+                System.out.println();
+
+                ${functions.map(func => `
+                // ${func.name} 함수 테스트
+                try {
+                    ${inferJavaReturnType(func.returnType)} result = ${func.name}(${
+                      func.params.map(p => getDefaultValue(p)).join(', ')
+                    });
+                    System.out.println("${func.name} 실행 결과: " + result);
+                } catch (Exception e) {
+                    System.err.println("${func.name} 실행 중 오류: " + e.getMessage());
+                }`).join('\n')}
+            }
         } catch (Exception e) {
-            handleError(e);
+            System.err.println("실행 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
         }
-    }
-
-    public static Object executePythonCode() {
-        try (Context context = createContext()) {
-            return executePythonCode(context);
-        } catch (Exception e) {
-            handleError(e);
-            return null;
-        }
-    }
-
-    private static Object executePythonCode(Context context) {
-        Value result = context.eval("python", PYTHON_CODE);
-        return result.as(Object.class);
-    }
-
-    private static void handleError(Exception e) {
-        System.err.println("Python 코드 실행 중 오류 발생: " + e.getMessage());
-        e.printStackTrace();
     }
 }`;
 
@@ -191,6 +314,52 @@ ${currentCode}
       console.error('코드 랩핑 중 오류:', error);
       alert('코드 랩핑 중 오류가 발생했습니다.');
     }
+  };
+
+  const inferJavaType = (param: { name: string, defaultValue?: string }) => {
+    if (param.defaultValue) {
+      if (/^-?\d+$/.test(param.defaultValue)) return 'int';
+      if (/^-?\d*\.\d+$/.test(param.defaultValue)) return 'double';
+      if (/^(True|False)$/.test(param.defaultValue)) return 'boolean';
+      if (/^[\[\{]/.test(param.defaultValue)) return 'Value';
+      return 'String';
+    }
+    return 'Object';
+  };
+
+  const inferJavaReturnType = (pythonType?: string) => {
+    if (!pythonType) return 'Value';
+    switch (pythonType.trim()) {
+      case 'int': return 'int';
+      case 'float': return 'double';
+      case 'str': return 'String';
+      case 'bool': return 'boolean';
+      case 'list': return 'List<Object>';
+      case 'dict': return 'Map<String, Object>';
+      default: return 'Value';
+    }
+  };
+
+  const convertPythonToJava = (returnType?: string) => {
+    if (!returnType) return 'result';
+    switch (returnType.trim()) {
+      case 'int': return 'result.asInt()';
+      case 'float': return 'result.asDouble()';
+      case 'str': return 'result.asString()';
+      case 'bool': return 'result.asBoolean()';
+      case 'list': return 'result.as(List.class)';
+      case 'dict': return 'result.as(Map.class)';
+      default: return 'result';
+    }
+  };
+
+  const getDefaultValue = (param: { name: string, defaultValue?: string }) => {
+    if (!param.defaultValue) return 'null';
+    if (/^-?\d+$/.test(param.defaultValue)) return param.defaultValue;
+    if (/^-?\d*\.\d+$/.test(param.defaultValue)) return param.defaultValue;
+    if (/^(True|False)$/.test(param.defaultValue)) return param.defaultValue.toLowerCase();
+    if (/^[\[\{]/.test(param.defaultValue)) return 'null /* ' + param.defaultValue + ' */';
+    return `"${param.defaultValue}"`;
   };
 
   if (isLoading) {
