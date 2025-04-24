@@ -1,28 +1,37 @@
-# GraalVM Java 베이스 이미지 사용
-FROM ghcr.io/graalvm/graalvm-ce:latest
+# 1단계: 빌드 환경
+FROM ghcr.io/graalvm/graalvm-ce:22.3.1 AS builder
+
+# 필수 패키지 설치
+RUN microdnf install -y unzip zip
+
+# GraalVM 컴포넌트 설치
+RUN gu install python && \
+    gu install native-image
+
+# 필요한 패키지 설치 및 GraalVM Python 지원 추가
+RUN microdnf install -y python3 python3-pip && \
+    gu install python && \
+    python3 -m pip install --upgrade pip
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 필요한 패키지 설치
-RUN microdnf install -y python3-pip && \
-    microdnf clean all
+# Java 소스 파일 복사
+COPY PythonWrapper.java .
+COPY requirements.graalvm.txt .
 
-# Python 의존성 설치
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Python 패키지 설치
+RUN python3 -m pip install --no-cache-dir -r requirements.graalvm.txt
 
-# 애플리케이션 파일 복사
-COPY app.py .
+# Java 파일 컴파일
+RUN javac -encoding UTF-8 \
+    -cp "$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar" \
+    PythonWrapper.java
 
-# 환경 변수 설정
-ENV GRAALVM_HOME=/usr/lib/graalvm
-ENV PATH=$GRAALVM_HOME/bin:$PATH
-ENV JAVA_HOME=$GRAALVM_HOME
-
-# 포트 설정 (기본값)
-ENV PORT=10000
-EXPOSE ${PORT}
+# 포트 설정
+EXPOSE $PORT
 
 # 애플리케이션 실행
-CMD ["python3", "app.py"] 
+ENTRYPOINT ["java", "-Dtruffle.js.AllowExperimentalOptions=true", \
+    "-cp", "/app:$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar", \
+    "PythonWrapper"]

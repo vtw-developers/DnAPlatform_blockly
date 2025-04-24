@@ -12,8 +12,8 @@ RUN apt-get update && \
 RUN mkdir -p /app/jar
 
 # Python 패키지 설치
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.jpype.txt .
+RUN pip install --no-cache-dir -r requirements.jpype.txt
 
 # jar 파일 복사 (이제 외부에서 복사)
 COPY jars/* /app/jar/

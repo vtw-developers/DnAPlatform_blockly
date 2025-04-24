@@ -126,7 +126,7 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
         const response = await codeBlockApi.deployService(
           codeToUse, 
           portNumber,
-          selectedCodeType === 'converted' ? 'graalvm' : 'python'
+          selectedCodeType === 'python' ? 'python' : 'graalvm'
         );
         
         if (response.logs) {
@@ -267,12 +267,12 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
                   checked={selectedCodeType === 'converted'}
                   onChange={(e) => setSelectedCodeType('converted')}
                 />
-                변환/랩핑된 코드 (GraalVM)
+                변환/랩핑된 코드 (GraalVM Java)
               </label>
             </div>
             <div className="code-type-description">
               {selectedCodeType === 'python' ? (
-                <p>Python 코드는 기존 운영환경에 배포됩니다.</p>
+                <p>Python 코드는 Python 환경에 배포됩니다.</p>
               ) : (
                 <p>변환/랩핑된 코드는 GraalVM Java 환경에 배포됩니다.</p>
               )}
