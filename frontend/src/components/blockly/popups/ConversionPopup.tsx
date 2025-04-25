@@ -1,6 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatElapsedTime } from '../utils/time';
+import { codeBlockApi } from '../../../services/api';
+import { CodeBlock } from '../../../types/CodeBlock';
 import './ConversionPopup.css';
+
+interface ConvertedCodeBlock {
+  id: number;
+  title: string;
+  description: string;
+  code: string;
+  created_at: string;
+  user?: {
+    name: string;
+    email: string;
+  };
+}
 
 interface ConversionPopupProps {
   isOpen: boolean;
@@ -12,6 +26,7 @@ interface ConversionPopupProps {
   elapsedTime: number;
   onConvert: () => void;
   convertedCode: string;
+  currentUser: any;
 }
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
@@ -24,10 +39,61 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   elapsedTime,
   onConvert,
   convertedCode,
+  currentUser,
 }) => {
   const [memo, setMemo] = useState('');
+  const [title, setTitle] = useState('');
+  const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      loadConvertedBlocks();
+    }
+  }, [isOpen]);
+
+  const loadConvertedBlocks = async () => {
+    try {
+      const response = await codeBlockApi.getCodeBlocks(1, 10, 'my');
+      setConvertedBlocks(response.blocks.map((block: CodeBlock) => ({
+        id: block.id,
+        title: block.title,
+        description: block.description,
+        code: block.code,
+        created_at: block.created_at,
+        user: block.user,
+      })));
+    } catch (error) {
+      console.error('변환된 코드 목록 로딩 실패:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!convertedCode || !title.trim()) {
+      alert('제목과 변환된 코드가 필요합니다.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await codeBlockApi.createCodeBlock({
+        title,
+        description: memo,
+        code: convertedCode,
+        blockly_xml: '',
+      });
+      
+      setTitle('');
+      setMemo('');
+      await loadConvertedBlocks();
+      alert('변환된 코드가 저장되었습니다.');
+    } catch (error) {
+      console.error('코드 저장 실패:', error);
+      alert('코드 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const getStatusClass = () => {
     if (error) return 'error';
@@ -35,6 +101,8 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     if (isConverting) return 'running';
     return '';
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="popup-overlay">
@@ -87,6 +155,31 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           
           {convertedCode && (
             <div className="result-container">
+              <div className="save-form">
+                <h4>코드 저장</h4>
+                <input
+                  type="text"
+                  className="title-input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="제목을 입력하세요..."
+                />
+                <textarea
+                  className="memo-textarea"
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                  placeholder="메모를 입력하세요..."
+                  rows={3}
+                />
+                <button 
+                  className="save-button"
+                  onClick={handleSave}
+                  disabled={isSaving || !title.trim()}
+                >
+                  {isSaving ? '저장 중...' : '저장'}
+                </button>
+              </div>
+
               <div className="converted-code-container">
                 <h4>변환된 코드</h4>
                 <textarea
@@ -96,18 +189,28 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                   rows={10}
                 />
               </div>
-              <div className="memo-container">
-                <h4>메모</h4>
-                <textarea
-                  className="memo-textarea"
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  placeholder="변환된 코드에 대한 메모를 입력하세요..."
-                  rows={3}
-                />
-              </div>
             </div>
           )}
+
+          <div className="converted-blocks-container">
+            <h4>저장된 변환 코드 목록</h4>
+            <div className="converted-blocks-list">
+              {convertedBlocks.map((block) => (
+                <div key={block.id} className="converted-block-item">
+                  <div className="block-header">
+                    <span className="block-title">{block.title}</span>
+                    <span className="block-date">
+                      {new Date(block.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="block-description">{block.description}</div>
+                </div>
+              ))}
+              {convertedBlocks.length === 0 && (
+                <div className="no-blocks">저장된 변환 코드가 없습니다.</div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="popup-footer">
           <button className="popup-button primary" onClick={onClose}>
