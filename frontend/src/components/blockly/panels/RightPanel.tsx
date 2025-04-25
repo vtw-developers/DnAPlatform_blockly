@@ -80,13 +80,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
   return (
     <div className="right-panel">
-      <button
-        className="action-button"
-        style={{ marginBottom: '10px' }}
-        onClick={() => openPopup('naturalLanguage')}
-      >
-        자연어로 블록 생성
-      </button>
+      <div className="button-container">
+        <button
+          className="action-button"
+          style={{ marginBottom: '10px' }}
+          onClick={() => openPopup('naturalLanguage')}
+        >
+          자연어로 블록 생성
+        </button>
+      </div>
       <CodeInputSection
         title={title}
         description={description}
