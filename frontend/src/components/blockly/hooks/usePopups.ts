@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export type PopupType = 'execution' | 'naturalLanguage' | 'verification' | 'conversion';
+export type PopupType = 'execution' | 'naturalLanguage' | 'verification' | 'conversion' | 'deploy';
 
 export interface UsePopupsReturn {
   isOpen: Record<PopupType, boolean>;
@@ -13,7 +13,8 @@ export const usePopups = (): UsePopupsReturn => {
     execution: false,
     naturalLanguage: false,
     verification: false,
-    conversion: false
+    conversion: false,
+    deploy: false
   });
 
   const openPopup = (type: PopupType) => {

@@ -33,6 +33,7 @@ interface RightPanelProps {
   onExecute: () => void;
   onConvert: (code: string) => void;
   onVerify: (code: string, model: string) => void;
+  onDeploy: () => void;
   onModelSelect: (model: string) => void;
   onBlockSelect: (block: CodeBlock) => void;
   onRefreshComplete: () => void;
@@ -68,6 +69,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onDeleteComplete,
   openPopup,
   onLapping,
+  onDeploy,
   wrappedCode,  
 }) => {
   const handleConvert = useCallback(() => {
@@ -106,6 +108,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         convertedCode={convertedCode}
         wrappedCode={wrappedCode}
         onLapping={onLapping}
+        onDeploy={onDeploy}
       />
 
       <ConvertedCodeSection
