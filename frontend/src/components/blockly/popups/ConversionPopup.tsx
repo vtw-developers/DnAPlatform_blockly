@@ -27,6 +27,7 @@ interface ConversionPopupProps {
   onConvert: () => void;
   convertedCode: string;
   currentUser: any;
+  sourceCodeTitle: string;
 }
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
@@ -40,9 +41,9 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   onConvert,
   convertedCode,
   currentUser,
+  sourceCodeTitle,
 }) => {
   const [memo, setMemo] = useState('');
-  const [title, setTitle] = useState('');
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -69,21 +70,20 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   };
 
   const handleSave = async () => {
-    if (!convertedCode || !title.trim()) {
-      alert('제목과 변환된 코드가 필요합니다.');
+    if (!convertedCode) {
+      alert('변환된 코드가 필요합니다.');
       return;
     }
 
     setIsSaving(true);
     try {
       await codeBlockApi.createCodeBlock({
-        title,
+        title: sourceCodeTitle,
         description: memo,
         code: convertedCode,
         blockly_xml: '',
       });
       
-      setTitle('');
       setMemo('');
       await loadConvertedBlocks();
       alert('변환된 코드가 저장되었습니다.');
@@ -157,13 +157,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
             <div className="result-container">
               <div className="save-form">
                 <h4>코드 저장</h4>
-                <input
-                  type="text"
-                  className="title-input"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="제목을 입력하세요..."
-                />
+                <div className="source-title">원본 코드: {sourceCodeTitle}</div>
                 <textarea
                   className="memo-textarea"
                   value={memo}
@@ -174,7 +168,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                 <button 
                   className="save-button"
                   onClick={handleSave}
-                  disabled={isSaving || !title.trim()}
+                  disabled={isSaving}
                 >
                   {isSaving ? '저장 중...' : '저장'}
                 </button>
