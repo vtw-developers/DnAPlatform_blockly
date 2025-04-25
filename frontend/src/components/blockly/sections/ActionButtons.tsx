@@ -4,7 +4,6 @@ import './ActionButtons.css';
 interface ActionButtonsProps {
   code: string;
   isConverting: boolean;
-  convertedCode?: string;
   wrappedCode?: string;
   onReset: () => void;
   onSave: () => void;
@@ -17,7 +16,6 @@ interface ActionButtonsProps {
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
   code,
   isConverting,
-  convertedCode,
   wrappedCode,
   onReset,
   onSave,
