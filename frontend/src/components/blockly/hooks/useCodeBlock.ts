@@ -7,9 +7,10 @@ interface UseCodeBlockProps {
   workspace: Blockly.Workspace | null;
   currentCode: string;
   onRefresh?: () => void;
+  setWrappedCode: (code: string) => void;
 }
 
-export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlockProps) => {
+export const useCodeBlock = ({ workspace, currentCode, onRefresh, setWrappedCode }: UseCodeBlockProps) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isShared, setIsShared] = useState(false);
@@ -93,6 +94,7 @@ export const useCodeBlock = ({ workspace, currentCode, onRefresh }: UseCodeBlock
       setIsShared(block.is_shared || false);
       setSelectedBlocks([block.id]);
       setSelectedBlockUserId(block.user_id || null);
+      setWrappedCode('');
     }
   };
 

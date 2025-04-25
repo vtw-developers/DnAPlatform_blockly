@@ -35,10 +35,14 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         </button>
         <button className="save-button" onClick={onSave}>
           저장
-        </button>       
-        <button className="action-button" onClick={onExecute}>
-          코드실행
         </button>
+        <button 
+          className="deploy-button" 
+          onClick={() => setIsDeployPopupOpen(true)}
+          disabled={!code?.trim()}
+        >
+          운영배포
+        </button>               
       </div>
       <div className="code-group">
         <h3 className="section-title">생성된 Python 코드</h3>
@@ -50,6 +54,13 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         />
       </div>
       <div className="button-container">
+        <button
+         className="action-button"
+         onClick={onExecute}
+         disabled={!code?.trim()}
+        >
+          코드실행
+        </button>
         <button 
           className="action-button" 
           onClick={onConvert} 
@@ -59,14 +70,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         </button>
         <button className="action-button" onClick={onLapping} disabled={!code?.trim()}>
           코드랩핑
-        </button>
-        <button 
-          className="deploy-button" 
-          onClick={() => setIsDeployPopupOpen(true)}
-          disabled={!code?.trim()}
-        >
-          운영배포
-        </button>
+        </button>        
       </div>
       <DeployPopup
         isOpen={isDeployPopupOpen}

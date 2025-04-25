@@ -72,7 +72,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   } = useCodeBlock({
     workspace,
     currentCode,
-    onRefresh: () => setShouldRefresh(true)
+    onRefresh: () => setShouldRefresh(true),
+    setWrappedCode
   });
 
   const {
