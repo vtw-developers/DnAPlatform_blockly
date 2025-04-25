@@ -2,7 +2,7 @@
 FROM ghcr.io/graalvm/graalvm-ce:22.3.1 AS builder
 
 # 필수 패키지 설치
-RUN microdnf install -y unzip zip
+RUN microdnf install -y unzip zip curl
 
 # 필요한 패키지 설치 및 GraalVM Python 지원 추가
 RUN microdnf install -y python3 python3-pip && \
@@ -11,6 +11,9 @@ RUN microdnf install -y python3 python3-pip && \
 
 # 작업 디렉토리 설정
 WORKDIR /app
+
+# Gson 라이브러리 다운로드
+RUN curl -L -o gson.jar https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar
 
 # Java 소스 파일 복사
 COPY PythonWrapper.java .
@@ -21,7 +24,7 @@ RUN python3 -m pip install --no-cache-dir -r requirements.graalvm.txt
 
 # Java 파일 컴파일
 RUN javac -encoding UTF-8 \
-    -cp "$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar" \
+    -cp "$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar:/app/gson.jar" \
     PythonWrapper.java
 
 # 포트 설정
@@ -29,5 +32,5 @@ EXPOSE $PORT
 
 # 애플리케이션 실행
 ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-Dtruffle.js.AllowExperimentalOptions=true", \
-    "-cp", "/app:$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar", \
+    "-cp", "/app:/app/gson.jar:$GRAALVM_HOME/lib/graalvm/graalvm-sdk.jar:$GRAALVM_HOME/lib/truffle/truffle-api.jar:$GRAALVM_HOME/languages/python/graalpy-sdk.jar", \
     "PythonWrapper"]
