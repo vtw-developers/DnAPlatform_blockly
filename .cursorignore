@@ -1,0 +1,14 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+*.pyc
+build/
+dist/
+node_modules/
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+__pycache__/
+deploy/
+auth/
+
+

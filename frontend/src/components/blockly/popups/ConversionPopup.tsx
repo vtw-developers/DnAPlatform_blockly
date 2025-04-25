@@ -1,7 +1,18 @@
-import React from 'react';
-import { ConversionPopupProps } from '../types/blockly.types';
+import React, { useState } from 'react';
 import { formatElapsedTime } from '../utils/time';
 import './ConversionPopup.css';
+
+interface ConversionPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  status: string;
+  dagRunId?: string;
+  error?: string;
+  isConverting: boolean;
+  elapsedTime: number;
+  onConvert: () => void;
+  convertedCode: string;
+}
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   isOpen,
@@ -14,7 +25,16 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   onConvert,
   convertedCode,
 }) => {
+  const [memo, setMemo] = useState('');
+  
   if (!isOpen) return null;
+
+  const getStatusClass = () => {
+    if (error) return 'error';
+    if (status.includes('완료')) return 'success';
+    if (isConverting) return 'running';
+    return '';
+  };
 
   return (
     <div className="popup-overlay">
@@ -24,39 +44,70 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           <button className="popup-close" onClick={onClose}>&times;</button>
         </div>
         <div className="popup-body">
-          {!convertedCode && (
-            <button 
-              className="convert-button primary" 
-              onClick={onConvert}
-              disabled={isConverting}
-            >
-              {isConverting ? '변환 중...' : '변환 시작'}
-            </button>
-          )}
+          <button 
+            className="convert-button primary" 
+            onClick={onConvert}
+            disabled={isConverting}
+          >
+            {isConverting ? '변환 중...' : '변환 시작'}
+          </button>
           
-          <div className="execution-status">
-            {(status === '변환 요청 중...' || status === '변환 진행 중...' || status === '변환 성공, 결과 가져오는 중...') && <div className="status-spinner" />}
-            <span>{status}</span>
-            {(isConverting || status === '변환 진행 중...' || status === '변환 성공, 결과 가져오는 중...') && (
-              <span className="elapsed-time">
-                (소요시간: {formatElapsedTime(elapsedTime)})
-              </span>
-            )}
+          <div className="console-container">
+            <div className="console-header">
+              <span className="console-title">변환 과정</span>
+              {isConverting && (
+                <span className="elapsed-time">
+                  소요시간: {formatElapsedTime(elapsedTime)}
+                </span>
+              )}
+            </div>
+            <div className="console-output">
+              <div className={`console-line ${getStatusClass()}`}>
+                {status && (
+                  <>
+                    <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                    <span className="console-message">{status}</span>
+                  </>
+                )}
+              </div>
+              {dagRunId && (
+                <div className="console-line">
+                  <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                  <span className="console-message">DAG Run ID: {dagRunId}</span>
+                </div>
+              )}
+              {error && (
+                <div className="console-line error">
+                  <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                  <span className="console-message">오류: {error}</span>
+                </div>
+              )}
+            </div>
           </div>
           
           {convertedCode && (
-            <div className="converted-code-container">
-              <textarea
-                className="converted-code-textarea"
-                value={convertedCode}
-                readOnly
-                rows={10}
-              />
+            <div className="result-container">
+              <div className="converted-code-container">
+                <h4>변환된 코드</h4>
+                <textarea
+                  className="converted-code-textarea"
+                  value={convertedCode}
+                  readOnly
+                  rows={10}
+                />
+              </div>
+              <div className="memo-container">
+                <h4>메모</h4>
+                <textarea
+                  className="memo-textarea"
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                  placeholder="변환된 코드에 대한 메모를 입력하세요..."
+                  rows={3}
+                />
+              </div>
             </div>
           )}
-          
-          {dagRunId && <p>DAG Run ID: {dagRunId}</p>}
-          {error && <pre>오류: {error}</pre>}
         </div>
         <div className="popup-footer">
           <button className="popup-button primary" onClick={onClose}>
