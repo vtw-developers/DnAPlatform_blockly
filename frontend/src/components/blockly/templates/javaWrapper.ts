@@ -4,28 +4,48 @@ import { ExtractedFunction, FunctionParam } from '../types/javaGenerator';
 
 export const generateJavaWrapper = (pythonCode: string, functions: ExtractedFunction[]): string => {
   return `
+import com.google.gson.Gson;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
+
 import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import com.sun.net.httpserver.HttpServer;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class PythonWrapper {
     private static final String PYTHON_CODE = """
 ${pythonCode}
     """;
 
-    private static Context context;
+    private static final Logger logger = Logger.getLogger(PythonWrapper.class.getName());
+    private static final Gson gson = new Gson();
 
+    // 요청마다 안전하게 Context 생성
+    private static Context createContext() {
+        return Context.newBuilder("python")
+                .allowIO(true)
+                .allowExperimentalOptions(true)
+                .allowAllAccess(false)
+                .allowNativeAccess(false)
+                .allowCreateThread(false)
+                .option("python.ForceImportSite", "true")
+                .out(System.out)
+                .err(System.err)
+                .build();
+    }
+
+    // Python 실행 결과 객체
     public static class PythonResult {
         private final Value returnValue;
         private final String output;
@@ -37,159 +57,153 @@ ${pythonCode}
 
         public Value getReturnValue() { return returnValue; }
         public String getOutput() { return output; }
-        
-        @Override
-        public String toString() {
-            StringBuilder result = new StringBuilder();
+
+        // 텍스트 응답용
+        public byte[] toPlainTextBytes() {
+            StringBuilder sb = new StringBuilder();
             if (output != null && !output.isEmpty()) {
-                result.append("출력:\\n").append(output);
+                sb.append("출력:\\n").append(output);
             }
             if (returnValue != null && !returnValue.isNull()) {
-                if (result.length() > 0) result.append("\\n");
-                result.append("반환값: ").append(returnValue);
+                if (sb.length() > 0) sb.append("\\n");
+                sb.append("반환값: ").append(returnValue);
             }
-            return result.toString();
+            return sb.toString().getBytes(StandardCharsets.UTF_8);
         }
     }
 
-    public static PythonResult executePythonCode() {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        PrintStream printStream = new PrintStream(outputStream, true, StandardCharsets.UTF_8);
-        
-        if (context == null) {
-            context = Context.newBuilder("python")
-                .allowIO(true)
-                .allowExperimentalOptions(true)
-                .allowAllAccess(false)
-                .allowNativeAccess(false)
-                .allowCreateThread(false)
-                .option("python.ForceImportSite", "true")
-                .out(printStream)
-                .err(printStream)
-                .build();
-        }
+    // Python 코드 실행 유틸
+    public static PythonResult executePython() throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
+            // 출력 리다이렉션 설정
+            PrintStream oldOut = System.out;
+            PrintStream oldErr = System.err;
+            System.setOut(ps);
+            System.setErr(ps);
             
-        // Python 코드 실행
-        Value result = context.eval("python", PYTHON_CODE);
-        
-        // 출력 결과 가져오기
-        String output = outputStream.toString(StandardCharsets.UTF_8);
-        
-        return new PythonResult(result, output);
-    }
-
-    public static Map<String, Value> executePythonFunctions() {
-        if (context == null) {
-            context = Context.newBuilder("python")
-                .allowIO(false)
-                .allowExperimentalOptions(true)
-                .allowAllAccess(false)
-                .allowNativeAccess(false)
-                .allowCreateThread(false)
-                .option("python.ForceImportSite", "true")
-                .build();
-        }
-        
-        context.eval("python", PYTHON_CODE);
-        Value bindings = context.getBindings("python");
-        
-        Map<String, Value> functions = new HashMap<>();
-        ${functions.map(func => `
-        if (bindings.hasMember("${func.name}")) {
-            functions.put("${func.name}", bindings.getMember("${func.name}"));
-        }`).join('\n')}
-        
-        return functions;
-    }
-
-    ${functions.map(func => `
-    public static ${inferJavaReturnType(func.returnType)} ${func.name}(${
-      func.params.map((p: FunctionParam) => `${inferJavaType(p)} ${p.name}`).join(', ')
-    }) {
-        Map<String, Value> functions = executePythonFunctions();
-        Value func = functions.get("${func.name}");
-        if (func == null) {
-            throw new RuntimeException("함수 '${func.name}'를 찾을 수 없습니다.");
-        }
-        Value result = func.execute(${func.params.map((p: FunctionParam) => p.name).join(', ')});
-        return ${convertPythonToJava(func.returnType)};
-    }`).join('\n\n')}
-
-    public static void main(String[] args) {
-        try {
-            // 콘솔 출력 인코딩 설정
-            System.setOut(new PrintStream(System.out, true, "UTF-8"));
-            System.setErr(new PrintStream(System.err, true, "UTF-8"));
-
-            // 테스트 모드 확인
-            boolean isTestMode = Boolean.parseBoolean(System.getenv().getOrDefault("TEST_MODE", "false"));
+            // Context 생성 및 코드 실행
+            Context ctx = createContext();
+            Value result = ctx.eval("python", PYTHON_CODE);
             
-            if (isTestMode) {
-                // 테스트 모드: Python 코드만 실행
-                System.out.println("Python 코드 실행 결과:");
-                PythonResult codeResult = executePythonCode();
-                System.out.println(codeResult);
+            // 출력 복원
+            System.setOut(oldOut);
+            System.setErr(oldErr);
+            
+            return new PythonResult(result, baos.toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    // CORS 공통 헤더 추가 헬퍼
+    public static class CORSHelper {
+        public static void addCORS(HttpExchange ex) {
+            Headers h = ex.getResponseHeaders();
+            h.add("Access-Control-Allow-Origin", "*");
+            h.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            h.add("Access-Control-Allow-Headers", "Content-Type");
+        }
+    }
+
+    // HTTP 요청 핸들러
+    public static class PythonHttpHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            CORSHelper.addCORS(exchange);
+
+            // Preflight
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
                 return;
             }
-            
-            // 서버 모드: HTTP 서버 시작
-            int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
-            HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-            
-            HttpHandler handler = new HttpHandler() {
-                @Override
-                public void handle(HttpExchange exchange) throws IOException {
-                    try {
-                        // Python 코드 실행
-                        PythonResult result = executePythonCode();
-                        String response = result.toString();
-                        
-                        // CORS 헤더 설정
-                        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-                        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
-                        
-                        // OPTIONS 요청 처리
-                        if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
-                            exchange.sendResponseHeaders(204, -1);
-                            return;
-                        }
-                        
-                        exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
-                        exchange.sendResponseHeaders(200, response.getBytes("UTF-8").length);
-                        
-                        try (OutputStream os = exchange.getResponseBody()) {
-                            os.write(response.getBytes("UTF-8"));
-                        }
-                    } catch (Exception e) {
-                        String error = "Error: " + e.getMessage();
-                        
-                        // CORS 헤더 설정 (에러 응답에도 필요)
-                        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-                        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
-                        
-                        exchange.sendResponseHeaders(500, error.getBytes().length);
-                        try (OutputStream os = exchange.getResponseBody()) {
-                            os.write(error.getBytes());
-                        }
-                    }
+
+            try {
+                PythonResult result = executePython();
+                byte[] respBytes;
+
+                // /test 경로: JSON 응답
+                if ("/test".equals(exchange.getRequestURI().getPath())) {
+                    Map<String, Object> respMap = Map.of(
+                        "status", "success",
+                        "message", "테스트가 성공적으로 실행되었습니다.",
+                        "details", Map.of(
+                            "output", result.getOutput(),
+                            "result", result.getReturnValue().toString()
+                        )
+                    );
+                    String json = gson.toJson(respMap);
+                    respBytes = json.getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+                } else {
+                    // 기본: 텍스트 응답
+                    respBytes = result.toPlainTextBytes();
+                    exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
                 }
-            };
-            
-            // 루트 경로와 /test 경로에 동일한 핸들러 등록
-            server.createContext("/", handler);
-            server.createContext("/test", handler);
-            
-            server.setExecutor(null);
-            server.start();
-            
-            System.out.println("서버가 포트 " + port + "에서 시작되었습니다.");
-            
-        } catch (Exception e) {
-            System.err.println("실행 중 오류 발생: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
+
+                exchange.sendResponseHeaders(200, respBytes.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(respBytes);
+                }
+
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Request handling failed", e);
+                byte[] err = gson.toJson(Map.of(
+                    "status", "error",
+                    "message", "실행 중 오류가 발생했습니다.",
+                    "error", e.getMessage()
+                )).getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+                exchange.sendResponseHeaders(500, err.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(err);
+                }
+            }
         }
     }
-}`}; 
+
+    // 메인: 서버 초기화
+    public static void main(String[] args) throws IOException {
+        // 테스트 모드 확인
+        boolean isTestMode = Boolean.parseBoolean(System.getenv().getOrDefault("TEST_MODE", "false"));
+        
+        if (isTestMode) {
+            // 테스트 모드: Python 코드 실행 및 결과 출력
+            try {
+                PythonResult result = executePython();
+                Map<String, Object> testResponse = Map.of(
+                    "status", "success",
+                    "message", "테스트가 성공적으로 실행되었습니다.",
+                    "details", Map.of(
+                        "output", result.getOutput(),
+                        "result", result.getReturnValue() != null ? result.getReturnValue().toString() : null
+                    )
+                );
+                System.out.println(gson.toJson(testResponse));
+                System.exit(0);
+            } catch (Exception e) {
+                Map<String, Object> errorResponse = Map.of(
+                    "status", "error",
+                    "message", "테스트 실행 중 오류가 발생했습니다.",
+                    "error", e.getMessage()
+                );
+                System.err.println(gson.toJson(errorResponse));
+                System.exit(1);
+            }
+        }
+
+        // 서버 모드
+        int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+
+        // 스레드풀 설정
+        server.setExecutor(Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors() * 2
+        ));
+
+        // 핸들러 등록
+        server.createContext("/", new PythonHttpHandler());
+        server.createContext("/test", new PythonHttpHandler());
+
+        server.start();
+        System.out.println("서버가 포트 " + port + "에서 시작되었습니다.");
+    }
+}`};
