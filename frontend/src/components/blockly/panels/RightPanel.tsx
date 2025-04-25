@@ -14,7 +14,6 @@ interface RightPanelProps {
   title: string;
   description: string;
   currentCode: string;
-  convertedCode: string;
   isShared: boolean;
   selectedBlocks: number[];
   selectedBlockUserId: number | null;
@@ -25,6 +24,7 @@ interface RightPanelProps {
   isLoadingModels: boolean;
   shouldRefresh: boolean;
   currentUser: User | null;
+  wrappedCode: string;
   onTitleChange: (title: string) => void;
   onDescriptionChange: (description: string) => void;
   onReset: () => void;
@@ -40,14 +40,12 @@ interface RightPanelProps {
   onDeleteComplete: () => void;
   openPopup: (type: PopupType) => void;
   onLapping: () => void;
-  wrappedCode: string;  
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
   title,
   description,
   currentCode,
-  convertedCode,  
   isConverting,
   isVerifying,
   models,
@@ -105,14 +103,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         onConvert={handleConvert}
         isConverting={isConverting}
         code={currentCode}
-        convertedCode={convertedCode}
         wrappedCode={wrappedCode}
         onLapping={onLapping}
         onDeploy={onDeploy}
       />
 
       <ConvertedCodeSection
-        convertedCode={wrappedCode || convertedCode}                
+        convertedCode={wrappedCode}                
       />
 
       <VerificationSection

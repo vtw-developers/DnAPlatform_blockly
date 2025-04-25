@@ -122,8 +122,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   };
 
   const handleConvertCode = (code: string) => {
-    openPopup('conversion');
-    handleConvert(code);
+    openPopup('conversion');    
   };
 
   const handleVerifyCodeWithModel = (code: string, model: string) => {
@@ -184,7 +183,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         title={title}
         description={description}
         currentCode={currentCode}
-        convertedCode={convertedCode}
         isShared={isShared}
         selectedBlocks={selectedBlocks}
         selectedBlockUserId={selectedBlockUserId}

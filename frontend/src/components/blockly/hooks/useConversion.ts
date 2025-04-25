@@ -133,6 +133,7 @@ export const useConversion = () => {
     setIsConversionPopupOpen(false);
     setConversionStatus('');
     setConversionError(null);
+    setConvertedCode('');
     setIsConverting(false);
     setConversionDagRunId(null);
     setConversionElapsedTime(0);
