@@ -56,4 +56,6 @@ export interface ConversionPopupProps {
   error: string | null;
   isConverting: boolean;
   elapsedTime: number;
+  onConvert: () => void;
+  convertedCode: string;
 } 

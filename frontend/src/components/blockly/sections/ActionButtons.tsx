@@ -63,10 +63,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         </button>
         <button 
           className="action-button" 
-          onClick={onConvert} 
-          disabled={!code?.trim() || isConverting}
+          onClick={onConvert}
+          disabled={!code?.trim()}
         >
-          {isConverting ? '변환 중...' : '코드변환'}
+          코드변환
         </button>
         <button className="action-button" onClick={onLapping} disabled={!code?.trim()}>
           코드랩핑
