@@ -19,6 +19,7 @@ import { registerJpypeBlocks } from './customBlocks/jpypeBlocks';
 import { Spin } from 'antd';
 import { extractFunctions } from './utils/javaCodeGenerator';
 import { generateJavaWrapper } from './templates/javaWrapper';
+import DeployPopup from './popups/DeployPopup';
 
 registerJpypeBlocks();
 
@@ -140,6 +141,10 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     handleVerifyCode(code, model);
   };
 
+  const handleDeploy = () => {
+    openPopup('deploy');
+  };
+
   const handleLapping = () => {
     if (!currentCode.trim()) {
       alert('랩핑할 Python 코드가 없습니다.');
@@ -208,6 +213,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         onExecute={handleExecute}
         onConvert={handleConvertCode}
         onVerify={handleVerifyCodeWithModel}
+        onDeploy={handleDeploy}
         onModelSelect={setSelectedModel}
         onBlockSelect={handleBlockSelect}
         onRefreshComplete={handleRefreshComplete}
@@ -259,6 +265,13 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         error={conversionError}
         isConverting={isConverting}
         elapsedTime={conversionElapsedTime}
+      />
+
+      <DeployPopup
+        isOpen={isOpen.deploy}
+        onClose={() => closePopup('deploy')}
+        pythonCode={currentCode}
+        convertedCode={convertedCode || wrappedCode}
       />
     </div>
   );

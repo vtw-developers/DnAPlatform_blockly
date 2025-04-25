@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import DeployPopup from './DeployPopup';
 import './ActionButtons.css';
 
 interface ActionButtonsProps {
@@ -12,6 +11,7 @@ interface ActionButtonsProps {
   onExecute: () => void;
   onConvert: () => void;
   onLapping: () => void;
+  onDeploy: () => void;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -24,8 +24,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onExecute,
   onConvert,
   onLapping,
-}) => {
-  const [isDeployPopupOpen, setIsDeployPopupOpen] = useState(false);
+  onDeploy
+}) => {  
 
   return (
     <div>
@@ -38,7 +38,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         </button>
         <button 
           className="deploy-button" 
-          onClick={() => setIsDeployPopupOpen(true)}
+          onClick={onDeploy}
           disabled={!code?.trim()}
         >
           운영배포
@@ -72,12 +72,6 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           코드랩핑
         </button>        
       </div>
-      <DeployPopup
-        isOpen={isDeployPopupOpen}
-        onClose={() => setIsDeployPopupOpen(false)}
-        pythonCode={code}
-        convertedCode={convertedCode || wrappedCode}
-      />
     </div>
   );
 }; 
