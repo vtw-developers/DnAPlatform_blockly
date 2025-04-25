@@ -29,16 +29,18 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const { user, isLoading } = useAuth();
   const [wrappedCode, setWrappedCode] = useState<string>('');
-   
-  
-  useEffect(() => {
-    console.log('Auth State:', {
-      isLoading,
-      user,
-      userId: user?.id,
-      timestamp: new Date().toISOString()
-    });
-  }, [isLoading, user]);
+
+  const {
+    isConversionPopupOpen,
+    conversionStatus,
+    conversionError,
+    convertedCode,
+    isConverting,
+    conversionDagRunId,
+    conversionElapsedTime,
+    handleConvert,
+    handleCloseConversionPopup
+  } = useConversion();
 
   const { isOpen, openPopup, closePopup } = usePopups();
   const {
@@ -76,18 +78,6 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     onRefresh: () => setShouldRefresh(true),
     setWrappedCode
   });
-
-  const {
-    isConversionPopupOpen,
-    conversionStatus,
-    conversionError,
-    convertedCode,
-    isConverting,
-    conversionDagRunId,
-    conversionElapsedTime,
-    handleConvert,
-    handleCloseConversionPopup
-  } = useConversion();
 
   const {
     verificationStatus,
@@ -260,11 +250,13 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           handleCloseConversionPopup();
           closePopup('conversion');
         }}
-        status={conversionStatus}
-        dagRunId={conversionDagRunId}
-        error={conversionError}
+        status={conversionStatus || ''}
+        dagRunId={conversionDagRunId || null}
+        error={conversionError || null}
         isConverting={isConverting}
         elapsedTime={conversionElapsedTime}
+        onConvert={() => handleConvert(currentCode)}
+        convertedCode={convertedCode}
       />
 
       <DeployPopup

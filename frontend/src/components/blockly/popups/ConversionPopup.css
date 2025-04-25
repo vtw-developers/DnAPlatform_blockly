@@ -1,0 +1,31 @@
+.converted-code-container {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.converted-code-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.convert-button {
+  margin: 20px 0;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.convert-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+} 
