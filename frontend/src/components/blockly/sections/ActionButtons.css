@@ -6,9 +6,8 @@
 
 .reset-button,
 .save-button,
-.action-button,
-.close-button,
-.deploy-button {
+.deploy-button,
+.action-button {
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
