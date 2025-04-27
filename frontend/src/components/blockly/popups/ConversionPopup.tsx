@@ -166,7 +166,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                   rows={3}
                 />
                 <button 
-                  className="save-button"
+                  className="convert-save-button"
                   onClick={handleSave}
                   disabled={isSaving}
                 >

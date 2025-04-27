@@ -178,7 +178,7 @@
   font-size: 14px;
 }
 
-.save-button {
+.convert-save-button {
   margin-top: 10px;
   padding: 8px 16px;
   background-color: #28a745;
@@ -190,11 +190,11 @@
   transition: background-color 0.2s;
 }
 
-.save-button:hover {
+.convert-save-button:hover {
   background-color: #218838;
 }
 
-.save-button:disabled {
+.convert-save-button:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
 }
