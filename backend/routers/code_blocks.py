@@ -37,6 +37,7 @@ class ConvertedCodeBase(BaseModel):
 
 class ConvertedCode(ConvertedCodeBase):
     id: int
+    source_code_title: str
     user_id: int
     created_at: datetime
     user: Optional[UserInfo] = None
@@ -371,6 +372,14 @@ async def save_converted_code(
         
         result = cur.fetchone()
         
+        # 부모 코드의 제목 조회
+        cur.execute("""
+            SELECT title as source_code_title
+            FROM code_blocks
+            WHERE id = %s
+        """, (converted_code.source_code_id,))
+        parent_code = cur.fetchone()
+        
         # 사용자 정보 조회
         cur.execute("""
             SELECT name, email
@@ -380,6 +389,7 @@ async def save_converted_code(
         user_info = cur.fetchone()
         
         formatted_result = dict(result)
+        formatted_result['source_code_title'] = parent_code['source_code_title']
         if user_info:
             formatted_result['user'] = {
                 'name': user_info['name'],
