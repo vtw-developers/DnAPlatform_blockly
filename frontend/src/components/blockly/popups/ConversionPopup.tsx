@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatElapsedTime } from '../utils/time';
 import { codeBlockApi } from '../../../services/api';
-import { CodeBlock } from '../../../types/CodeBlock';
 import './ConversionPopup.css';
 
 interface ConvertedCodeBlock {
@@ -40,8 +39,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   isConverting,
   elapsedTime,
   onConvert,
-  convertedCode,
-  currentUser,
+  convertedCode,  
   sourceCodeTitle,
   sourceCodeId,
 }) => {
