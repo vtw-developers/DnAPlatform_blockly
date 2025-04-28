@@ -28,6 +28,7 @@ interface ConversionPopupProps {
   convertedCode: string;
   currentUser: any;
   sourceCodeTitle: string;
+  sourceCodeId: number;
 }
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
@@ -42,6 +43,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   convertedCode,
   currentUser,
   sourceCodeTitle,
+  sourceCodeId,
 }) => {
   const [memo, setMemo] = useState('');
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
@@ -55,15 +57,8 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
 
   const loadConvertedBlocks = async () => {
     try {
-      const response = await codeBlockApi.getCodeBlocks(1, 10, 'my');
-      setConvertedBlocks(response.blocks.map((block: CodeBlock) => ({
-        id: block.id,
-        title: block.title,
-        description: block.description,
-        code: block.code,
-        created_at: block.created_at,
-        user: block.user,
-      })));
+      const response = await codeBlockApi.getConvertedCodes(sourceCodeId);
+      setConvertedBlocks(response.blocks);
     } catch (error) {
       console.error('변환된 코드 목록 로딩 실패:', error);
     }
@@ -77,12 +72,12 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
 
     setIsSaving(true);
     try {
-      await codeBlockApi.createCodeBlock({
-        title: sourceCodeTitle,
-        description: memo,
-        code: convertedCode,
-        blockly_xml: '',
-      });
+      await codeBlockApi.saveConvertedCode(
+        sourceCodeId,
+        sourceCodeTitle,
+        memo,
+        convertedCode
+      );
       
       setMemo('');
       await loadConvertedBlocks();

@@ -9,11 +9,12 @@ export const useConversion = () => {
   const [isConverting, setIsConverting] = useState(false);
   const [conversionDagRunId, setConversionDagRunId] = useState<string | null>(null);
   const [conversionElapsedTime, setConversionElapsedTime] = useState(0);
+  const [sourceCodeTitle, setSourceCodeTitle] = useState<string>('');
   
   const conversionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const conversionElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleConvert = async (currentCode: string) => {
+  const handleConvert = async (currentCode: string, title: string) => {
     if (!currentCode.trim()) {
       alert('변환할 코드가 없습니다.');
       return;
@@ -25,6 +26,7 @@ export const useConversion = () => {
     setConvertedCode('');
     setIsConverting(true);
     setConversionElapsedTime(0);
+    setSourceCodeTitle(title);
     
     try {
       const response = await codeBlockApi.convertCode(currentCode, 'python');
@@ -148,6 +150,7 @@ export const useConversion = () => {
     isConverting,
     conversionDagRunId,
     conversionElapsedTime,
+    sourceCodeTitle,
     handleConvert,
     handleCloseConversionPopup
   };

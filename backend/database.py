@@ -88,6 +88,30 @@ def create_tables():
                 """)
                 logger.info("code_blocks 테이블에 user_id 컬럼이 추가되었습니다.")
 
+        # converted_codes 테이블 생성
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'converted_codes'
+            ) as exists;
+        """)
+        result = cur.fetchone()
+        converted_codes_exists = result['exists']
+
+        if not converted_codes_exists:
+            cur.execute("""
+                CREATE TABLE converted_codes (
+                    id SERIAL PRIMARY KEY,
+                    source_code_id INTEGER REFERENCES code_blocks(id) ON DELETE CASCADE,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    converted_code TEXT NOT NULL,
+                    user_id INTEGER REFERENCES users(id),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            logger.info("converted_codes 테이블이 성공적으로 생성되었습니다.")
+
         # users 테이블 생성
         cur.execute("""
             SELECT EXISTS (
