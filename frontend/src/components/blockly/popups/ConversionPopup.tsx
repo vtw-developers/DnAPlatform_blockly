@@ -7,7 +7,7 @@ interface ConvertedCodeBlock {
   id: number;
   title: string;
   description: string;
-  code: string;
+  converted_code: string;
   created_at: string;
   user?: {
     name: string;
@@ -47,6 +47,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const [memo, setMemo] = useState('');
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<ConvertedCodeBlock | null>(null);
   
   useEffect(() => {
     if (isOpen) {
@@ -63,27 +64,32 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     }
   };
 
+  const handleBlockClick = (block: ConvertedCodeBlock) => {
+    setSelectedBlock(block);
+    setMemo(block.description);
+  };
+
   const handleSave = async () => {
-    if (!convertedCode) {
-      alert('변환된 코드가 필요합니다.');
+    if (!selectedBlock) {
+      alert('수정할 코드를 선택해주세요.');
       return;
     }
 
     setIsSaving(true);
     try {
-      await codeBlockApi.saveConvertedCode(
-        sourceCodeId,
-        sourceCodeTitle,
+      await codeBlockApi.updateConvertedCode(
+        selectedBlock.id,
         memo,
-        convertedCode
+        selectedBlock.converted_code
       );
       
-      setMemo('');
       await loadConvertedBlocks();
-      alert('변환된 코드가 저장되었습니다.');
+      setSelectedBlock(null);
+      setMemo('');
+      alert('변환된 코드가 수정되었습니다.');
     } catch (error) {
-      console.error('코드 저장 실패:', error);
-      alert('코드 저장에 실패했습니다.');
+      console.error('코드 수정 실패:', error);
+      alert('코드 수정에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -110,7 +116,11 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
             <h4>저장된 변환 코드 목록</h4>
             <div className="converted-blocks-list">
               {convertedBlocks.map((block) => (
-                <div key={block.id} className="converted-block-item">
+                <div 
+                  key={block.id} 
+                  className={`converted-block-item ${selectedBlock?.id === block.id ? 'selected' : ''}`}
+                  onClick={() => handleBlockClick(block)}
+                >
                   <div className="block-header">
                     <span className="block-title">{block.source_code_title}</span>
                     <span className="block-date">
@@ -166,17 +176,14 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
             </div>
           </div>
           
-          {convertedCode && (
+          {selectedBlock && (
             <div className="result-container">
               <div className="save-form">                                
                 <h4>변환된 코드</h4>
-                <textarea
-                  className="converted-code-textarea"
-                  value={convertedCode}
-                  readOnly
-                  rows={10}
-                />
-                <div className="source-title">원본 코드: {sourceCodeTitle}</div>
+                <pre className="converted-code-textarea">
+                  {selectedBlock.converted_code}
+                </pre>
+                <div className="source-title">원본 코드: {selectedBlock.source_code_title}</div>
                 <textarea
                   className="memo-textarea"
                   value={memo}

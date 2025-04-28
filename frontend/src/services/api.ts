@@ -523,22 +523,33 @@ export class CodeBlockApi {
     return await response.json();
   }
 
-  async saveConvertedCode(sourceCodeId: number, title: string, description: string, convertedCode: string): Promise<any> {
-    try {
-      const response = await axios.post(
-        `${this.baseUrl}/code/converted`,
-        {
-          source_code_id: sourceCodeId,
-          title,
-          description,
-          converted_code: convertedCode
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error saving converted code:', error);
-      throw error;
-    }
+  async saveConvertedCode(
+    sourceCodeId: number,
+    sourceCodeTitle: string,
+    description: string,
+    convertedCode: string
+  ): Promise<any> {
+    const response = await axios.post(
+      `${this.baseUrl}/code/converted`,
+      {
+        source_code_id: sourceCodeId,
+        description,
+        converted_code: convertedCode
+      }
+    );
+    return response.data;
+  }
+
+  async updateConvertedCode(
+    id: number,
+    description: string,
+    convertedCode: string
+  ): Promise<any> {
+    const response = await axios.put(`${this.baseUrl}/code/converted/${id}`, {
+      description,
+      converted_code: convertedCode
+    });
+    return response.data;
   }
 
   async getConvertedCodes(sourceCodeId: number): Promise<any> {

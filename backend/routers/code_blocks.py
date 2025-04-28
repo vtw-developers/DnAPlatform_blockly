@@ -462,4 +462,79 @@ async def get_converted_codes(
         logger.error(f"변환된 코드 목록 조회 중 오류 발생: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
+        conn.close()
+
+@router.put("/code/converted/{converted_code_id}", response_model=ConvertedCode)
+async def update_converted_code(
+    converted_code_id: int,
+    converted_code: ConvertedCodeBase,
+    current_user: dict = Depends(get_current_user)
+):
+    """변환된 코드 수정"""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        
+        # 변환된 코드 존재 여부 및 소유자 확인
+        cur.execute("""
+            SELECT id, user_id
+            FROM converted_codes
+            WHERE id = %s
+        """, (converted_code_id,))
+        existing_code = cur.fetchone()
+        
+        if not existing_code:
+            raise HTTPException(status_code=404, detail="Converted code not found")
+            
+        if existing_code['user_id'] != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Not authorized to update this code")
+        
+        # 변환된 코드 수정
+        cur.execute("""
+            UPDATE converted_codes
+            SET description = %s,
+                converted_code = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING id, source_code_id, description, converted_code, user_id, created_at
+        """, (
+            converted_code.description,
+            converted_code.converted_code,
+            converted_code_id
+        ))
+        
+        result = cur.fetchone()
+        
+        # 부모 코드의 제목 조회
+        cur.execute("""
+            SELECT title as source_code_title
+            FROM code_blocks
+            WHERE id = %s
+        """, (result['source_code_id'],))
+        parent_code = cur.fetchone()
+        
+        # 사용자 정보 조회
+        cur.execute("""
+            SELECT name, email
+            FROM users
+            WHERE id = %s
+        """, (current_user["id"],))
+        user_info = cur.fetchone()
+        
+        formatted_result = dict(result)
+        formatted_result['source_code_title'] = parent_code['source_code_title']
+        if user_info:
+            formatted_result['user'] = {
+                'name': user_info['name'],
+                'email': user_info['email']
+            }
+            
+        conn.commit()
+        return formatted_result
+    except Exception as e:
+        logger.error(f"변환된 코드 수정 중 오류 발생: {e}")
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
         conn.close() 
