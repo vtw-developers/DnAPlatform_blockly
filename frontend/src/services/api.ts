@@ -542,10 +542,12 @@ export class CodeBlockApi {
 
   async updateConvertedCode(
     id: number,
+    sourceCodeId: number,
     description: string,
     convertedCode: string
   ): Promise<any> {
     const response = await axios.put(`${this.baseUrl}/code/converted/${id}`, {
+      source_code_id: sourceCodeId,
       description,
       converted_code: convertedCode
     });
