@@ -13,7 +13,7 @@
 }
 
 .console-container {
-  margin: 20px 0;
+  margin: 10px 0;
   border: 1px solid #ccc;
   border-radius: 4px;
   background-color: #1e1e1e;
@@ -39,8 +39,8 @@
 
 .console-output {
   padding: 10px;
-  min-height: 150px;
-  max-height: 300px;
+  min-height: 60px;
+  max-height: 100px;
   overflow-y: auto;
   font-family: 'Consolas', monospace;
   font-size: 14px;
@@ -73,18 +73,11 @@
   color: #4dabf7;
 }
 
-.result-container {
-  margin-top: 20px;
+.result-container {  
   width: 100%;
   box-sizing: border-box;
 }
 
-.converted-code-container {
-  margin-bottom: 20px;
-  width: 100%;
-}
-
-.converted-code-container h4,
 .memo-container h4 {
   margin: 0 0 10px 0;
   color: #333;
@@ -123,7 +116,7 @@
 }
 
 .convert-button {
-  margin: 20px 0;
+  margin: 10px 0;
   padding: 10px 20px;
   background-color: #007bff;
   color: white;
@@ -161,25 +154,14 @@
   z-index: 1000;
 }
 
-.save-form {
-  margin-bottom: 20px;
+.save-form {  
   padding: 15px;
   background-color: #f8f9fa;
   border-radius: 4px;
   border: 1px solid #dee2e6;
 }
 
-.title-input {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.convert-save-button {
-  margin-top: 10px;
+.convert-save-button {  
   padding: 8px 16px;
   background-color: #28a745;
   color: white;
@@ -197,10 +179,6 @@
 .convert-save-button:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
-}
-
-.converted-blocks-container {
-  margin-top: 20px;
 }
 
 .converted-blocks-list {
@@ -251,7 +229,7 @@
 
 .source-title {
   padding: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
   background-color: #e9ecef;
   border-radius: 4px;
   font-size: 14px;
