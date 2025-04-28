@@ -522,6 +522,36 @@ export class CodeBlockApi {
     }
     return await response.json();
   }
+
+  async saveConvertedCode(sourceCodeId: number, title: string, description: string, convertedCode: string): Promise<any> {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/code/converted`,
+        {
+          source_code_id: sourceCodeId,
+          title,
+          description,
+          converted_code: convertedCode
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error saving converted code:', error);
+      throw error;
+    }
+  }
+
+  async getConvertedCodes(sourceCodeId: number): Promise<any> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/code/converted/${sourceCodeId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching converted codes:', error);
+      throw error;
+    }
+  }
 }
 
 export const codeBlockApi = new CodeBlockApi();

@@ -121,8 +121,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     closePopup('execution');
   };
 
-  const handleConvertCode = (code: string) => {
-    openPopup('conversion');    
+  const handleConvertCode = () => {
+    handleConvert(currentCode, title);
   };
 
   const handleVerifyCodeWithModel = (code: string, model: string) => {
@@ -242,20 +242,22 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         isExecuting={executionStatus === '실행 중'}
       />
 
-      <ConversionPopup
-        isOpen={isOpen.conversion}
-        onClose={() => {
-          handleCloseConversionPopup();
-          closePopup('conversion');
-        }}
-        status={conversionStatus || ''}
-        dagRunId={conversionDagRunId || null}
-        error={conversionError || null}
-        isConverting={isConverting}
-        elapsedTime={conversionElapsedTime}
-        onConvert={() => handleConvert(currentCode)}
-        convertedCode={convertedCode}
-      />
+      {isConversionPopupOpen && (
+        <ConversionPopup
+          isOpen={isConversionPopupOpen}
+          onClose={handleCloseConversionPopup}
+          status={conversionStatus}
+          dagRunId={conversionDagRunId || undefined}
+          error={conversionError || undefined}
+          isConverting={isConverting}
+          elapsedTime={conversionElapsedTime}
+          onConvert={() => handleConvert(currentCode, title)}
+          convertedCode={convertedCode}
+          currentUser={user}
+          sourceCodeTitle={title}
+          sourceCodeId={selectedBlocks[0] || 0}
+        />
+      )}
 
       <DeployPopup
         isOpen={isOpen.deploy}

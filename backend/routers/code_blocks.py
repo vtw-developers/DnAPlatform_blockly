@@ -30,6 +30,22 @@ class CodeBlock(CodeBlockBase):
     created_at: datetime
     updated_at: datetime
 
+class ConvertedCodeBase(BaseModel):
+    source_code_id: int
+    title: str
+    description: str
+    converted_code: str
+
+class ConvertedCode(ConvertedCodeBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    user: Optional[UserInfo] = None
+
+class ConvertedCodeResponse(BaseModel):
+    blocks: List[ConvertedCode]
+    total: int
+
 class CodeBlockResponse(BaseModel):
     blocks: List[CodeBlock]
     total: int
@@ -322,4 +338,119 @@ async def toggle_share_code_block(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if conn:
-            conn.close() 
+            conn.close()
+
+@router.post("/code/converted", response_model=ConvertedCode)
+async def save_converted_code(
+    converted_code: ConvertedCodeBase,
+    current_user: dict = Depends(get_current_user)
+):
+    """변환된 코드 저장"""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        
+        # 원본 코드 존재 여부 확인
+        cur.execute("""
+            SELECT id FROM code_blocks WHERE id = %s
+        """, (converted_code.source_code_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Source code not found")
+        
+        # 변환된 코드 저장
+        cur.execute("""
+            INSERT INTO converted_codes (
+                source_code_id, title, description, converted_code, user_id
+            ) VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, source_code_id, title, description, converted_code, user_id, created_at
+        """, (
+            converted_code.source_code_id,
+            converted_code.title,
+            converted_code.description,
+            converted_code.converted_code,
+            current_user["id"]
+        ))
+        
+        result = cur.fetchone()
+        
+        # 사용자 정보 조회
+        cur.execute("""
+            SELECT name, email
+            FROM users
+            WHERE id = %s
+        """, (current_user["id"],))
+        user_info = cur.fetchone()
+        
+        formatted_result = dict(result)
+        if user_info:
+            formatted_result['user'] = {
+                'name': user_info['name'],
+                'email': user_info['email']
+            }
+            
+        conn.commit()
+        return formatted_result
+    except Exception as e:
+        logger.error(f"변환된 코드 저장 중 오류 발생: {e}")
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.get("/code/converted/{source_code_id}", response_model=ConvertedCodeResponse)
+async def get_converted_codes(
+    source_code_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """변환된 코드 목록 조회"""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        
+        # 원본 코드 존재 여부 확인
+        cur.execute("""
+            SELECT id FROM code_blocks WHERE id = %s
+        """, (source_code_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Source code not found")
+        
+        # 변환된 코드 목록 조회
+        cur.execute("""
+            SELECT 
+                cc.id, 
+                cc.source_code_id, 
+                cc.title, 
+                cc.description, 
+                cc.converted_code, 
+                cc.user_id,
+                cc.created_at,
+                u.name as user_name,
+                u.email as user_email
+            FROM converted_codes cc
+            LEFT JOIN users u ON cc.user_id = u.id
+            WHERE cc.source_code_id = %s
+            ORDER BY cc.created_at DESC
+        """, (source_code_id,))
+        
+        blocks = cur.fetchall()
+        
+        # 작성자 정보 포맷팅
+        formatted_blocks = []
+        for block in blocks:
+            formatted_block = dict(block)
+            if block['user_name'] and block['user_email']:
+                formatted_block['user'] = {
+                    'name': block['user_name'],
+                    'email': block['user_email']
+                }
+            formatted_block.pop('user_name', None)
+            formatted_block.pop('user_email', None)
+            formatted_blocks.append(formatted_block)
+            
+        return {"blocks": formatted_blocks, "total": len(formatted_blocks)}
+    except Exception as e:
+        logger.error(f"변환된 코드 목록 조회 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close() 
