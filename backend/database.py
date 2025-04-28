@@ -103,7 +103,6 @@ def create_tables():
                 CREATE TABLE converted_codes (
                     id SERIAL PRIMARY KEY,
                     source_code_id INTEGER REFERENCES code_blocks(id) ON DELETE CASCADE,
-                    title VARCHAR(255) NOT NULL,
                     description TEXT,
                     converted_code TEXT NOT NULL,
                     user_id INTEGER REFERENCES users(id),

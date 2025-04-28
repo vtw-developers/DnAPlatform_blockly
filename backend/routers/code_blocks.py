@@ -32,7 +32,6 @@ class CodeBlock(CodeBlockBase):
 
 class ConvertedCodeBase(BaseModel):
     source_code_id: int
-    title: str
     description: str
     converted_code: str
 
@@ -360,12 +359,11 @@ async def save_converted_code(
         # 변환된 코드 저장
         cur.execute("""
             INSERT INTO converted_codes (
-                source_code_id, title, description, converted_code, user_id
-            ) VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, source_code_id, title, description, converted_code, user_id, created_at
+                source_code_id, description, converted_code, user_id
+            ) VALUES (%s, %s, %s, %s)
+            RETURNING id, source_code_id, description, converted_code, user_id, created_at
         """, (
             converted_code.source_code_id,
-            converted_code.title,
             converted_code.description,
             converted_code.converted_code,
             current_user["id"]
@@ -420,7 +418,7 @@ async def get_converted_codes(
             SELECT 
                 cc.id, 
                 cc.source_code_id, 
-                cc.title, 
+                cb.title as source_code_title,
                 cc.description, 
                 cc.converted_code, 
                 cc.user_id,
@@ -428,6 +426,7 @@ async def get_converted_codes(
                 u.name as user_name,
                 u.email as user_email
             FROM converted_codes cc
+            LEFT JOIN code_blocks cb ON cc.source_code_id = cb.id
             LEFT JOIN users u ON cc.user_id = u.id
             WHERE cc.source_code_id = %s
             ORDER BY cc.created_at DESC
