@@ -107,6 +107,25 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           <button className="popup-close" onClick={onClose}>&times;</button>
         </div>
         <div className="popup-body">
+          <div className="converted-blocks-container">
+            <h4>저장된 변환 코드 목록</h4>
+            <div className="converted-blocks-list">
+              {convertedBlocks.map((block) => (
+                <div key={block.id} className="converted-block-item">
+                  <div className="block-header">
+                    <span className="block-title">{block.title}</span>
+                    <span className="block-date">
+                      {new Date(block.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="block-description">{block.description}</div>
+                </div>
+              ))}
+              {convertedBlocks.length === 0 && (
+                <div className="no-blocks">저장된 변환 코드가 없습니다.</div>
+              )}
+            </div>
+          </div>
           <button 
             className="convert-button primary" 
             onClick={onConvert}
@@ -150,8 +169,14 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           
           {convertedCode && (
             <div className="result-container">
-              <div className="save-form">
-                <h4>코드 저장</h4>
+              <div className="save-form">                                
+                <h4>변환된 코드</h4>
+                <textarea
+                  className="converted-code-textarea"
+                  value={convertedCode}
+                  readOnly
+                  rows={10}
+                />
                 <div className="source-title">원본 코드: {sourceCodeTitle}</div>
                 <textarea
                   className="memo-textarea"
@@ -168,43 +193,8 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                   {isSaving ? '저장 중...' : '저장'}
                 </button>
               </div>
-
-              <div className="converted-code-container">
-                <h4>변환된 코드</h4>
-                <textarea
-                  className="converted-code-textarea"
-                  value={convertedCode}
-                  readOnly
-                  rows={10}
-                />
-              </div>
             </div>
-          )}
-
-          <div className="converted-blocks-container">
-            <h4>저장된 변환 코드 목록</h4>
-            <div className="converted-blocks-list">
-              {convertedBlocks.map((block) => (
-                <div key={block.id} className="converted-block-item">
-                  <div className="block-header">
-                    <span className="block-title">{block.title}</span>
-                    <span className="block-date">
-                      {new Date(block.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="block-description">{block.description}</div>
-                </div>
-              ))}
-              {convertedBlocks.length === 0 && (
-                <div className="no-blocks">저장된 변환 코드가 없습니다.</div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="popup-footer">
-          <button className="popup-button primary" onClick={onClose}>
-            확인
-          </button>
+          )}          
         </div>
       </div>
     </div>
