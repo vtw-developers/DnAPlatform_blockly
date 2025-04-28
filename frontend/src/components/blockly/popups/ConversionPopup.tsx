@@ -48,10 +48,14 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<ConvertedCodeBlock | null>(null);
+  const [displayCode, setDisplayCode] = useState<string>('');
   
   useEffect(() => {
     if (isOpen) {
       loadConvertedBlocks();
+      setSelectedBlock(null);
+      setMemo('');
+      setDisplayCode('');
     }
   }, [isOpen]);
 
@@ -67,33 +71,60 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const handleBlockClick = (block: ConvertedCodeBlock) => {
     setSelectedBlock(block);
     setMemo(block.description);
+    setDisplayCode(block.converted_code);
+  };
+
+  const handleConvert = () => {
+    setSelectedBlock(null);
+    setMemo('');
+    setDisplayCode('');
+    onConvert();
   };
 
   const handleSave = async () => {
-    if (!selectedBlock) {
-      alert('수정할 코드를 선택해주세요.');
+    if (!displayCode) {
+      alert('변환된 코드가 필요합니다.');
       return;
     }
 
     setIsSaving(true);
     try {
-      await codeBlockApi.updateConvertedCode(
-        selectedBlock.id,
-        memo,
-        selectedBlock.converted_code
-      );
+      if (selectedBlock) {
+        // 기존 코드 수정
+        await codeBlockApi.updateConvertedCode(
+          selectedBlock.id,
+          memo,
+          displayCode
+        );
+        alert('변환된 코드가 수정되었습니다.');
+      } else {
+        // 새로운 코드 저장
+        await codeBlockApi.saveConvertedCode(
+          sourceCodeId,
+          sourceCodeTitle,
+          memo,
+          displayCode
+        );
+        alert('변환된 코드가 저장되었습니다.');
+      }
       
-      await loadConvertedBlocks();
-      setSelectedBlock(null);
       setMemo('');
-      alert('변환된 코드가 수정되었습니다.');
+      setDisplayCode('');
+      setSelectedBlock(null);
+      await loadConvertedBlocks();
     } catch (error) {
-      console.error('코드 수정 실패:', error);
-      alert('코드 수정에 실패했습니다.');
+      console.error('코드 저장 실패:', error);
+      alert('코드 저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (convertedCode) {
+      setDisplayCode(convertedCode);
+    }
+  }, [convertedCode]);
 
   const getStatusClass = () => {
     if (error) return 'error';
@@ -137,7 +168,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           </div>
           <button 
             className="convert-button primary" 
-            onClick={onConvert}
+            onClick={handleConvert}
             disabled={isConverting}
           >
             {isConverting ? '변환 중...' : '변환 시작'}
@@ -176,14 +207,14 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
             </div>
           </div>
           
-          {selectedBlock && (
+          {(displayCode || selectedBlock) && (
             <div className="result-container">
               <div className="save-form">                                
                 <h4>변환된 코드</h4>
                 <pre className="converted-code-textarea">
-                  {selectedBlock.converted_code}
+                  {displayCode}
                 </pre>
-                <div className="source-title">원본 코드: {selectedBlock.source_code_title}</div>
+                <div className="source-title">원본 코드: {selectedBlock ? selectedBlock.source_code_title : sourceCodeTitle}</div>
                 <textarea
                   className="memo-textarea"
                   value={memo}
