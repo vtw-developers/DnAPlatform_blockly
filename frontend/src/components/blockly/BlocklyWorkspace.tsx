@@ -39,7 +39,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     conversionDagRunId,
     conversionElapsedTime,
     handleConvert,
-    handleCloseConversionPopup
+    handleCloseConversionPopup,
+    startConversion
   } = useConversion();
 
   const { isOpen, openPopup, closePopup } = usePopups();
@@ -251,7 +252,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           error={conversionError || undefined}
           isConverting={isConverting}
           elapsedTime={conversionElapsedTime}
-          onConvert={() => handleConvert(currentCode, title)}
+          onConvert={startConversion}
           convertedCode={convertedCode}
           currentUser={user}
           sourceCodeTitle={title}

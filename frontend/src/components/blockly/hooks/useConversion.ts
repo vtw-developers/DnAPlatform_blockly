@@ -10,54 +10,66 @@ export const useConversion = () => {
   const [conversionDagRunId, setConversionDagRunId] = useState<string | null>(null);
   const [conversionElapsedTime, setConversionElapsedTime] = useState(0);
   const [sourceCodeTitle, setSourceCodeTitle] = useState<string>('');
+  const [currentCode, setCurrentCode] = useState<string>('');
   
   const conversionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const conversionElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleConvert = async (currentCode: string, title: string) => {
-    if (!currentCode.trim()) {
+  const handleConvert = async (code: string, title: string) => {
+    if (!code.trim()) {
       alert('변환할 코드가 없습니다.');
       return;
     }
 
     setIsConversionPopupOpen(true);
-    setConversionStatus('변환 시작...');
+    setCurrentCode(code);
+    setSourceCodeTitle(title);
+    setConversionStatus('');
     setConversionError(null);
     setConvertedCode('');
-    setIsConverting(true);
+    setIsConverting(false);
+    setConversionDagRunId(null);
     setConversionElapsedTime(0);
-    setSourceCodeTitle(title);
-    
+  };
+
+  const startConversion = async () => {
+    if (!currentCode) {
+      alert('변환할 코드가 없습니다.');
+      return;
+    }
+
+    // 변환 시작 시 상태 초기화
+    setConvertedCode('');
+    setConversionStatus('변환 시작...');
+    setConversionError(null);
+    setConversionDagRunId(null);
+    setConversionElapsedTime(0);
+    setIsConverting(true);
+
     try {
       const response = await codeBlockApi.convertCode(currentCode, 'python');
-      console.log("Conversion initiated:", response);
+      setConversionDagRunId(response.dag_run_id);
+      setConversionStatus('변환 진행 중...');
       
-      if (response.dag_run_id) {
-        setConversionDagRunId(response.dag_run_id);
-        
-        // 상태 폴링 시작
-        if (conversionTimerRef.current) {
-          clearInterval(conversionTimerRef.current);
-        }
-        conversionTimerRef.current = setInterval(() => {
-          checkConversionResult(response.dag_run_id);
-        }, 2000);
-
-        // 경과 시간 타이머 시작
-        if (conversionElapsedTimeRef.current) {
-          clearInterval(conversionElapsedTimeRef.current);
-        }
-        conversionElapsedTimeRef.current = setInterval(() => {
-          setConversionElapsedTime(prev => prev + 1);
-        }, 1000);
-
-      } else {
-        throw new Error('DAG 실행 ID를 받지 못했습니다.');
+      // 상태 폴링 시작
+      if (conversionTimerRef.current) {
+        clearInterval(conversionTimerRef.current);
       }
+      conversionTimerRef.current = setInterval(() => {
+        checkConversionResult(response.dag_run_id);
+      }, 2000);
+
+      // 경과 시간 타이머 시작
+      if (conversionElapsedTimeRef.current) {
+        clearInterval(conversionElapsedTimeRef.current);
+      }
+      conversionElapsedTimeRef.current = setInterval(() => {
+        setConversionElapsedTime(prev => prev + 1);
+      }, 1000);
     } catch (error) {
-      console.error('Error during conversion initiation:', error);
-      setConversionStatus('변환 시작 실패');
-      setConversionError(error instanceof Error ? error.message : '변환 시작 중 오류 발생');
+      console.error('Error during conversion:', error);
+      setConversionStatus('변환 실패');
+      setConversionError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
       setIsConverting(false);
     }
   };
@@ -152,6 +164,7 @@ export const useConversion = () => {
     conversionElapsedTime,
     sourceCodeTitle,
     handleConvert,
+    startConversion,
     handleCloseConversionPopup
   };
 }; 
