@@ -13,6 +13,7 @@ interface ConvertedCodeBlock {
     name: string;
     email: string;
   };
+  source_code_title: string;
 }
 
 interface ConversionPopupProps {
@@ -111,7 +112,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
               {convertedBlocks.map((block) => (
                 <div key={block.id} className="converted-block-item">
                   <div className="block-header">
-                    <span className="block-title">{block.title}</span>
+                    <span className="block-title">{block.source_code_title}</span>
                     <span className="block-date">
                       {new Date(block.created_at).toLocaleDateString()}
                     </span>
