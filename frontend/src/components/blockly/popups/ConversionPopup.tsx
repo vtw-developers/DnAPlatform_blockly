@@ -93,6 +93,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
         // 기존 코드 수정
         await codeBlockApi.updateConvertedCode(
           selectedBlock.id,
+          sourceCodeId,
           memo,
           displayCode
         );

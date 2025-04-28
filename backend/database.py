@@ -106,10 +106,28 @@ def create_tables():
                     description TEXT,
                     converted_code TEXT NOT NULL,
                     user_id INTEGER REFERENCES users(id),
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             logger.info("converted_codes 테이블이 성공적으로 생성되었습니다.")
+        else:
+            # updated_at 컬럼이 존재하는지 확인
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'converted_codes' AND column_name = 'updated_at'
+                ) as exists;
+            """)
+            result = cur.fetchone()
+            updated_at_exists = result['exists']
+
+            if not updated_at_exists:
+                cur.execute("""
+                    ALTER TABLE converted_codes
+                    ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+                """)
+                logger.info("converted_codes 테이블에 updated_at 컬럼이 추가되었습니다.")
 
         # users 테이블 생성
         cur.execute("""
