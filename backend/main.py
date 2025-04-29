@@ -53,8 +53,15 @@ logger.info(f"Configured CORS allowed_origins: {origins}")
 
 # CORS 미들웨어에 디버그 콜백 추가
 async def debug_cors(request, call_next):
-    logger.info(f"Incoming request from origin: {request.headers.get('origin')}")
+    origin = request.headers.get('origin')
+    logger.info(f"Incoming request from origin: {origin}")
     response = await call_next(request)
+    # CORS 헤더 추가
+    if origin in origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     logger.info(f"Response CORS headers: {dict(response.headers)}")
     return response
 
@@ -565,23 +572,105 @@ async def remove_container(request: Request) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/test-service")
-async def test_service(port: int) -> Dict[str, Any]:
+async def test_service(request: Request, port: int) -> Dict[str, Any]:
     """Test a deployed service by making a request to its test endpoint."""
+    logger.info(f"Testing service on port {port}")
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://localhost:{port}/test", timeout=5.0)
-            return {
-                "status": "success",
-                "statusCode": response.status_code,
-                "data": response.json() if response.headers.get("content-type") == "application/json" else response.text
-            }
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Service test timed out")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Error connecting to service: {str(e)}")
+        # 타임아웃 설정 추가
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                # 컨테이너 정보 확인
+                container_names = [f"graalpy-app-{port}", f"graalvm-app-{port}", f"jpype-app-{port}"]
+                container = None
+                host_port = None
+                container_ip = None
+                
+                for container_name in container_names:
+                    try:
+                        container = docker_client.containers.get(container_name)
+                        # 모든 네트워크 확인
+                        networks = container.attrs['NetworkSettings']['Networks']
+                        logger.info(f"Container {container_name} networks: {networks}")
+                        
+                        # 첫 번째 사용 가능한 네트워크의 IP 사용
+                        for network_name, network_settings in networks.items():
+                            if 'IPAddress' in network_settings:
+                                container_ip = network_settings['IPAddress']
+                                logger.info(f"Using IP {container_ip} from network {network_name}")
+                                break
+                        
+                        # 호스트 포트 확인
+                        for port_binding in container.attrs['NetworkSettings']['Ports'].items():
+                            if port_binding[1]:
+                                host_port = port_binding[1][0]['HostPort']
+                                break
+                        
+                        if host_port and container_ip:
+                            break
+                    except docker.errors.NotFound:
+                        continue
+                    except KeyError as e:
+                        logger.warning(f"Container {container_name} network settings not found: {str(e)}")
+                        continue
+                
+                if not container or not host_port or not container_ip:
+                    logger.error(f"Container not found or network settings incomplete for port {port}")
+                    return {
+                        "status": "error",
+                        "message": "컨테이너를 찾을 수 없거나 네트워크 설정이 불완전합니다.",
+                        "details": {"error": {"message": "Container not found or network settings incomplete"}}
+                    }
+                
+                logger.info(f"Found container {container.name} with IP {container_ip} and host port {host_port}")
+                
+                # 서비스 URL 구성 (컨테이너 IP 사용)
+                service_url = f"http://{container_ip}:{port}/test"
+                logger.info(f"Making request to service URL: {service_url}")
+                
+                # 프록시 요청 헤더 설정
+                headers = {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Origin': request.headers.get('origin', '')
+                }
+                
+                response = await client.get(service_url, headers=headers, timeout=5.0)
+                logger.info(f"Service response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    return {
+                        "status": "success",
+                        "statusCode": response.status_code,
+                        "data": response.json() if response.headers.get("content-type") == "application/json" else response.text
+                    }
+                else:
+                    logger.error(f"Service returned non-200 status: {response.status_code}")
+                    return {
+                        "status": "error",
+                        "message": f"서비스가 {response.status_code} 상태로 응답했습니다.",
+                        "details": {"error": {"message": f"Service returned status {response.status_code}"}}
+                    }
+            except httpx.TimeoutException:
+                logger.error(f"Service test timed out for port {port}")
+                return {
+                    "status": "error",
+                    "message": "서비스 응답 시간 초과",
+                    "details": {"error": {"message": "Service test timed out"}}
+                }
+            except httpx.RequestError as e:
+                logger.error(f"Error connecting to service on port {port}: {str(e)}")
+                return {
+                    "status": "error",
+                    "message": "서비스 연결 실패",
+                    "details": {"error": {"message": str(e)}}
+                }
     except Exception as e:
-        logging.error(f"Error testing service: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error testing service on port {port}: {str(e)}")
+        return {
+            "status": "error",
+            "message": "서비스 테스트 중 오류 발생",
+            "details": {"error": {"message": str(e)}}
+        }
 
 @app.get("/api/containers/list")
 async def list_containers() -> List[Dict[str, Any]]:

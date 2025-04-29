@@ -565,6 +565,19 @@ export class CodeBlockApi {
       throw error;
     }
   }
+
+  async testService(port: number) {
+    try {
+      const response = await axios.get(`${this.baseUrl}/test-service`, {
+        params: { port },
+        headers: this.getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('서비스 테스트 중 오류:', error);
+      throw error;
+    }
+  }
 }
 
 export const codeBlockApi = new CodeBlockApi();
