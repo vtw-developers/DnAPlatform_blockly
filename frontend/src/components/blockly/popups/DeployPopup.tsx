@@ -173,10 +173,7 @@ const DeployPopup: React.FC<DeployPopupProps> = ({ isOpen, onClose, pythonCode, 
 
   const handleTestService = async () => {
     try {
-      const response = await fetch(`http://localhost:${port}/test`, {
-        method: 'GET',
-      });
-      const data = await response.json();
+      const data = await codeBlockApi.testService(parseInt(port, 10));
       
       // 에러 응답 처리
       if (data.status === 'error') {
