@@ -121,6 +121,17 @@ export const TOOLBOX_CONFIG = {
         { kind: 'block', type: 'jpype_shutdown_jvm' },
         { kind: 'block', type: 'jpype_java_method_call' }
       ]
+    },
+    {
+      kind: 'category',
+      name: '요약함수',
+      colour: '#6A5ACD',
+      contents: [
+        { kind: 'block', type: 'ast_Summarized_FunctionDef' },
+        { kind: 'block', type: 'ast_FunctionParameter' },
+        { kind: 'block', type: 'ast_ReturnFull' },
+        { kind: 'block', type: 'ast_Name' }
+      ]
     }
   ]
 }; 

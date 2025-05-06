@@ -16,12 +16,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
 import './styles/BlocklyWorkspace.css';
 import { registerJpypeBlocks } from './customBlocks/jpypeBlocks';
+import { registerSummaryBlocks } from './customBlocks/summaryBlocks';
 import { Spin } from 'antd';
 import { extractFunctions } from './utils/javaCodeGenerator';
 import { generateJavaWrapper } from './templates/javaWrapper';
 import DeployPopup from './popups/DeployPopup';
 
 registerJpypeBlocks();
+registerSummaryBlocks();
 
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) => {
   const workspaceRef = useRef<HTMLDivElement>(null);
