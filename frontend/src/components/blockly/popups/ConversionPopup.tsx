@@ -49,6 +49,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<ConvertedCodeBlock | null>(null);
   const [displayCode, setDisplayCode] = useState<string>('');
+  const [checkedIds, setCheckedIds] = useState<number[]>([]);
   
   useEffect(() => {
     if (isOpen) {
@@ -134,6 +135,25 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     return '';
   };
 
+  // 체크박스 토글 핸들러
+  const handleCheck = (id: number) => {
+    setCheckedIds(prev =>
+      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
+    );
+  };
+
+  // 삭제 버튼 클릭 핸들러
+  const handleDelete = async () => {
+    try {
+      await codeBlockApi.deleteConvertedCodes(checkedIds);
+      setConvertedBlocks(blocks => blocks.filter(b => !checkedIds.includes(b.id)));
+      setCheckedIds([]);
+      alert('삭제되었습니다.');
+    } catch (error) {
+      alert('삭제 실패: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -153,6 +173,15 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                   className={`converted-block-item ${selectedBlock?.id === block.id ? 'selected' : ''}`}
                   onClick={() => handleBlockClick(block)}
                 >
+                  <input
+                    type="checkbox"
+                    checked={checkedIds.includes(block.id)}
+                    onChange={e => {
+                      e.stopPropagation();
+                      handleCheck(block.id);
+                    }}
+                    style={{ marginRight: 8 }}
+                  />
                   <div className="block-header">
                     <span className="block-title">{block.source_code_title}</span>
                     <span className="block-date">
@@ -173,8 +202,11 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
             disabled={isConverting}
           >
             {isConverting ? '변환 중...' : '변환 시작'}
-          </button>
-          
+          </button>          {checkedIds.length > 0 && (
+              <button onClick={handleDelete} className="convert-delete-button">
+                선택 삭제
+              </button>
+          )}
           <div className="console-container">
             <div className="console-header">
               <span className="console-title">변환 과정</span>

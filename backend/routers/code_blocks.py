@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -533,6 +533,37 @@ async def update_converted_code(
         return formatted_result
     except Exception as e:
         logger.error(f"변환된 코드 수정 중 오류 발생: {e}")
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.delete("/code/converted")
+async def delete_converted_codes(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    변환된 코드(들) 삭제
+    body: { "ids": [1, 2, 3] }
+    """
+    data = await request.json()
+    ids: List[int] = data.get('ids', [])
+    if not ids:
+        raise HTTPException(status_code=400, detail="No ids provided")
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        # 본인 소유 코드만 삭제
+        cur.execute(
+            "DELETE FROM converted_codes WHERE id = ANY(%s) AND user_id = %s",
+            (ids, current_user["id"])
+        )
+        conn.commit()
+        return {"success": True, "deleted": cur.rowcount}
+    except Exception as e:
         if conn:
             conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
