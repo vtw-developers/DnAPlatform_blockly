@@ -578,6 +578,18 @@ export class CodeBlockApi {
       throw error;
     }
   }
+
+  async deleteConvertedCodes(ids: number[]): Promise<void> {
+    try {
+      await axios.delete(`${this.baseUrl}/code/converted`, {
+        headers: this.getHeaders(),
+        data: { ids }
+      });
+    } catch (error) {
+      console.error('변환 코드 삭제 중 오류 발생:', error);
+      throw error;
+    }
+  }
 }
 
 export const codeBlockApi = new CodeBlockApi();
