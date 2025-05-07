@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { BlocklyWorkspaceProps } from './types/blockly.types';
+import { BlocklyWorkspaceProps } from 'src/types/blockly';
 import { useBlocklySetup } from './hooks/useBlocklySetup';
 import { useCodeExecution } from './hooks/useCodeExecution';
 import { useVerification } from './hooks/useVerification';

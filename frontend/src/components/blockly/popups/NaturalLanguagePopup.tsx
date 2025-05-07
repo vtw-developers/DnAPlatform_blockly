@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NaturalLanguagePopupProps, ChatMessage, LLMModel } from '../types/blockly.types';
+import { NaturalLanguagePopupProps, ChatMessage, LLMModel } from 'src/types/blockly';
 import { codeBlockApi } from '../../../services/api';
 import '../styles/Popup.css';
 

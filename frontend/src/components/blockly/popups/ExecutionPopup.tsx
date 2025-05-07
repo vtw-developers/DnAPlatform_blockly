@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExecutionPopupProps } from '../types/blockly.types';
+import { ExecutionPopupProps } from 'src/types/blockly';
 import '../styles/Popup.css';
 
 export const ExecutionPopup: React.FC<ExecutionPopupProps> = ({
