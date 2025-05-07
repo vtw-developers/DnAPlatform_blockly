@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { codeBlockApi } from '../../../services/api';
-import { ExecutionResult } from '../types/blockly.types';
+import { ExecutionResult } from 'src/types/blockly';
 
 export const useCodeExecution = () => {
   const [executionStatus, setExecutionStatus] = useState<string>('');
