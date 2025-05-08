@@ -11,7 +11,22 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-data:/var/lib/postgresql/data      
+    restart: always
+    networks:
+      - blockly_network
+
+  airflow-db:
+    image: postgres:15-alpine
+    container_name: dna-platform-airflow-db
+    environment:
+      POSTGRES_DB: airflow_db
+      POSTGRES_USER: airflow_user
+      POSTGRES_PASSWORD: airflow_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./docker/airflow/postgres-data:/var/lib/postgresql/data
     restart: always
     networks:
       - blockly_network
@@ -52,6 +67,41 @@ services:
     restart: always
     networks:
       - blockly_network
+
+  airflow:
+    image: apache/airflow:2.7.3
+    container_name: dna-platform-airflow
+    user: "50000:0"
+    depends_on:
+      - airflow-db
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow_user:airflow_password@airflow-db:5432/airflow_db
+      - AIRFLOW__CORE__FERNET_KEY=your_fernet_key_here
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/airflow/dags:/opt/airflow/dags
+      - ./docker/airflow/logs:/opt/airflow/logs
+      - ./docker/airflow/plugins:/opt/airflow/plugins
+      - ./docker/airflow/data:/opt/airflow/data
+    restart: always
+    networks:
+      - blockly_network
+    command: >
+      bash -c "
+        while ! pg_isready -h airflow-db -p 5432 -U airflow_user; do
+          echo 'Waiting for airflow-db...';
+          sleep 2;
+        done;
+        airflow db migrate &&
+        airflow users create --username admin --password vtw210302 --firstname admin --lastname admin --role Admin --email admin@example.com || true &&
+        airflow scheduler & airflow webserver"    
 
 volumes:
   postgres_data: 
