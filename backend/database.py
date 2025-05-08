@@ -65,6 +65,7 @@ def create_tables():
                     code TEXT NOT NULL,
                     blockly_xml TEXT,
                     user_id INTEGER REFERENCES users(id),
+                    is_shared BOOLEAN NOT NULL DEFAULT false,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )

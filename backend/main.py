@@ -21,6 +21,7 @@ from routers import code_blocks, ai_services, proxy, auth, deploy
 from database import wait_for_db, create_tables
 import shutil
 import pytz
+from routers.auth import create_admin_if_not_exists
 
 # 환경 설정 로드
 env = os.getenv('ENV', 'development')
@@ -708,6 +709,10 @@ async def list_containers() -> List[Dict[str, Any]]:
     except Exception as e:
         logging.error(f"Error listing containers: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("startup")
+async def startup_event():
+    await create_admin_if_not_exists()
 
 # Example: If running directly with uvicorn
 # if __name__ == "__main__":

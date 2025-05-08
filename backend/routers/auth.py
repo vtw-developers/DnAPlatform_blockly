@@ -39,10 +39,6 @@ async def create_admin_if_not_exists():
     finally:
         conn.close()
 
-# 서버 시작 시 관리자 계정 생성
-import asyncio
-asyncio.create_task(create_admin_if_not_exists())
-
 @router.post("/register", response_model=User)
 async def register(user: UserCreate):
     """새로운 사용자 등록"""
