@@ -130,7 +130,9 @@ export const TOOLBOX_CONFIG = {
         { kind: 'block', type: 'ast_Summarized_FunctionDef' },
         { kind: 'block', type: 'ast_FunctionParameter' },
         { kind: 'block', type: 'ast_ReturnFull' },
-        { kind: 'block', type: 'ast_Name' }
+        { kind: 'block', type: 'ast_Name' },
+        { kind: 'block', type: 'procedures_callreturn' },
+        { kind: 'block', type: 'procedures_callnoreturn' }
       ]
     }
   ]
