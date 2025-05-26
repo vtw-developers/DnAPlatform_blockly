@@ -128,7 +128,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     handleConvert(currentCode, title);
   };
 
-  const handleVerifyCodeWithModel = (code: string, model: string) => {
+  const handleVerifyCodeWithModel = (code: string, model: any | null) => {
+    if (!model) return;
     openPopup('verification');
     handleVerifyCode(code, model);
   };

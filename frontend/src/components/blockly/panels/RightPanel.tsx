@@ -20,7 +20,7 @@ interface RightPanelProps {
   isConverting: boolean;
   isVerifying: boolean;
   models: Model[];
-  selectedModel: string;
+  selectedModel: Model | null;
   isLoadingModels: boolean;
   shouldRefresh: boolean;
   currentUser: User | null;
@@ -32,9 +32,9 @@ interface RightPanelProps {
   onToggleShare: (userId: number | null, block: CodeBlock) => Promise<void>;
   onExecute: () => void;
   onConvert: (code: string) => void;
-  onVerify: (code: string, model: string) => void;
+  onVerify: (code: string, model: Model | null) => void;
   onDeploy: () => void;
-  onModelSelect: (model: string) => void;
+  onModelSelect: (model: Model | null) => void;
   onBlockSelect: (block: CodeBlock) => void;
   onRefreshComplete: () => void;
   onDeleteComplete: () => void;

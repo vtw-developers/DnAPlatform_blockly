@@ -291,14 +291,15 @@ export class CodeBlockApi {
     }
   }
 
-  async verifyCode(code: string, model_name: string): Promise<{ dag_run_id: string }> {
-    console.log(`Requesting verification via backend for model: ${model_name}`);
+  async verifyCode(code: string, model_name: string, model_type: string): Promise<{ dag_run_id: string }> {
+    console.log(`Requesting verification via backend for model: ${model_name}, type: ${model_type}`);
     try {
       const response = await axios.post<{ dag_run_id: string }>(
         `${this.baseUrl}/code/verify`, 
         {
           code: code,
-          model_name: model_name
+          model_name: model_name,
+          model_type: model_type
         },
         {
           headers: {
