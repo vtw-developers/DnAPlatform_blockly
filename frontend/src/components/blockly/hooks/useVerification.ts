@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { codeBlockApi } from '../../../services/api';
+import { Model } from '../types/model.types';
 
 interface UseVerificationProps {
   onError?: (error: string) => void;
@@ -37,7 +38,7 @@ export const useVerification = ({
     };
   }, []);
 
-  const handleVerifyCode = async (code: string, model: string) => {
+  const handleVerifyCode = async (code: string, model: Model) => {
     if (!code.trim() || !model) {
       onError?.('코드와 모델을 모두 선택해주세요.');
       return;
@@ -51,7 +52,7 @@ export const useVerification = ({
     setVerificationElapsedTime(0);
 
     try {
-      const response = await codeBlockApi.verifyCode(code, model);
+      const response = await codeBlockApi.verifyCode(code, model.name, model.type);
       setVerificationDagRunId(response.dag_run_id);
       startTimeRef.current = Date.now();
 

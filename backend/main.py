@@ -99,6 +99,7 @@ app.include_router(deploy.router, prefix="/api", tags=["deploy"])
 class CodeVerifyRequest(BaseModel):
     code: str
     model_name: str
+    model_type: str
 
 class VerifyResponse(BaseModel):
     dag_run_id: str
@@ -126,7 +127,8 @@ async def trigger_code_verification(payload: CodeVerifyRequest):
         "dag_run_id": dag_run_id,
         "conf": {
             "origin_code": payload.code,
-            "model_name": payload.model_name
+            "model_name": payload.model_name,
+            "model_type": payload.model_type
         }
     }
     headers = {
@@ -189,7 +191,8 @@ async def trigger_code_conversion(payload: CodeVerifyRequest):
         "dag_run_id": dag_run_id,
         "conf": {
             "origin_code": payload.code,
-            "model_name": payload.model_name
+            "model_name": payload.model_name,
+            "model_type": payload.model_type
         }
     }
     headers = {

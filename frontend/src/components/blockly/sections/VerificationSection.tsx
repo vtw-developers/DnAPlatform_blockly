@@ -3,11 +3,11 @@ import { Model } from '../types/model.types';
 import '../styles/Sections.css';
 
 interface VerificationSectionProps {
-  selectedModel: string;
+  selectedModel: Model | null;
   models: Model[];
   isLoadingModels: boolean;
   isVerifying: boolean;
-  onModelSelect: (model: string) => void;
+  onModelSelect: (model: Model | null) => void;
   onVerify: () => void;
   disabled: boolean;
 }
@@ -26,8 +26,11 @@ export const VerificationSection: React.FC<VerificationSectionProps> = ({
       <h3 className="section-title">코드 검증</h3>
       <div className="verify-container">
         <select
-          value={selectedModel}
-          onChange={(e) => onModelSelect(e.target.value)}
+          value={selectedModel?.name || ''}
+          onChange={(e) => {
+            const model = models.find(m => m.name === e.target.value) || null;
+            onModelSelect(model);
+          }}
           className="model-select"
           disabled={isLoadingModels || models.length === 0}
         >

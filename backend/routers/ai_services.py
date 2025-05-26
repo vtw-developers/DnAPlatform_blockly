@@ -22,13 +22,12 @@ class CodeExecuteResponse(BaseModel):
 
 class CodeVerifyRequest(BaseModel):
     code: str
-    model_name: str = "qwen2.5-coder:32b"
+    model_name: str = "qwen3:32b"
 
 class ModelInfo(BaseModel):
     name: str
-    size: int
-    digest: str
-    modified_at: str
+    type: str
+    description: str
 
 class GenerateBlockRequest(BaseModel):
     description: str
@@ -37,8 +36,17 @@ class GenerateBlockRequest(BaseModel):
 
 class PythonToBlocklyRequest(BaseModel):
     python_code: str
-    model_name: str = "qwen2.5-coder:32b"
+    model_name: str = "qwen3:32b"
     model_type: str = "ollama"
+
+def get_available_models():
+    """환경 변수에서 사용 가능한 모델 목록을 가져옵니다."""
+    try:
+        models_json = os.getenv("AVAILABLE_MODELS", "[]")
+        return json.loads(models_json)
+    except json.JSONDecodeError as e:
+        logger.error(f"모델 목록 JSON 파싱 오류: {e}")
+        return []
 
 @router.post("/execute-code", response_model=CodeExecuteResponse)
 async def execute_code(request: CodeExecuteRequest):
@@ -80,47 +88,47 @@ async def execute_code(request: CodeExecuteRequest):
 @router.get("/models")
 async def get_models():
     try:
+        # 환경 변수에서 모델 목록 가져오기
+        available_models = get_available_models()
+        if not available_models:
+            logger.error("환경 변수에서 모델 목록을 가져올 수 없습니다.")
+            raise HTTPException(status_code=500, detail="모델 목록이 설정되지 않았습니다.")
+
+        # Ollama 모델 정보 가져오기
         ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
         async with httpx.AsyncClient() as client:
-            # Ollama 모델 가져오기
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            }
-            response = await client.get(f"{ollama_url}/api/tags", headers=headers, timeout=30.0)
-            if response.status_code != 200:
-                logger.error(f"Ollama API 응답: {response.status_code}, {response.text}")
-                raise HTTPException(status_code=response.status_code, detail="Ollama 서버에서 모델 목록을 가져오는데 실패했습니다.")
-            
-            data = response.json()
-            logger.info(f"Ollama API 응답: {data}")
-            ollama_models = data.get("models", [])
-            
-            # OpenAI 모델 추가
-            openai_models = [
-                {"name": "gpt-4-0125-preview", "type": "openai", "size": 0, "modified_at": "", "digest": "", "description": "최신 GPT-4 모델, 코드 생성 능력 향상"},
-                {"name": "gpt-4-1106-preview", "type": "openai", "size": 0, "modified_at": "", "digest": "", "description": "JSON 모드 지원, 구조화된 출력에 강점"},
-                {"name": "gpt-4-vision-preview", "type": "openai", "size": 0, "modified_at": "", "digest": "", "description": "시각적 이해 가능, 블록 구조 분석에 유용"},
-                {"name": "gpt-3.5-turbo-0125", "type": "openai", "size": 0, "modified_at": "", "digest": "", "description": "빠른 응답, 기본적인 코드 생성"}
-            ]
-            
-            # Ollama 모델 형식 변환
-            formatted_ollama_models = [
-                {
-                    "name": model["name"],
-                    "type": "ollama",
-                    "size": model.get("size", 0),
-                    "digest": model.get("digest", ""),
-                    "modified_at": model.get("modified_at", "")
+            try:
+                headers = {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
                 }
-                for model in ollama_models
-            ]
-            
-            logger.info(f"포맷된 Ollama 모델: {formatted_ollama_models}")
-            
-            # 모든 모델 합치기
-            all_models = formatted_ollama_models + openai_models
-            return {"models": all_models}
+                response = await client.get(f"{ollama_url}/api/tags", headers=headers, timeout=30.0)
+                if response.status_code != 200:
+                    logger.error(f"Ollama API 응답: {response.status_code}, {response.text}")
+                    raise HTTPException(status_code=response.status_code, detail="Ollama 서버에서 모델 목록을 가져오는데 실패했습니다.")
+                
+                data = response.json()
+                logger.info(f"Ollama API 응답: {data}")
+                ollama_models = data.get("models", [])
+                
+                # Ollama 모델 정보 업데이트
+                for model in available_models:
+                    if model["type"] == "ollama":
+                        # Ollama 서버에서 해당 모델 정보 찾기
+                        ollama_model = next((m for m in ollama_models if m["name"] == model["name"]), None)
+                        if ollama_model:
+                            model.update({
+                                "size": ollama_model.get("size", 0),
+                                "digest": ollama_model.get("digest", ""),
+                                "modified_at": ollama_model.get("modified_at", "")
+                            })
+                
+                return {"models": available_models}
+                
+            except httpx.RequestError as e:
+                logger.error(f"Ollama API 요청 오류: {e}")
+                # Ollama 서버 연결 실패 시에도 설정된 모델 목록은 반환
+                return {"models": available_models}
             
     except Exception as e:
         logger.error(f"모델 목록 조회 중 오류 발생: {e}")
