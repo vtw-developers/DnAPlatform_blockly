@@ -56,6 +56,16 @@ docker/
 postgres-data/
 ollama-data/
 
+# Airflow DAGs (선택적 - 개발 중인 DAG는 포함)
+# docker/airflow/dags/*.py
+# docker/airflow/dags/equiv_task_dag.py
+
+# Docker 관련 파일 (DAG 파일 제외)
+docker/airflow/logs/
+docker/airflow/plugins/
+docker/airflow/webserver_config.py
+docker/airflow/airflow.cfg
+
 # Logs
 logs/
 *.log
