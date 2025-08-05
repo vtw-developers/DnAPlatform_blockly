@@ -38,7 +38,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend:/app
     env_file:
-      - ./backend/.env
+      - ./.env
     ports:
       - "8000:8000"
     depends_on:
@@ -57,7 +57,7 @@ services:
       dockerfile: Dockerfile
     container_name: dna-platform-frontend
     env_file:
-      - ./frontend/.env
+      - ./.env
     ports:
       - "5050:80"
     depends_on:
@@ -81,7 +81,7 @@ services:
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
-      - OPENAI_API_KEY=sk-etAqHlyUnLxqEDX-7WekBFbWvq17KpKwYzGo-cR8XoT3BlbkFJU7FnsAX3Abh-ZvSLL2shGbahidqiEU_Nulv1OZRP8A
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "8080:8080"
     volumes:

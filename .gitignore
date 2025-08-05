@@ -9,7 +9,7 @@ node_modules/
 .env.test
 .env.production
 **/.env
-**/.env.*
+
 
 # Build outputs
 dist/
