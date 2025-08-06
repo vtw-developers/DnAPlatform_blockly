@@ -119,4 +119,41 @@ pre {
 .execute-button:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
+}
+
+/* 등가성 테스트 코드 섹션 스타일 */
+.equiv-test-section {
+  margin-top: 1rem;
+}
+
+.equiv-test-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.equiv-test-code {
+  display: block;
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 0;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  border: 1px solid #4a5568;
+}
+
+.equiv-test-code pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: visible;
 } 

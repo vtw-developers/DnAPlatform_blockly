@@ -14,7 +14,7 @@ Dockerfile
 .gitignore
 
 # 환경 설정 파일
-.env
+# .env (프론트엔드 빌드를 위해 포함)
 .env.*
 
 # 백엔드 관련 파일
