@@ -53,8 +53,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend/Dockerfile
     container_name: dna-platform-frontend
     env_file:
       - ./.env
@@ -89,21 +89,13 @@ services:
       - ./docker/airflow/logs:/opt/airflow/logs
       - ./docker/airflow/plugins:/opt/airflow/plugins
       - ./docker/airflow/data:/opt/airflow/data
-      - ./docker/airflow/requirements.txt:/requirements.txt  # requirements.txt 마운트
+      - ./docker/airflow/requirements.txt:/opt/airflow/requirements.txt  # requirements.txt 마운트
+      - ./docker/airflow/init-airflow.sh:/opt/airflow/init-airflow.sh  # 초기화 스크립트 마운트
       - /data/workspace/Vtw:/data/workspace/Vtw  # 도커 밖의 semantic equivalent 파일들에 접근하기 위한 볼륨 마운트
     restart: always
     networks:
       - blockly_network
-    command: >
-      bash -c "
-        while ! pg_isready -h airflow-db -p 5432 -U airflow_user; do
-          echo 'Waiting for airflow-db...';
-          sleep 2;
-        done;
-        pip install -r /requirements.txt &&
-        airflow db migrate &&
-        airflow users create --username admin --password vtw210302 --firstname admin --lastname admin --role Admin --email admin@example.com || true &&
-        airflow scheduler & airflow webserver"    
+    command: bash /opt/airflow/init-airflow.sh    
 
 volumes:
   postgres_data:

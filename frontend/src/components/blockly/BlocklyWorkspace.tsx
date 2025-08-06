@@ -17,7 +17,7 @@ import { TOOLBOX_CONFIG } from './configs/toolboxConfig';
 import './styles/BlocklyWorkspace.css';
 import { registerJpypeBlocks } from './customBlocks/jpypeBlocks';
 import { registerSummaryBlocks } from './customBlocks/summaryBlocks';
-import { Spin } from 'antd';
+import { CircularProgress } from '@mui/material';
 import { extractFunctions } from './utils/javaCodeGenerator';
 import { generateJavaWrapper } from './templates/javaWrapper';
 import DeployPopup from './popups/DeployPopup';
@@ -165,7 +165,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         justifyContent: 'center', 
         alignItems: 'center' 
       }}>
-        <Spin size="large" />
+        <CircularProgress size={60} />
         <div>사용자 정보를 불러오는 중...</div>
       </div>
     );
