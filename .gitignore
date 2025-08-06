@@ -31,8 +31,12 @@ backend/**/__pycache__/
 backend/.pytest_cache/
 backend/venv/
 backend/.env*
-backend/*.pyc
-backend/**/*.pyc
+
+# Python compiled files (전역)
+*.pyc
+**/*.pyc
+__pycache__/
+**/__pycache__/
 
 # IDE and editor files
 .idea/
@@ -51,8 +55,10 @@ ehthumbs.db
 Thumbs.db
 
 # Docker volumes
-docker/
-**/docker/*
+docker/airflow/logs/
+docker/airflow/plugins/
+docker/airflow/webserver_config.py
+docker/airflow/airflow.cfg
 postgres-data/
 ollama-data/
 
