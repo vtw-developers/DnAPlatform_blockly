@@ -119,6 +119,13 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
 
   const equivTestCode = parseEquivTest(result);
 
+  // 디버깅용 로그
+  console.log('VerificationPopup 렌더링 상태:');
+  console.log('- executionResult:', executionResult);
+  console.log('- isExecuting:', isExecuting);
+  console.log('- equivTestCode 존재:', !!equivTestCode);
+  console.log('- canExecute:', canExecute);
+
   return (
     <div className="popup-overlay">
       <div className="popup-content verification-popup">
@@ -162,13 +169,17 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
                   )}
                 </>
               ) : null}
-              {canExecute && (
+              {canExecute && equivTestCode && (
                 <button 
                   className="execute-button"
-                  onClick={() => onExecute(code)}
+                  onClick={() => {
+                    console.log('검증 테스트 코드 실행 시작');
+                    console.log('실행할 코드:', equivTestCode);
+                    onExecute(equivTestCode);
+                  }}
                   disabled={isExecuting}
                 >
-                  {isExecuting ? '실행 중...' : '검증된 코드 실행'}
+                  {isExecuting ? '실행 중...' : '검증 테스트 코드 실행'}
                 </button>
               )}
             </div>
