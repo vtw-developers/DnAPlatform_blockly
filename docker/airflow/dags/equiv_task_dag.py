@@ -28,7 +28,7 @@ def run_generator(**context):
         model_name = dag_run.conf.get('model_name', 'qwen3:32b')
         model_type = dag_run.conf.get('model_type', 'ollama')
         origin_code = dag_run.conf.get('origin_code', '')
-        temp = dag_run.conf.get('temp', 0)
+        temp = dag_run.conf.get('temp', 0.0)
         
         # GPT 모델인 경우 OpenAI로 설정
         if 'gpt' in model_name.lower():
@@ -40,7 +40,7 @@ def run_generator(**context):
         model_name = 'qwen3:32b'
         model_type = 'ollama'
         origin_code = ""
-        temp = 0
+        temp = 0.0
     
     if not origin_code:
         raise ValueError("origin_code는 필수 파라미터입니다.")
@@ -107,7 +107,7 @@ def run_test(**context):
         model_name = dag_run.conf.get('model_name', 'qwen3:32b')
         model_type = dag_run.conf.get('model_type', 'ollama')
         origin_code = dag_run.conf.get('origin_code', '')
-        temp = dag_run.conf.get('temp', 0)
+        temp = dag_run.conf.get('temp', 0.0)
         
         # GPT 모델인 경우 OpenAI로 설정
         if 'gpt' in model_name.lower():
@@ -119,7 +119,7 @@ def run_test(**context):
         model_name = 'qwen3:32b'
         model_type = 'ollama'
         origin_code = ""
-        temp = 0
+        temp = 0.0
     
     if not origin_code:
         raise ValueError("origin_code는 필수 파라미터입니다.")

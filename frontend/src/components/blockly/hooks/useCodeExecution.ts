@@ -68,6 +68,7 @@ export const useCodeExecution = () => {
     executeCode,
     executionStatus,
     executionResult,
+    setExecutionResult,
     closeExecutionPopup
   };
 }; 

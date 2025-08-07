@@ -38,7 +38,7 @@ export const useVerification = ({
     };
   }, []);
 
-  const handleVerifyCode = async (code: string, model: Model) => {
+  const handleVerifyCode = async (code: string, model: Model, temperature?: number) => {
     if (!code.trim() || !model) {
       onError?.('코드와 모델을 모두 선택해주세요.');
       return;
@@ -52,7 +52,9 @@ export const useVerification = ({
     setVerificationElapsedTime(0);
 
     try {
-      const response = await codeBlockApi.verifyCode(code, model.name, model.type);
+      // temperature 값을 API 호출에 전달 (기본값은 모델의 temp 값 또는 0)
+      const tempValue = temperature ?? model.temp ?? 0;
+      const response = await codeBlockApi.verifyCode(code, model.name, model.type, tempValue);
       setVerificationDagRunId(response.dag_run_id);
       startTimeRef.current = Date.now();
 

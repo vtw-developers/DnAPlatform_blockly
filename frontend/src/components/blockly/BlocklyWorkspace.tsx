@@ -97,6 +97,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     executeCode,
     executionStatus,
     executionResult,
+    setExecutionResult,
     closeExecutionPopup
   } = useCodeExecution();
 
@@ -128,10 +129,10 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     handleConvert(currentCode, title);
   };
 
-  const handleVerifyCodeWithModel = (code: string, model: any | null) => {
+  const handleVerifyCodeWithModel = (code: string, model: any | null, temperature?: number) => {
     if (!model) return;
     openPopup('verification');
-    handleVerifyCode(code, model);
+    handleVerifyCode(code, model, temperature);
   };
 
   const handleDeploy = () => {

@@ -77,11 +77,12 @@
 
 .verify-container {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .model-select {
-  flex: 1;
+  width: 100%;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -101,6 +102,86 @@
 .verify-button:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
+}
+
+/* Temperature 설정 스타일 */
+.temperature-container {
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+}
+
+.temperature-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.temperature-value {
+  background-color: #007bff;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.temperature-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  margin-bottom: 8px;
+  -webkit-appearance: none;
+}
+
+.temperature-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #007bff;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+}
+
+.temperature-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #007bff;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+}
+
+.temperature-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.temperature-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  background: #6c757d;
+}
+
+.temperature-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  background: #6c757d;
+}
+
+.temperature-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .saved-codes-section {

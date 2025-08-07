@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { User } from '../../../types/auth.types';
 import { Model } from '../types/model.types';
 import { CodeBlock } from '../../../types/CodeBlock';
@@ -32,7 +32,7 @@ interface RightPanelProps {
   onToggleShare: (userId: number | null, block: CodeBlock) => Promise<void>;
   onExecute: () => void;
   onConvert: (code: string) => void;
-  onVerify: (code: string, model: Model | null) => void;
+  onVerify: (code: string, model: Model | null, temperature?: number) => void;
   onDeploy: () => void;
   onModelSelect: (model: Model | null) => void;
   onBlockSelect: (block: CodeBlock) => void;
@@ -70,13 +70,20 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onDeploy,
   wrappedCode,  
 }) => {
+  // temperature 상태 관리
+  const [temperature, setTemperature] = useState<number>(0);
+
   const handleConvert = useCallback(() => {
     onConvert(currentCode);
   }, [onConvert, currentCode]);
 
-  const handleVerify = useCallback(() => {
-    onVerify(currentCode, selectedModel);
+  const handleVerify = useCallback((temp: number) => {
+    onVerify(currentCode, selectedModel, temp);
   }, [onVerify, currentCode, selectedModel]);
+
+  const handleTemperatureChange = useCallback((temp: number) => {
+    setTemperature(temp);
+  }, []);
 
   return (
     <div className="right-panel">
@@ -120,6 +127,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         onModelSelect={onModelSelect}
         onVerify={handleVerify}
         disabled={isVerifying || !currentCode || !selectedModel || isLoadingModels}
+        temperature={temperature}
+        onTemperatureChange={handleTemperatureChange}
       />
 
       <SavedCodesSection
