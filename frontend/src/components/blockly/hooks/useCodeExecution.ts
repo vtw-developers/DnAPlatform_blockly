@@ -24,16 +24,29 @@ export const useCodeExecution = () => {
       const result = await codeBlockApi.executeCode(code);
       console.log('API 응답:', result);
       
+      // unittest 결과인지 확인 (성공한 unittest도 stderr에 출력됨)
+      const isUnittestResult = result.error && (
+        result.error.includes('Ran ') && 
+        (result.error.includes('OK') || result.error.includes('FAILED'))
+      );
+      
       const executionResult = {
-        output: result.output,
-        error: result.error
+        output: result.output || (isUnittestResult ? result.error : ''),
+        error: isUnittestResult ? '' : result.error
       };
       
       setExecutionResult(executionResult);
-      setExecutionStatus(result.error ? '실행 실패' : '실행 완료');
+      
+      // unittest 성공인지 확인
+      const isUnittestSuccess = isUnittestResult && result.error.includes('OK');
+      const hasError = result.error && !isUnittestResult;
+      
+      setExecutionStatus(hasError ? '실행 실패' : '실행 완료');
       
       console.log('실행 결과 설정 완료:', executionResult);
-      console.log('실행 상태:', result.error ? '실행 실패' : '실행 완료');
+      console.log('실행 상태:', hasError ? '실행 실패' : '실행 완료');
+      console.log('unittest 결과인가?', isUnittestResult);
+      console.log('unittest 성공인가?', isUnittestSuccess);
     } catch (error) {
       console.error('코드 실행 중 오류:', error);
       const errorResult = {

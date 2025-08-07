@@ -242,7 +242,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
         code={currentCode}
         isVerifying={isVerifying}
         onExecute={handleExecuteVerifiedCode}
-        executionResult={executionResult?.output ?? executionResult?.error ?? null}
+        executionResult={executionResult}
         isExecuting={executionStatus === '실행 중'}
       />
 
