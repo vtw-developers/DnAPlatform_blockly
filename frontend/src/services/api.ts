@@ -56,6 +56,7 @@ export interface ModelInfo {
   digest?: string;
   modified_at?: string;
   description?: string;
+  temp?: number; // 모델의 기본 temperature 값
 }
 
 interface ModelsResponse {
@@ -291,15 +292,16 @@ export class CodeBlockApi {
     }
   }
 
-  async verifyCode(code: string, model_name: string, model_type: string): Promise<{ dag_run_id: string }> {
-    console.log(`Requesting verification via backend for model: ${model_name}, type: ${model_type}`);
+  async verifyCode(code: string, model_name: string, model_type: string, temperature: number = 0): Promise<{ dag_run_id: string }> {
+    console.log(`Requesting verification via backend for model: ${model_name}, type: ${model_type}, temperature: ${temperature}`);
     try {
       const response = await axios.post<{ dag_run_id: string }>(
         `${this.baseUrl}/code/verify`, 
         {
           code: code,
           model_name: model_name,
-          model_type: model_type
+          model_type: model_type,
+          temperature: temperature
         },
         {
           headers: {

@@ -22,7 +22,8 @@ export const useModels = (): UseModelsReturn => {
         setModels(response.map(model => ({
           ...model,
           type: model.type as 'openai' | 'ollama',
-          isAvailable: true
+          isAvailable: true,
+          temp: model.temp || 0 // 모델의 기본 temperature 값 (기본값: 0)
         })));
         if (response.length > 0) {
           setSelectedModel(response[0]);

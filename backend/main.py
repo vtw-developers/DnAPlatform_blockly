@@ -100,6 +100,7 @@ class CodeVerifyRequest(BaseModel):
     code: str
     model_name: str
     model_type: str
+    temperature: float = 0.0  # temperature 필드 추가 (기본값: 0.0)
 
 class VerifyResponse(BaseModel):
     dag_run_id: str
@@ -128,7 +129,8 @@ async def trigger_code_verification(payload: CodeVerifyRequest):
         "conf": {
             "origin_code": payload.code,
             "model_name": payload.model_name,
-            "model_type": payload.model_type
+            "model_type": payload.model_type,
+            "temp": payload.temperature  # temperature 값 전달
         }
     }
     headers = {
