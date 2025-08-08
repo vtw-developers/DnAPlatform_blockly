@@ -12,20 +12,20 @@ def run_translator(**context):
     # REST API로부터 전달받은 파라미터 추출
     dag_run = context.get('dag_run')
     if dag_run and dag_run.conf:
-        model_name = dag_run.conf.get('model_name', 'chatgpt')
         origin_code = dag_run.conf.get('origin_code')
-        logging.info(f"REST API로부터 받은 model_name: {model_name}")
         logging.info(f"REST API로부터 받은 origin_code: {origin_code}")
+        # target_lang = dag_run.conf.get('target_lang')
+        # logging.info(f"REST API로부터 받은 target_lang: {target_lang}")
+        target_lang = "js"
     else:
-        model_name = 'chatgpt'
-        # 더 단순한 테스트 코드 사용
-        origin_code = """def add(a, b):
-    return a + b
-"""
-        logging.info(f"기본값 사용 - model_name: {model_name}")
+        origin_code = """
+        def add(a, b):
+            return a + b
+        """
+        logging.info(f"기본값 사용 - origin_code: {origin_code}")
     
-    if not model_name or not origin_code:
-        raise ValueError("model_name과 origin_code는 필수 파라미터입니다.")
+    if not origin_code:
+        raise ValueError("origin_code는 필수 파라미터입니다.")
     
     # 임시 디렉토리 생성
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -36,17 +36,17 @@ def run_translator(**context):
         env["OUTPUT_FILE"] = temp_output_file
         
         # PiREL 작업 디렉토리 설정
-        pirel_dir = "/data/workspace/PiREL-private/backend/duoglotcore-server"
+        pirel_dir = "/data/workspace/PiREL-private/src"
         file_path = os.path.join(pirel_dir, "api_vtw_exec.py")
         
         try:
             result = subprocess.run(
-                ["/home/vtw/miniconda3/envs/pirel/bin/python", file_path, origin_code, model_name],
+                ["/usr/local/bin/python", file_path, origin_code, target_lang],
                 check=True,
-                env=env,
-                cwd=pirel_dir,
                 capture_output=True,
-                text=True
+                text=True,
+                env=env,
+                cwd="/tmp"
             )
             logging.info(f"Command output: {result.stdout}")
             
@@ -54,15 +54,17 @@ def run_translator(**context):
             logging.error(f"Command failed with error: {e.stderr}")
             raise
         
-        # 생성된 파일 읽기
-        with open(temp_output_file, 'r', encoding='utf-8') as f:
-            result = f.read()
+        # 결과 파일 읽기
+        if os.path.exists(temp_output_file):
+            with open(temp_output_file, 'r', encoding='utf-8') as f:
+                generated_code = f.read()
+        else:
+            generated_code = result.stdout
             
         # XCom을 통해 결과 저장
-        task_instance = context['task_instance']
-        task_instance.xcom_push(key='pirel_translate_result', value=result)
+        context['task_instance'].xcom_push(key='pirel_translate_result', value=generated_code)
         
-        return result
+        return generated_code
 
 def get_result(**context):
     task_instance = context['task_instance']
