@@ -62,8 +62,11 @@ def run_generator(**context):
         
         # subprocess 실행
         try:
+            # Equiv 전용 가상환경의 Python 경로 설정
+            venv_python = "/opt/airflow/equiv_env/.venv/bin/python"
+            
             result = subprocess.run(
-                ["/usr/local/bin/python", file_path, origin_code, model_name, model_type, str(temp)],
+                [venv_python, file_path, origin_code, model_name, model_type, str(temp)],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -140,8 +143,11 @@ def run_test(**context):
         
         # subprocess 실행
         try:
+            # Python 3.12 가상환경의 Python 경로 설정
+            venv_python = "/opt/airflow/pirel_env/.venv/bin/python"
+            
             result = subprocess.run(
-                ["/usr/local/bin/python", file_path, origin_code, model_name, model_type, str(temp)],
+                [venv_python, file_path, origin_code, model_name, model_type, str(temp)],
                 check=True,
                 capture_output=True,
                 text=True,

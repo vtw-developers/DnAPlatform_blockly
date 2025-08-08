@@ -39,9 +39,12 @@ def run_translator(**context):
         pirel_dir = "/data/workspace/PiREL-private/src"
         file_path = os.path.join(pirel_dir, "api_vtw_exec.py")
         
+        # Python 3.12 가상환경의 Python 경로 설정
+        venv_python = "/opt/airflow/pirel_env/.venv/bin/python"
+        
         try:
             result = subprocess.run(
-                ["/usr/local/bin/python", file_path, origin_code, target_lang],
+                [venv_python, file_path, origin_code, target_lang],
                 check=True,
                 capture_output=True,
                 text=True,
