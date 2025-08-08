@@ -1,0 +1,11 @@
+# PiREL 번역기 전용 패키지들
+langchain-core>=0.3.0
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-openai>=0.0.5
+tree-sitter==0.20.4
+jsbeautifier==1.14.10
+openai>=1.10.0
+pyparsing>=3.0.0
+python-Levenshtein>=0.21.0
+apted>=1.0.0

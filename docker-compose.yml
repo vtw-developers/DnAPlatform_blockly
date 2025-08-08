@@ -67,7 +67,7 @@ services:
       - blockly_network
 
   airflow:
-    image: apache/airflow:2.7.3
+    image: apache/airflow:2.7.3-python3.11
     container_name: dna-platform-airflow
     user: "50000:0"
     depends_on:
@@ -89,7 +89,9 @@ services:
       - ./docker/airflow/logs:/opt/airflow/logs
       - ./docker/airflow/plugins:/opt/airflow/plugins
       - ./docker/airflow/data:/opt/airflow/data
-      - ./docker/airflow/requirements.txt:/opt/airflow/requirements.txt  # requirements.txt 마운트
+      - ./docker/airflow/requirements.txt:/opt/airflow/requirements.txt  # 기본 requirements.txt
+      - ./docker/airflow/requirements-pirel.txt:/opt/airflow/requirements-pirel.txt  # PiREL 전용
+      - ./docker/airflow/requirements-equiv.txt:/opt/airflow/requirements-equiv.txt  # Equiv 전용
       - ./docker/airflow/init-airflow.sh:/opt/airflow/init-airflow.sh  # 초기화 스크립트 마운트
       - /data/workspace/Vtw:/data/workspace/Vtw  # 도커 밖의 semantic equivalent 파일들에 접근하기 위한 볼륨 마운트
       - /data/workspace/PiREL-private:/data/workspace/PiREL-private  # PiREL 번역기 접근을 위한 볼륨 마운트
@@ -98,13 +100,8 @@ services:
       - blockly_network
     command: bash /opt/airflow/init-airflow.sh    
 
-volumes:
-  postgres_data:
-
 networks:
   blockly_network:
     driver: bridge
   dna-platform-network:
-    name: dna-platform-network
-    driver: bridge
-    external: true 
+    driver: bridge 
