@@ -6,3 +6,7 @@
    requests==2.31.0
    python-dotenv==1.0.0
    openai==1.6.1
+   
+   # PiREL 번역기 의존성 패키지들
+   tree_sitter==0.21.3
+   jsbeautifier==1.14.10

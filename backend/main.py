@@ -95,7 +95,7 @@ app.include_router(proxy.router, prefix="/api/proxy", tags=["proxy"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(deploy.router, prefix="/api", tags=["deploy"])
 
-# <<<< ADDED: Pydantic models for verify endpoint >>>>
+
 class CodeVerifyRequest(BaseModel):
     code: str
     model_name: str
@@ -165,20 +165,22 @@ async def trigger_code_verification(payload: CodeVerifyRequest):
 
 # --- ADDED: Conversion Endpoint Models & Functions --- 
 
-# Request model reuses CodeVerifyRequest
-# Response model reuses VerifyResponse (for trigger)
+class CodeConvertRequest(BaseModel):
+    code: str
 
+class ConvertResponse(BaseModel):
+    dag_run_id: str
+    
 class DagStatusResponse(BaseModel):
     dag_run_id: str
     state: str
     error: Optional[str] = None
-
 class XComResponse(BaseModel):
     value: Optional[str] = None # Assuming the result is a string, adjust if needed
     error: Optional[str] = None
 
-@app.post("/api/code/convert", response_model=VerifyResponse)
-async def trigger_code_conversion(payload: CodeVerifyRequest):
+@app.post("/api/code/convert", response_model=ConvertResponse)
+async def trigger_code_conversion(payload: CodeConvertRequest):
     """
     Triggers the pirel_task DAG for code conversion.
     """
@@ -192,9 +194,7 @@ async def trigger_code_conversion(payload: CodeVerifyRequest):
     airflow_payload = {
         "dag_run_id": dag_run_id,
         "conf": {
-            "origin_code": payload.code,
-            "model_name": payload.model_name,
-            "model_type": payload.model_type
+            "origin_code": payload.code
         }
     }
     headers = {
@@ -210,7 +210,7 @@ async def trigger_code_conversion(payload: CodeVerifyRequest):
             airflow_response_data = response.json()
             logger.info(f"Conversion Airflow response: {airflow_response_data}")
             returned_dag_run_id = airflow_response_data.get("dag_run_id", dag_run_id)
-            return VerifyResponse(dag_run_id=returned_dag_run_id)
+            return ConvertResponse(dag_run_id=returned_dag_run_id)
         # Keep the same error handling structure
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error triggering Conversion Airflow DAG: {e.response.status_code} - {e.response.text}")
