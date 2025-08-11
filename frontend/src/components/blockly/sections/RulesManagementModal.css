@@ -1,0 +1,248 @@
+/* 모달 오버레이 */
+.rules-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* 모달 컨테이너 */
+.rules-modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 90vw;
+  max-width: 1200px;
+  height: 80vh;
+  max-height: 800px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 모달 헤더 */
+.rules-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e1e5e9;
+  background-color: #f8f9fa;
+}
+
+.rules-modal-header h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6c757d;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+/* 모달 콘텐츠 */
+.rules-modal-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* 로딩 상태 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.1rem;
+  color: #6c757d;
+}
+
+/* 테이블 컨테이너 */
+.rules-table-container {
+  height: 100%;
+  overflow: auto;
+  padding: 20px;
+}
+
+/* 규칙 테이블 */
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.rules-table th {
+  background-color: #f8f9fa;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.rules-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: top;
+}
+
+.rules-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.rules-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* 테이블 컬럼별 스타일 */
+.rule-sn {
+  width: 80px;
+  text-align: center;
+  font-weight: 600;
+  color: #007bff;
+}
+
+.rule-content {
+  width: 40%;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.rule-examples {
+  width: 30%;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #6c757d;
+}
+
+.rule-mark {
+  width: 20%;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* 상세 화면 */
+.rule-detail {
+  height: 100%;
+  overflow: auto;
+  padding: 20px;
+}
+
+.back-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #5a6268;
+}
+
+.detail-content h3 {
+  color: #2c3e50;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #007bff;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h4 {
+  color: #495057;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* 코드 블록 스타일 */
+.rules-code,
+.examples-code,
+.mark-info {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.rules-code {
+  background-color: #e3f2fd;
+  border-color: #bbdefb;
+  color: #1565c0;
+}
+
+.examples-code {
+  background-color: #f3e5f5;
+  border-color: #e1bee7;
+  color: #7b1fa2;
+}
+
+.mark-info {
+  background-color: #fff3e0;
+  border-color: #ffcc80;
+  color: #ef6c00;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .rules-modal {
+    width: 95vw;
+    height: 90vh;
+  }
+  
+  .rules-table-container {
+    padding: 10px;
+  }
+  
+  .rules-table {
+    font-size: 0.8rem;
+  }
+  
+  .rules-table th,
+  .rules-table td {
+    padding: 8px 10px;
+  }
+  
+  .rule-content,
+  .rule-examples,
+  .rule-mark {
+    font-size: 0.75rem;
+  }
+}
