@@ -17,7 +17,7 @@ from datetime import datetime
 import time
 import random
 from pydantic import BaseModel
-from routers import code_blocks, ai_services, proxy, auth, deploy
+from routers import code_blocks, ai_services, proxy, auth, deploy, py2js_rules
 from database import wait_for_db, create_tables
 import shutil
 import pytz
@@ -94,6 +94,7 @@ app.include_router(ai_services.router, prefix="/api", tags=["ai-services"])
 app.include_router(proxy.router, prefix="/api/proxy", tags=["proxy"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(deploy.router, prefix="/api", tags=["deploy"])
+app.include_router(py2js_rules.router, prefix="/api", tags=["py2js-rules"])
 
 
 class CodeVerifyRequest(BaseModel):

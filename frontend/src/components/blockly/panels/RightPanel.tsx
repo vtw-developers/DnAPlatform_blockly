@@ -7,6 +7,7 @@ import { ActionButtons } from '../sections/ActionButtons';
 import { ConvertedCodeSection } from '../sections/ConvertedCodeSection';
 import { VerificationSection } from '../sections/VerificationSection';
 import { SavedCodesSection } from '../sections/SavedCodesSection';
+import { RulesManagementModal } from '../sections/RulesManagementModal';
 import { PopupType } from '../hooks/usePopups';
 import './RightPanel.css';
 
@@ -72,6 +73,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 }) => {
   // temperature 상태 관리
   const [temperature, setTemperature] = useState<number>(0);
+  // 변환규칙 관리 모달 상태
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState<boolean>(false);
 
   const handleConvert = useCallback(() => {
     onConvert(currentCode);
@@ -113,6 +116,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         wrappedCode={wrappedCode}
         onLapping={onLapping}
         onDeploy={onDeploy}
+        onShowRules={() => setIsRulesModalOpen(true)}
       />
 
       <ConvertedCodeSection
@@ -142,6 +146,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           name: currentUser.name
         } : undefined}
         onToggleShare={(block) => onToggleShare(currentUser?.id ?? null, block)}
+      />
+      
+      {/* 변환규칙 관리 모달 */}
+      <RulesManagementModal
+        isOpen={isRulesModalOpen}
+        onClose={() => setIsRulesModalOpen(false)}
       />
     </div>
   );

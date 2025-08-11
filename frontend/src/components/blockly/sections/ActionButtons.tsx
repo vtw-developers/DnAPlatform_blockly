@@ -11,6 +11,7 @@ interface ActionButtonsProps {
   onConvert: () => void;
   onLapping: () => void;
   onDeploy: () => void;
+  onShowRules: () => void;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -22,7 +23,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onExecute,
   onConvert,
   onLapping,
-  onDeploy
+  onDeploy,
+  onShowRules
 }) => {  
 
   return (
@@ -65,6 +67,12 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           disabled={!code?.trim()}
         >
           코드변환
+        </button>
+        <button 
+          className="action-button" 
+          onClick={onShowRules}
+        >
+          변환규칙 관리
         </button>
         <button className="action-button" onClick={onLapping} disabled={!code?.trim()}>
           코드랩핑
