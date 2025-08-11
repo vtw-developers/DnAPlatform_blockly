@@ -170,6 +170,10 @@ class CodeConvertRequest(BaseModel):
 
 class ConvertResponse(BaseModel):
     dag_run_id: str
+
+class TranslationRuleRequest(BaseModel):
+    source_code_id: int
+    source_code_title: str
     
 class DagStatusResponse(BaseModel):
     dag_run_id: str
@@ -220,6 +224,53 @@ async def trigger_code_conversion(payload: CodeConvertRequest):
             raise HTTPException(status_code=503, detail=f"Airflow 연결 실패: {e}")
         except Exception as e:
             logger.exception("Unexpected error during Conversion Airflow DAG trigger")
+            raise HTTPException(status_code=500, detail=f"내부 서버 오류: {e}")
+
+@app.post("/api/airflow/rule-task", response_model=ConvertResponse)
+async def trigger_translation_rule_creation(payload: TranslationRuleRequest):
+    """
+    Triggers the rule_task DAG for translation rule creation.
+    """
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
+    airflow_dag_trigger_url = f"{airflow_base_url}/api/v1/dags/rule_task/dagRuns"
+    airflow_auth_header = "Basic YWRtaW46dnR3MjEwMzAy"
+    
+    timestamp = int(time.time() * 1000)
+    random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    dag_run_id = f"api_rule_{timestamp}_{random_str}"
+    
+    airflow_payload = {
+        "dag_run_id": dag_run_id,
+        "conf": {
+            "source_code_id": payload.source_code_id,
+            "source_code_title": payload.source_code_title
+        }
+    }
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': airflow_auth_header,
+        'Accept': 'application/json'
+    }
+    
+    logger.info(f"Triggering Translation Rule Creation Airflow DAG '{airflow_dag_trigger_url}' via backend with run_id: {dag_run_id}")
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(airflow_dag_trigger_url, json=airflow_payload, headers=headers)
+            response.raise_for_status()
+            airflow_response_data = response.json()
+            logger.info(f"Translation Rule Creation Airflow response: {airflow_response_data}")
+            returned_dag_run_id = airflow_response_data.get("dag_run_id", dag_run_id)
+            return ConvertResponse(dag_run_id=returned_dag_run_id)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error triggering Translation Rule Creation Airflow DAG: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(status_code=e.response.status_code, detail=f"Airflow DAG 트리거 실패: {e.response.text}")
+        except httpx.RequestError as e:
+            logger.error(f"Request error triggering Translation Rule Creation Airflow DAG: {e}")
+            raise HTTPException(status_code=503, detail=f"Airflow 연결 실패: {e}")
+        except Exception as e:
+            logger.exception("Unexpected error during Translation Rule Creation Airflow DAG trigger")
             raise HTTPException(status_code=500, detail=f"내부 서버 오류: {e}")
 
 @app.get("/api/code/convert/status/{run_id}", response_model=DagStatusResponse)
