@@ -50,6 +50,8 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const [selectedBlock, setSelectedBlock] = useState<ConvertedCodeBlock | null>(null);
   const [displayCode, setDisplayCode] = useState<string>('');
   const [checkedIds, setCheckedIds] = useState<number[]>([]);
+  const [isCreatingRule, setIsCreatingRule] = useState(false);
+  const [ruleCreationStatus, setRuleCreationStatus] = useState<string>('');
   
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +59,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
       setSelectedBlock(null);
       setMemo('');
       setDisplayCode('');
+      setRuleCreationStatus('');
     }
   }, [isOpen]);
 
@@ -80,6 +83,38 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     setMemo('');
     setDisplayCode('');
     onConvert();
+  };
+
+  // 변환규칙 생성 핸들러
+  const handleCreateRule = async () => {
+    if (!sourceCodeId || !sourceCodeTitle) {
+      alert('원본 코드 정보가 필요합니다.');
+      return;
+    }
+
+    setIsCreatingRule(true);
+    setRuleCreationStatus('변환규칙 생성 요청 중...');
+    
+    try {
+      const response = await codeBlockApi.createTranslationRule(sourceCodeId, sourceCodeTitle);
+      setRuleCreationStatus(`변환규칙 생성 요청 완료. DAG Run ID: ${response.dag_run_id}`);
+      
+      // 잠시 후 상태 메시지 초기화
+      setTimeout(() => {
+        setRuleCreationStatus('');
+      }, 5000);
+      
+    } catch (error) {
+      console.error('변환규칙 생성 실패:', error);
+      setRuleCreationStatus('변환규칙 생성 실패. 다시 시도해주세요.');
+      
+      // 에러 메시지도 잠시 후 초기화
+      setTimeout(() => {
+        setRuleCreationStatus('');
+      }, 5000);
+    } finally {
+      setIsCreatingRule(false);
+    }
   };
 
   const handleSave = async () => {
@@ -196,13 +231,33 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
               )}
             </div>
           </div>
-          <button 
-            className="convert-button primary" 
-            onClick={handleConvert}
-            disabled={isConverting}
-          >
-            {isConverting ? '변환 중...' : '변환 시작'}
-          </button>          {checkedIds.length > 0 && (
+          <div className="button-group">
+            <button 
+              className="convert-button primary" 
+              onClick={handleConvert}
+              disabled={isConverting}
+            >
+              {isConverting ? '변환 중...' : '변환 시작'}
+            </button>
+            
+            {/* TranslationRuleNotFoundException 에러가 발생한 경우에만 표시 */}
+            {(error && (error.includes('TranslationRuleNotFoundException') || 
+                        error.includes('TranslationRule') || 
+                        error.includes('Rule'))) ||
+             (convertedCode && (convertedCode.includes('TranslationRuleNotFoundException') || 
+                               convertedCode.includes('TranslationRule') || 
+                               convertedCode.includes('Rule'))) ? (
+              <button 
+                className="create-rule-button secondary" 
+                onClick={handleCreateRule}
+                disabled={isCreatingRule}
+              >
+                {isCreatingRule ? '규칙 생성 중...' : '변환규칙 생성'}
+              </button>
+            ) : null}
+          </div>
+          
+          {checkedIds.length > 0 && (
               <button onClick={handleDelete} className="convert-delete-button">
                 선택 삭제
               </button>
@@ -235,6 +290,12 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                 <div className="console-line error">
                   <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
                   <span className="console-message">오류: {error}</span>
+                </div>
+              )}
+              {ruleCreationStatus && (
+                <div className="console-line info">
+                  <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                  <span className="console-message">{ruleCreationStatus}</span>
                 </div>
               )}
             </div>
