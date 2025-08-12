@@ -32,7 +32,7 @@ export const useConversion = () => {
     setConversionElapsedTime(0);
   };
 
-  const startConversion = async (snartContent: string = '') => {
+  const startConversion = async () => {
     if (!currentCode) {
       alert('변환할 코드가 없습니다.');
       return;
@@ -47,8 +47,8 @@ export const useConversion = () => {
     setIsConverting(true);
 
     try {
-      // snart 내용을 포함하여 변환 요청
-      const response = await codeBlockApi.convertCode(currentCode, 'python', snartContent);
+      // 변환규칙은 백엔드에서 자동으로 처리
+      const response = await codeBlockApi.convertCode(currentCode, 'python');
       setConversionDagRunId(response.dag_run_id);
       setConversionStatus('변환 진행 중...');
       

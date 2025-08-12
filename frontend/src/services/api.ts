@@ -236,14 +236,14 @@ export class CodeBlockApi {
     return await response.json();
   }
 
-  async convertCode(code: string, modelName: string, snartContent: string = ''): Promise<DagRunTriggerResponse> {
-    console.log(`Requesting conversion via backend with snart content length: ${snartContent.length}`);
+  async convertCode(code: string, modelName: string): Promise<DagRunTriggerResponse> {
+    console.log(`Requesting conversion via backend - 변환규칙은 백엔드에서 처리됩니다.`);
     try {
       const response = await axios.post<DagRunTriggerResponse>(
         `${this.baseUrl}/code/convert`,
         {
-          code: code,
-          snart_content: snartContent
+          code: code
+          // snart_content는 백엔드에서 자동으로 처리
         }
       );
       return response.data;
