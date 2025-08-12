@@ -168,6 +168,7 @@ async def trigger_code_verification(payload: CodeVerifyRequest):
 
 class CodeConvertRequest(BaseModel):
     code: str
+    snart_content: str = ""  # snart 파일 내용을 추가
 
 class ConvertResponse(BaseModel):
     dag_run_id: str
@@ -199,7 +200,8 @@ async def trigger_code_conversion(payload: CodeConvertRequest):
     airflow_payload = {
         "dag_run_id": dag_run_id,
         "conf": {
-            "origin_code": payload.code
+            "origin_code": payload.code,
+            "snart_content": payload.snart_content  # snart 내용을 DAG에 전달
         }
     }
     headers = {
@@ -208,6 +210,7 @@ async def trigger_code_conversion(payload: CodeConvertRequest):
         'Accept': 'application/json'
     }
     logger.info(f"Triggering Conversion Airflow DAG '{airflow_dag_trigger_url}' via backend with run_id: {dag_run_id}")
+    logger.info(f"Snart content length: {len(payload.snart_content)}")
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(airflow_dag_trigger_url, json=airflow_payload, headers=headers)

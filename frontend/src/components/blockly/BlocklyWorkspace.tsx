@@ -256,7 +256,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           error={conversionError || undefined}
           isConverting={isConverting}
           elapsedTime={conversionElapsedTime}
-          onConvert={startConversion}
+          onConvert={(snartContent) => startConversion(snartContent)}  // snart 내용을 전달
           convertedCode={convertedCode}
           currentUser={user}
           sourceCodeTitle={title}

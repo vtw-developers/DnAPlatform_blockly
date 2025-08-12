@@ -236,13 +236,14 @@ export class CodeBlockApi {
     return await response.json();
   }
 
-  async convertCode(code: string, modelName: string): Promise<DagRunTriggerResponse> {
-    console.log(`Requesting conversion via backend`);
+  async convertCode(code: string, modelName: string, snartContent: string = ''): Promise<DagRunTriggerResponse> {
+    console.log(`Requesting conversion via backend with snart content length: ${snartContent.length}`);
     try {
       const response = await axios.post<DagRunTriggerResponse>(
         `${this.baseUrl}/code/convert`,
         {
-          code: code
+          code: code,
+          snart_content: snartContent
         }
       );
       return response.data;
