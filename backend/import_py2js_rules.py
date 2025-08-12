@@ -81,68 +81,69 @@ class Py2JsRuleImporter:
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
-            # 원본 파일 구조에 맞게 정확히 파싱
-            # 각 match_expand 규칙은 바로 앞에 있는 주석들만 포함해야 함
+            # 규칙들을 빈 줄로 구분하여 파싱
+            # 각 규칙은 주석(examples, mark)과 괄호로 둘러싸인 match_expand 내용으로 구성
             rule_blocks = []
             
-            # match_expand 위치들을 모두 찾기
-            match_positions = [m.start() for m in re.finditer(r'match_expand', content)]
+            # 빈 줄로 구분된 블록들로 분리
+            blocks = re.split(r'\n\s*\n', content.strip())
             
-            for i, match_pos in enumerate(match_positions):
-                # 현재 match_expand의 시작점
-                current_start = match_pos
+            logger.info(f"빈 줄로 구분된 블록 수: {len(blocks)}")
+            
+            for block_num, block in enumerate(blocks, 1):
+                block = block.strip()
+                if not block:
+                    continue
                 
-                # 다음 match_expand 위치 (마지막이면 파일 끝)
-                if i < len(match_positions) - 1:
-                    next_start = match_positions[i + 1]
-                else:
-                    next_start = len(content)
-                
-                # 현재 match_expand 블록의 끝점
-                # 다음 match_expand 전까지 또는 파일 끝까지
-                block_end = next_start
-                
-                # 현재 match_expand 바로 앞의 주석들 찾기
-                # 이전 match_expand 이후부터 현재 match_expand 직전까지 검색
-                if i > 0:
-                    prev_match_end = match_positions[i - 1]
-                    # 이전 match_expand 이후부터 현재 match_expand 직전까지의 내용
-                    between_content = content[prev_match_end:match_pos].strip()
-                else:
-                    # 첫 번째 match_expand인 경우 파일 시작부터
-                    between_content = content[:match_pos].strip()
-                
-                # between_content에서 examples와 mark 주석 찾기
+                # 현재 블록에서 examples와 mark 주석 찾기
                 examples = None
                 mark = None
                 
-                if between_content:
-                    # examples 주석 찾기
-                    examples_match = re.search(r'; examples: "(.*?)"', between_content, re.DOTALL)
-                    if examples_match:
-                        examples = examples_match.group(1).strip()
+                # examples 주석 찾기 (; examples: "..." 형태)
+                examples_match = re.search(r'; examples: "(.*?)"', block, re.DOTALL)
+                if examples_match:
+                    examples = examples_match.group(1).strip()
+                
+                # mark 주석 찾기 (; mark: {...} 형태)
+                mark_match = re.search(r'; mark: (.*?)(?:\n|$)', block, re.DOTALL)
+                if mark_match:
+                    mark = mark_match.group(1).strip()
+                
+                # match_expand 규칙 찾기 (괄호로 둘러싸인 전체)
+                # (match_expand ...) 형태의 전체 내용을 찾아야 함
+                rules = None
+                
+                # match_expand로 시작하는 괄호 블록 찾기
+                match_start = block.find('(match_expand')
+                if match_start != -1:
+                    # 괄호 카운팅으로 올바른 끝점 찾기
+                    paren_count = 0
+                    rule_start = match_start
                     
-                    # mark 주석 찾기
-                    mark_match = re.search(r'; mark: (.*?)(?:\n|$)', between_content, re.DOTALL)
-                    if mark_match:
-                        mark = mark_match.group(1).strip()
+                    for i in range(match_start, len(block)):
+                        if block[i] == '(':
+                            paren_count += 1
+                        elif block[i] == ')':
+                            paren_count -= 1
+                            if paren_count == 0:
+                                # match_expand의 시작 괄호가 닫힘
+                                rule_end = i + 1
+                                rules = block[rule_start:rule_end].strip()
+                                break
                 
-                # 현재 match_expand 블록 추출
-                rules = content[current_start:block_end].strip()
-                
-                # 블록 정보 저장
-                rule_blocks.append({
-                    'examples': examples,
-                    'mark': mark,
-                    'rules': rules
-                })
+                # 규칙이 있는 경우만 추가
+                if rules:
+                    rule_blocks.append({
+                        'examples': examples,
+                        'mark': mark,
+                        'rules': rules
+                    })
+                    
+                    logger.info(f"Block {block_num}: examples={examples is not None}, mark={mark is not None}, rules 길이={len(rules)}")
             
-            logger.info(f"파싱된 블록 수: {len(rule_blocks)}")
+            logger.info(f"파싱된 규칙 수: {len(rule_blocks)}")
             
             for block_num, block in enumerate(rule_blocks, 1):
-                if not block['rules'].strip():
-                    continue
-                
                 rules_data.append({
                     'sn': block_num,
                     'examples': block['examples'],

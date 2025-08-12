@@ -168,7 +168,7 @@ async def trigger_code_verification(payload: CodeVerifyRequest):
 
 class CodeConvertRequest(BaseModel):
     code: str
-    snart_content: str = ""  # snart 파일 내용을 추가
+    # snart_content는 백엔드에서 자동으로 처리하므로 제거됨
 
 class ConvertResponse(BaseModel):
     dag_run_id: str
@@ -189,6 +189,7 @@ class XComResponse(BaseModel):
 async def trigger_code_conversion(payload: CodeConvertRequest):
     """
     Triggers the pirel_task DAG for code conversion.
+    변환 시점에 최신 변환규칙을 자동으로 조회하여 snart_content를 생성합니다.
     """
     airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
     # <<<< CHANGED: Use pirel_task DAG >>>>
@@ -197,11 +198,15 @@ async def trigger_code_conversion(payload: CodeConvertRequest):
     timestamp = int(time.time() * 1000)
     random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
     dag_run_id = f"api_convert_{timestamp}_{random_str}" # Different prefix
+    
+    # 변환 시점에 최신 변환규칙을 자동으로 조회하여 snart_content 생성
+    snart_content = await generate_snart_content_from_db()
+    
     airflow_payload = {
         "dag_run_id": dag_run_id,
         "conf": {
             "origin_code": payload.code,
-            "snart_content": payload.snart_content  # snart 내용을 DAG에 전달
+            "snart_content": snart_content  # 백엔드에서 자동 생성한 변환규칙
         }
     }
     headers = {
@@ -210,7 +215,7 @@ async def trigger_code_conversion(payload: CodeConvertRequest):
         'Accept': 'application/json'
     }
     logger.info(f"Triggering Conversion Airflow DAG '{airflow_dag_trigger_url}' via backend with run_id: {dag_run_id}")
-    logger.info(f"Snart content length: {len(payload.snart_content)}")
+    logger.info(f"자동 생성된 snart_content 길이: {len(snart_content)}")
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             response = await client.post(airflow_dag_trigger_url, json=airflow_payload, headers=headers)
@@ -778,3 +783,72 @@ async def startup_event():
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000) 
+
+# 변환 시점에 최신 변환규칙을 자동으로 조회하여 snart_content 생성하는 함수
+async def generate_snart_content_from_db() -> str:
+    """
+    데이터베이스에서 최신 변환규칙을 조회하여 leet.snart 파일 형식으로 변환합니다.
+    leet.snart의 정확한 구조를 따라야 하며, 데이터베이스에 있는 데이터만 사용합니다.
+    """
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        # 데이터베이스 연결
+        from database import get_db_connection
+        connection = get_db_connection()
+        cursor = connection.cursor(cursor_factory=RealDictCursor)
+        
+        # 모든 규칙 조회 (순번 순으로 정렬)
+        query = """
+        SELECT sn, examples, mark, rules 
+        FROM py2js_rule 
+        ORDER BY sn
+        """
+        
+        cursor.execute(query)
+        rules = cursor.fetchall()
+        
+        # 커서와 연결 종료
+        cursor.close()
+        connection.close()
+        
+        # leet.snart 파일 형식으로 변환
+        snart_content = ''
+        
+        for i, rule in enumerate(rules):
+            # 각 rule 블록 시작 - Rule 번호 주석
+            # snart_content += f"; Rule {rule['sn']}\n"
+            
+            # examples가 있는 경우에만 주석으로 추가 (규칙 상단에)
+            if rule['examples'] and rule['examples'].strip():
+                # 따옴표 이스케이프 처리
+                escaped_examples = rule['examples'].replace('"', '\\"').replace('\n', '\\n')
+                snart_content += f'; examples: "{escaped_examples}"\n'
+            
+            # mark가 있는 경우에만 주석으로 추가 (규칙 상단에)
+            if rule['mark'] and rule['mark'].strip():
+                try:
+                    mark_data = json.loads(rule['mark']) if isinstance(rule['mark'], str) else rule['mark']
+                    snart_content += f'; mark: {json.dumps(mark_data)}\n'
+                except:
+                    snart_content += f'; mark: {rule["mark"]}\n'
+            
+            # rules 내용 추가 (실제 match_expand 규칙)
+            if rule['rules'] and rule['rules'].strip():
+                snart_content += f"{rule['rules']}\n"
+            else:
+                snart_content += '\n'
+            
+            # 규칙 사이에 빈 줄 추가 (마지막 규칙이 아닌 경우)
+            if i < len(rules) - 1:
+                snart_content += '\n'
+        
+        logger.info(f"데이터베이스에서 {len(rules)}개의 변환규칙을 조회하여 leet.snart 형식으로 생성했습니다.")
+        logger.info(f"생성된 .snart 내용 길이: {len(snart_content)}")
+        return snart_content
+        
+    except Exception as e:
+        logger.error(f"변환규칙 조회 및 .snart 생성 중 오류: {e}")
+        # 오류 발생 시 빈 내용 반환 (기본 변환으로 진행)
+        return "" 
