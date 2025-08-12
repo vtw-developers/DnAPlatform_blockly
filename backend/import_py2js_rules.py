@@ -22,7 +22,8 @@ class Py2JsRuleImporter:
     def __init__(self):
         """초기화 - DB 연결 설정"""
         self.db_config = {
-            'host': os.getenv("DB_HOST", "postgres"),
+            'host': os.getenv("DB_HOST", "localhost"),  # 도커 컨테이너의 호스트
+            'port': os.getenv("DB_PORT", "5432"),       # 포트 추가
             'database': os.getenv("DB_NAME", "blockly_db"),
             'user': os.getenv("DB_USER", "blockly_user"),
             'password': os.getenv("DB_PASSWORD", "blockly_password"),
@@ -80,47 +81,74 @@ class Py2JsRuleImporter:
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
-            # match_expand로 시작하는 모든 블록을 찾기
-            # 각 블록은 다음 match_expand 전까지 또는 파일 끝까지
+            # 원본 파일 구조에 맞게 정확히 파싱
+            # 각 match_expand 규칙은 바로 앞에 있는 주석들만 포함해야 함
             rule_blocks = []
-            start_pos = 0
             
-            while True:
-                # match_expand 찾기
-                match_pos = content.find('match_expand', start_pos)
-                if match_pos == -1:
-                    break
+            # match_expand 위치들을 모두 찾기
+            match_positions = [m.start() for m in re.finditer(r'match_expand', content)]
+            
+            for i, match_pos in enumerate(match_positions):
+                # 현재 match_expand의 시작점
+                current_start = match_pos
                 
-                # 다음 match_expand 위치 찾기
-                next_match = content.find('match_expand', match_pos + 1)
-                if next_match == -1:
-                    # 마지막 블록
-                    block = content[match_pos:].strip()
+                # 다음 match_expand 위치 (마지막이면 파일 끝)
+                if i < len(match_positions) - 1:
+                    next_start = match_positions[i + 1]
                 else:
-                    # 다음 블록 전까지
-                    block = content[match_pos:next_match].strip()
+                    next_start = len(content)
                 
-                rule_blocks.append(block)
-                start_pos = next_match if next_match != -1 else len(content)
+                # 현재 match_expand 블록의 끝점
+                # 다음 match_expand 전까지 또는 파일 끝까지
+                block_end = next_start
+                
+                # 현재 match_expand 바로 앞의 주석들 찾기
+                # 이전 match_expand 이후부터 현재 match_expand 직전까지 검색
+                if i > 0:
+                    prev_match_end = match_positions[i - 1]
+                    # 이전 match_expand 이후부터 현재 match_expand 직전까지의 내용
+                    between_content = content[prev_match_end:match_pos].strip()
+                else:
+                    # 첫 번째 match_expand인 경우 파일 시작부터
+                    between_content = content[:match_pos].strip()
+                
+                # between_content에서 examples와 mark 주석 찾기
+                examples = None
+                mark = None
+                
+                if between_content:
+                    # examples 주석 찾기
+                    examples_match = re.search(r'; examples: "(.*?)"', between_content, re.DOTALL)
+                    if examples_match:
+                        examples = examples_match.group(1).strip()
+                    
+                    # mark 주석 찾기
+                    mark_match = re.search(r'; mark: (.*?)(?:\n|$)', between_content, re.DOTALL)
+                    if mark_match:
+                        mark = mark_match.group(1).strip()
+                
+                # 현재 match_expand 블록 추출
+                rules = content[current_start:block_end].strip()
+                
+                # 블록 정보 저장
+                rule_blocks.append({
+                    'examples': examples,
+                    'mark': mark,
+                    'rules': rules
+                })
             
             logger.info(f"파싱된 블록 수: {len(rule_blocks)}")
             
             for block_num, block in enumerate(rule_blocks, 1):
-                if not block.strip():
+                if not block['rules'].strip():
                     continue
                 
-                # examples, mark, rules 추출
-                examples = self._extract_examples(block)
-                mark = self._extract_mark(block)
-                rules = self._extract_rules(block)
-                
-                if rules:  # rules가 있는 경우만 추가
-                    rules_data.append({
-                        'sn': block_num,
-                        'examples': examples,
-                        'mark': mark,
-                        'rules': rules
-                    })
+                rules_data.append({
+                    'sn': block_num,
+                    'examples': block['examples'],
+                    'mark': block['mark'],
+                    'rules': block['rules']
+                })
             
             logger.info(f"총 {len(rules_data)}개의 규칙을 파싱했습니다.")
             return rules_data
@@ -128,28 +156,6 @@ class Py2JsRuleImporter:
         except Exception as e:
             logger.error(f"파일 파싱 실패: {e}")
             raise
-    
-    def _extract_examples(self, block: str) -> Optional[str]:
-        """examples 주석에서 예시 코드 추출"""
-        examples_match = re.search(r'; examples: "(.*?)"', block, re.DOTALL)
-        if examples_match:
-            return examples_match.group(1).strip()
-        return None
-    
-    def _extract_mark(self, block: str) -> Optional[str]:
-        """mark 주석에서 마킹 정보 추출"""
-        mark_match = re.search(r'; mark: (.*?)(?:\n|$)', block, re.DOTALL)
-        if mark_match:
-            return mark_match.group(1).strip()
-        return None
-    
-    def _extract_rules(self, block: str) -> Optional[str]:
-        """match_expand 규칙 부분 추출"""
-        # match_expand로 시작하는 부분을 찾아서 전체 규칙 추출
-        rules_match = re.search(r'(match_expand.*?)(?=\n\n|\n;|\n$|$)', block, re.DOTALL)
-        if rules_match:
-            return rules_match.group(1).strip()
-        return None
     
     def insert_rules(self, rules_data: List[Dict]):
         """규칙 데이터를 DB에 삽입"""

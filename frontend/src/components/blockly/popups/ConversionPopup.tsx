@@ -24,7 +24,7 @@ interface ConversionPopupProps {
   error?: string;
   isConverting: boolean;
   elapsedTime: number;
-  onConvert: () => void;
+  onConvert: (snartContent: string) => void;  // snartContent 매개변수 추가
   convertedCode: string;
   currentUser: any;
   sourceCodeTitle: string;
@@ -78,11 +78,78 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     setDisplayCode(block.converted_code);
   };
 
-  const handleConvert = () => {
+  const handleConvert = async () => {
     setSelectedBlock(null);
     setMemo('');
     setDisplayCode('');
-    onConvert();
+    
+    try {
+      // py2js_rules 데이터를 가져와서 .snart 파일 생성
+      const snartContent = await generateSnartFile();
+      // snart 내용을 onConvert에 전달
+      onConvert(snartContent);
+    } catch (error) {
+      console.error('변환규칙 파일 생성 실패:', error);
+      // 에러가 발생해도 변환은 진행 (빈 snart 내용으로)
+      onConvert('');
+    }
+  };
+
+  // .snart 파일 생성 함수 - 다운로드하지 않고 내용만 반환
+  const generateSnartFile = async (): Promise<string> => {
+    try {
+      // 1. py2js_rules 데이터 조회
+      const response = await fetch('/api/py2js-rules');
+      if (!response.ok) {
+        throw new Error('변환규칙 데이터를 가져올 수 없습니다.');
+      }
+      
+      const rules = await response.json();
+      
+      // 2. rules를 sn 순서대로 정렬 (순서 보장)
+      const sortedRules = rules.sort((a: any, b: any) => {
+        // sn 필드로 정렬 (sn이 있으면 sn으로, 없으면 인덱스로)
+        if (a.sn !== undefined && b.sn !== undefined) {
+          return a.sn - b.sn;
+        }
+        return 0; // 원래 순서 유지
+      });
+      
+      // 3. .snart 파일 형식으로 변환 (올바른 형식)
+      let snartContent = '';
+      
+      sortedRules.forEach((rule: any, index: number) => {
+        // 각 rule 블록 시작
+        snartContent += `; Rule ${rule.sn || index + 1}\n`;
+        
+        // examples가 있으면 주석으로 추가
+        if (rule.examples && rule.examples.trim()) {
+          // 따옴표 이스케이프 처리
+          const escapedExamples = rule.examples.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+          snartContent += `; examples: "${escapedExamples}"\n`;
+        }
+        
+        // mark가 있으면 주석으로 추가
+        if (rule.mark && typeof rule.mark === 'object') {
+          snartContent += `; mark: ${JSON.stringify(rule.mark)}\n`;
+        }
+        
+        // rules 내용 추가
+        if (rule.rules && rule.rules.trim()) {
+          snartContent += `${rule.rules}\n\n`;
+        } else {
+          snartContent += '\n';
+        }
+      });
+      
+      console.log(`${sortedRules.length}개의 변환규칙이 포함된 .snart 내용이 생성되었습니다.`);
+      console.log('Snart 내용 미리보기:', snartContent.substring(0, 500));
+      return snartContent;
+      
+    } catch (error) {
+      console.error('변환규칙 파일 생성 중 오류:', error);
+      throw error;
+    }
   };
 
   // 변환규칙 생성 핸들러

@@ -14,7 +14,9 @@ def run_translator(**context):
     dag_run = context.get('dag_run')
     if dag_run and dag_run.conf:
         origin_code = dag_run.conf.get('origin_code')
+        snart_content = dag_run.conf.get('snart_content', '')  # snart 내용 추출
         logging.info(f"REST API로부터 받은 origin_code: {origin_code}")
+        logging.info(f"REST API로부터 받은 snart_content 길이: {len(snart_content)}")
         # target_lang = dag_run.conf.get('target_lang')
         # logging.info(f"REST API로부터 받은 target_lang: {target_lang}")
         target_lang = "js"
@@ -23,6 +25,7 @@ def run_translator(**context):
         def add(a, b):
             return a + b
         """
+        snart_content = ""
         logging.info(f"기본값 사용 - origin_code: {origin_code}")
     
     # ASCII 호환성 검사
@@ -151,10 +154,27 @@ def run_translator(**context):
     # 임시 디렉토리 생성
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_output_file = os.path.join(temp_dir, "pirel_translate.js")
+        temp_snart_file = os.path.join(temp_dir, "py2js_rules.snart")
         
-        # 환경 변수로 출력 파일 경로 전달
+        # 1. DAG 파라미터에서 .snart 내용을 받아서 임시 파일로 저장
+        if snart_content and snart_content.strip():
+            # .snart 파일 저장
+            with open(temp_snart_file, 'w', encoding='utf-8') as f:
+                f.write(snart_content)
+            logging.info(f"전달받은 .snart 내용을 임시 파일로 저장: {temp_snart_file}")
+            logging.info(f"Snart 파일 내용 미리보기: {snart_content[:200]}...")
+        else:
+            logging.warning("DAG 파라미터에 snart_content가 없거나 비어있습니다.")
+            temp_snart_file = None
+        
+        # 환경 변수로 출력 파일 경로와 .snart 파일 경로 전달
         env = os.environ.copy()
         env["OUTPUT_FILE"] = temp_output_file
+        if temp_snart_file and os.path.exists(temp_snart_file):
+            env["SNART_FILE"] = temp_snart_file
+            logging.info(f"SNART_FILE 환경변수 설정: {temp_snart_file}")
+        else:
+            logging.warning("SNART_FILE을 설정할 수 없습니다.")
         
         # PiREL 작업 디렉토리 설정
         pirel_dir = "/data/workspace/PiREL-private/src"
@@ -164,8 +184,13 @@ def run_translator(**context):
         venv_python = "/opt/airflow/pirel_env/.venv/bin/python"
         
         try:
+            # 서브프로그램에 .snart 파일 경로를 추가 인자로 전달
+            cmd_args = [venv_python, file_path, processed_code, target_lang]
+            if temp_snart_file:
+                cmd_args.append(f"--snart-file={temp_snart_file}")
+            
             result = subprocess.run(
-                [venv_python, file_path, processed_code, target_lang],
+                cmd_args,
                 check=True,
                 capture_output=True,
                 text=True,
@@ -192,8 +217,13 @@ def run_translator(**context):
                 logging.info(f"ASCII 전용 코드로 재시도: {ascii_only_code}")
                 
                 try:
+                    # 서브프로그램에 .snart 파일 경로를 추가 인자로 전달
+                    cmd_args = [venv_python, file_path, ascii_only_code, target_lang]
+                    if temp_snart_file:
+                        cmd_args.append(f"--snart-file={temp_snart_file}")
+                    
                     result = subprocess.run(
-                        [venv_python, file_path, ascii_only_code, target_lang],
+                        cmd_args,
                         check=True,
                         capture_output=True,
                         text=True,
