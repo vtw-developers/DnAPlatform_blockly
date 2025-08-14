@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import './RulesManagementModal.css';
 
 interface Py2JsRule {
-  sn: number;
+  id: number;
   examples: string | null;
   mark: string | null;
   rules: string;
+  is_commented: boolean;
 }
 
 interface RulesManagementModalProps {
@@ -88,7 +89,7 @@ export const RulesManagementModal: React.FC<RulesManagementModalProps> = ({
                   <table className="rules-table">
                     <thead>
                       <tr>
-                        <th>순번</th>
+                        <th>ID</th>
                         <th>규칙 내용</th>
                         <th>예시</th>
                         <th>마킹</th>
@@ -97,11 +98,11 @@ export const RulesManagementModal: React.FC<RulesManagementModalProps> = ({
                     <tbody>
                       {rules.map((rule) => (
                         <tr 
-                          key={rule.sn} 
+                          key={rule.id} 
                           className="rule-row"
                           onClick={() => handleRuleClick(rule)}
                         >
-                          <td className="rule-sn">{rule.sn}</td>
+                          <td className="rule-id">{rule.id}</td>
                           <td className="rule-content">
                             {formatRules(rule.rules)}
                           </td>
@@ -127,7 +128,7 @@ export const RulesManagementModal: React.FC<RulesManagementModalProps> = ({
               
               {selectedRule && (
                 <div className="detail-content">
-                  <h3>규칙 상세 정보 (순번: {selectedRule.sn})</h3>
+                  <h3>규칙 상세 정보 (ID: {selectedRule.id})</h3>
                   
                   <div className="detail-section">
                     <h4>변환 규칙</h4>
