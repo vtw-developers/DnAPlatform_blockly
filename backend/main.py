@@ -799,11 +799,11 @@ async def generate_snart_content_from_db() -> str:
         connection = get_db_connection()
         cursor = connection.cursor(cursor_factory=RealDictCursor)
         
-        # 모든 규칙 조회 (순번 순으로 정렬)
+        # 모든 규칙 조회 (ID 순으로 정렬, is_commented 필드 포함)
         query = """
-        SELECT sn, examples, mark, rules 
+        SELECT examples, mark, rules, is_commented
         FROM py2js_rule 
-        ORDER BY sn
+        ORDER BY id
         """
         
         cursor.execute(query)
@@ -817,13 +817,12 @@ async def generate_snart_content_from_db() -> str:
         snart_content = ''
         
         for i, rule in enumerate(rules):
-            # 각 rule 블록 시작 - Rule 번호 주석
-            # snart_content += f"; Rule {rule['sn']}\n"
+            # 각 rule 블록 시작
             
             # examples가 있는 경우에만 주석으로 추가 (규칙 상단에)
             if rule['examples'] and rule['examples'].strip():
-                # 따옴표 이스케이프 처리
-                escaped_examples = rule['examples'].replace('"', '\\"').replace('\n', '\\n')
+                # examples 내용에 따옴표가 포함된 경우 이스케이프 처리
+                escaped_examples = rule['examples'].replace('"', '\\"').replace("'", "\\'")
                 snart_content += f'; examples: "{escaped_examples}"\n'
             
             # mark가 있는 경우에만 주석으로 추가 (규칙 상단에)
@@ -836,16 +835,54 @@ async def generate_snart_content_from_db() -> str:
             
             # rules 내용 추가 (실제 match_expand 규칙)
             if rule['rules'] and rule['rules'].strip():
-                snart_content += f"{rule['rules']}\n"
+                # 주석 처리된 규칙인 경우 ;; 추가
+                if rule.get('is_commented', False):
+                    # 이미 ;;가 포함되어 있다면 그대로 사용
+                    if rule['rules'].startswith(';;'):
+                        snart_content += f"{rule['rules']}"
+                    else:
+                        snart_content += f";;{rule['rules']}"
+                else:
+                    # 일반 규칙은 그대로 사용
+                    snart_content += f"{rule['rules']}"
             else:
-                snart_content += '\n'
+                # 빈 규칙인 경우 건너뛰기
+                continue
             
             # 규칙 사이에 빈 줄 추가 (마지막 규칙이 아닌 경우)
             if i < len(rules) - 1:
+                snart_content += '\n\n'
+            else:
+                # 마지막 규칙 뒤에도 빈 줄 추가
                 snart_content += '\n'
         
         logger.info(f"데이터베이스에서 {len(rules)}개의 변환규칙을 조회하여 leet.snart 형식으로 생성했습니다.")
         logger.info(f"생성된 .snart 내용 길이: {len(snart_content)}")
+        
+        # 생성된 내용의 match_expand 개수 확인
+        match_expand_count = snart_content.count('(match_expand')
+        ext_match_expand_count = snart_content.count('(ext_match_expand')
+        total_count = match_expand_count + ext_match_expand_count
+        
+        logger.info(f"생성된 .snart의 match_expand 개수: {match_expand_count}")
+        logger.info(f"생성된 .snart의 ext_match_expand 개수: {ext_match_expand_count}")
+        logger.info(f"생성된 .snart의 총 규칙 개수: {total_count}")
+        
+        # 개수 검증
+        if total_count != len(rules):
+            logger.warning(f"경고: 생성된 총 규칙 개수({total_count})가 DB 규칙 개수({len(rules)})와 다릅니다!")
+        
+        # Airflow DAG에서 기대하는 형식 검증
+        expected_count = len(("\n" + snart_content).split("\n(match_expand")) + len(("\n" + snart_content).split("\n(ext_match_expand")) - 2
+        logger.info(f"Airflow DAG에서 기대하는 규칙 개수: {expected_count}")
+        
+        # S-expression 파서를 위한 형식 검증
+        # 각 규칙이 올바른 괄호 구조를 가지고 있는지 확인
+        import re
+        rule_pattern = r'\(match_expand[^()]*(?:\([^()]*\)[^()]*)*\)'
+        parsed_rules = re.findall(rule_pattern, snart_content, re.DOTALL)
+        logger.info(f"S-expression 파서로 파싱 가능한 규칙 개수: {len(parsed_rules)}")
+        
         return snart_content
         
     except Exception as e:
