@@ -17,11 +17,11 @@ async def get_py2js_rules():
         connection = get_db_connection()
         cursor = connection.cursor(cursor_factory=RealDictCursor)
         
-        # 모든 규칙 조회 (순번 순으로 정렬)
+        # 모든 규칙 조회 (ID 순으로 정렬)
         query = """
-        SELECT sn, examples, mark, rules 
+        SELECT id, examples, mark, rules, is_commented
         FROM py2js_rule 
-        ORDER BY sn
+        ORDER BY id
         """
         
         cursor.execute(query)
@@ -40,24 +40,24 @@ async def get_py2js_rules():
             detail=f"변환규칙 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
-@router.get("/py2js-rules/{sn}")
-async def get_py2js_rule_by_sn(sn: int):
+@router.get("/py2js-rules/{rule_id}")
+async def get_py2js_rule_by_id(rule_id: int):
     """
-    특정 순번의 Python to JavaScript 변환규칙을 조회합니다.
+    특정 ID의 Python to JavaScript 변환규칙을 조회합니다.
     """
     try:
         # 데이터베이스 연결
         connection = get_db_connection()
         cursor = connection.cursor(cursor_factory=RealDictCursor)
         
-        # 특정 순번의 규칙 조회
+        # 특정 ID의 규칙 조회
         query = """
-        SELECT sn, examples, mark, rules 
+        SELECT id, examples, mark, rules, is_commented
         FROM py2js_rule 
-        WHERE sn = %s
+        WHERE id = %s
         """
         
-        cursor.execute(query, (sn,))
+        cursor.execute(query, (rule_id,))
         rule = cursor.fetchone()
         
         # 커서와 연결 종료
@@ -67,7 +67,7 @@ async def get_py2js_rule_by_sn(sn: int):
         if not rule:
             raise HTTPException(
                 status_code=404, 
-                detail=f"순번 {sn}의 변환규칙을 찾을 수 없습니다."
+                detail=f"ID {rule_id}의 변환규칙을 찾을 수 없습니다."
             )
         
         # 결과 반환
