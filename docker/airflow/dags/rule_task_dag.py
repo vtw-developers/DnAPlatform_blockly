@@ -14,18 +14,25 @@ def run_translator(**context):
     if dag_run and dag_run.conf:
         source_code_id = dag_run.conf.get('source_code_id')
         source_code_title = dag_run.conf.get('source_code_title')
+        source_code = dag_run.conf.get('source_code')  # 실제 Python 코드
+        
         logging.info(f"REST API로부터 받은 source_code_id: {source_code_id}")
         logging.info(f"REST API로부터 받은 source_code_title: {source_code_title}")
+        logging.info(f"REST API로부터 받은 source_code: {source_code}")
         
-        # source_code_title을 기반으로 임시 코드 생성 (실제로는 데이터베이스에서 가져와야 함)
-        origin_code = f"""
-        # {source_code_title}에 대한 변환규칙 생성
-        # Source Code ID: {source_code_id}
-        
-        def sample_function():
-            # 여기에 실제 원본 코드가 들어가야 합니다
-            pass
-        """
+        # REST API에서 전달받은 실제 Python 코드 사용
+        if source_code:
+            origin_code = source_code
+        else:
+            # fallback: source_code가 없을 경우 기본값 사용
+            origin_code = f"""
+            # {source_code_title}에 대한 변환규칙 생성
+            # Source Code ID: {source_code_id}
+            
+            def sample_function():
+                # 여기에 실제 원본 코드가 들어가야 합니다
+                pass
+            """
         target_lang = "js"
     else:
         origin_code = """
@@ -54,7 +61,7 @@ def run_translator(**context):
         
         try:
             result = subprocess.run(
-                [venv_python, file_path, origin_code],
+                [venv_python, file_path, "--origin-code", origin_code],
                 check=True,
                 capture_output=True,
                 text=True,

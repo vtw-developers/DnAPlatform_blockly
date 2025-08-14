@@ -261,6 +261,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           currentUser={user}
           sourceCodeTitle={title}
           sourceCodeId={selectedBlocks[0] || 0}
+          currentCode={currentCode}  // 생성된 Python 코드 전달
         />
       )}
 

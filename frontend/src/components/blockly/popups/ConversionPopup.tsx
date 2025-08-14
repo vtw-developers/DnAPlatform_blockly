@@ -29,6 +29,7 @@ interface ConversionPopupProps {
   currentUser: any;
   sourceCodeTitle: string;
   sourceCodeId: number;
+  currentCode: string;  // 생성된 Python 코드 추가
 }
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
@@ -43,6 +44,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   convertedCode,  
   sourceCodeTitle,
   sourceCodeId,
+  currentCode,  // 생성된 Python 코드 추가
 }) => {
   const [memo, setMemo] = useState('');
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
@@ -98,7 +100,10 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     setRuleCreationStatus('변환규칙 생성 요청 중...');
     
     try {
-      const response = await codeBlockApi.createTranslationRule(sourceCodeId, sourceCodeTitle);
+      // 생성된 Python 코드를 sourceCode로 사용 (변환된 코드가 아님)
+      const sourceCode = currentCode || `# ${sourceCodeTitle}에 대한 변환규칙 생성\n# Source Code ID: ${sourceCodeId}\n\ndef sample_function():\n    # 여기에 실제 원본 코드가 들어가야 합니다\n    pass`;
+      
+      const response = await codeBlockApi.createTranslationRule(sourceCodeId, sourceCodeTitle, sourceCode);
       setRuleCreationStatus(`변환규칙 생성 요청 완료. DAG Run ID: ${response.dag_run_id}`);
       
       // 잠시 후 상태 메시지 초기화

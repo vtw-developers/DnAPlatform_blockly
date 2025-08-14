@@ -176,6 +176,7 @@ class ConvertResponse(BaseModel):
 class TranslationRuleRequest(BaseModel):
     source_code_id: int
     source_code_title: str
+    source_code: str  # 실제 Python 코드
     
 class DagStatusResponse(BaseModel):
     dag_run_id: str
@@ -252,7 +253,8 @@ async def trigger_translation_rule_creation(payload: TranslationRuleRequest):
         "dag_run_id": dag_run_id,
         "conf": {
             "source_code_id": payload.source_code_id,
-            "source_code_title": payload.source_code_title
+            "source_code_title": payload.source_code_title,
+            "source_code": payload.source_code  # 실제 Python 코드 전달
         }
     }
     
@@ -263,6 +265,7 @@ async def trigger_translation_rule_creation(payload: TranslationRuleRequest):
     }
     
     logger.info(f"Triggering Translation Rule Creation Airflow DAG '{airflow_dag_trigger_url}' via backend with run_id: {dag_run_id}")
+    logger.info(f"Translation Rule Creation payload: {airflow_payload}")
     
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
