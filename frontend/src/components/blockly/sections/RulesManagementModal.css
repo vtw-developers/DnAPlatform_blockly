@@ -28,8 +28,8 @@
 
 /* 모달 헤더 */
 .rules-modal-header {
+  position: relative;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid #e1e5e9;
@@ -44,19 +44,29 @@
 }
 
 .close-button {
+  position: absolute;
+  top: 20px;
+  right: 24px;
   background: none;
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #6c757d;
-  padding: 4px 8px;
+  padding: 8px;
+  color: #333;
+  font-weight: bold;
+  line-height: 1;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .close-button:hover {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: #f0f0f0;
+  color: #000;
 }
 
 /* 모달 콘텐츠 */
@@ -117,6 +127,20 @@
   background-color: #f8f9fa;
 }
 
+/* 체크박스 관련 스타일 */
+.checkbox-header,
+.checkbox-cell {
+  width: 50px;
+  text-align: center;
+}
+
+.checkbox-header input[type="checkbox"],
+.checkbox-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
 /* 테이블 컬럼별 스타일 */
 .rule-id {
   width: 80px;
@@ -152,6 +176,30 @@
   padding: 20px;
 }
 
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #007bff;
+}
+
+.edit-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #218838;
+}
+
 .back-button {
   background-color: #6c757d;
   color: white;
@@ -170,9 +218,7 @@
 
 .detail-content h3 {
   color: #2c3e50;
-  margin-bottom: 24px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #007bff;
+  margin: 0;
 }
 
 .detail-section {
@@ -212,6 +258,108 @@
   background-color: #f3e5f5;
   border-color: #e1bee7;
   color: #7b1fa2;
+}
+
+/* 편집 모드 스타일 */
+.edit-textarea {
+  width: 100%;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.edit-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.save-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: #218838;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.cancel-button:hover {
+  background-color: #5a6268;
+}
+
+/* 클릭 가능한 셀 스타일 */
+.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable:hover {
+  background-color: #f8f9fa;
+}
+
+/* 일괄 작업 버튼 */
+.bulk-actions {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.delete-selected-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.delete-selected-btn:hover {
+  background-color: #c82333;
 }
 
 .mark-info {
