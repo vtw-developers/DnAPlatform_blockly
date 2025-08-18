@@ -293,15 +293,13 @@ export class CodeBlockApi {
   }
 
   // 변환규칙 생성을 위한 rule_task DAG 호출
-  async createTranslationRule(sourceCodeId: number, sourceCodeTitle: string, sourceCode: string): Promise<DagRunTriggerResponse> {
-    console.log(`Requesting translation rule creation for source code: ${sourceCodeId} - ${sourceCodeTitle}`);
+  async generateRule(code: string): Promise<DagRunTriggerResponse> {
+    console.log(`Requesting translation rule creation for source code: ${code}`);
     try {
       const response = await axios.post<DagRunTriggerResponse>(
-        `${this.baseUrl}/airflow/rule-task`,
+        `${this.baseUrl}/code/rule-generate`,
         {
-          source_code_id: sourceCodeId,
-          source_code_title: sourceCodeTitle,
-          source_code: sourceCode
+          code: code
         }
       );
       console.log('Translation rule creation requested via backend, response:', response.data);
