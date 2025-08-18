@@ -56,7 +56,7 @@ def run_translator(**context):
             logging.warning("SNART_FILE을 설정할 수 없습니다.")
         
         # PiREL 작업 디렉토리 설정
-        pirel_dir = "/data/workspace/PiREL-private/src"
+        pirel_dir = "/data/workspace/PiREL_generator/src"
         file_path = os.path.join(pirel_dir, "api_vtw_exec.py")
         
         # Python 3.12 가상환경의 Python 경로 설정

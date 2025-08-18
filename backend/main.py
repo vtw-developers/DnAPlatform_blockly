@@ -173,10 +173,8 @@ class CodeConvertRequest(BaseModel):
 class ConvertResponse(BaseModel):
     dag_run_id: str
 
-class TranslationRuleRequest(BaseModel):
-    source_code_id: int
-    source_code_title: str
-    source_code: str  # 실제 Python 코드
+class RuleGenerateRequest(BaseModel):
+    code: str  # 실제 Python 코드
     
 class DagStatusResponse(BaseModel):
     dag_run_id: str
@@ -236,8 +234,8 @@ async def trigger_code_conversion(payload: CodeConvertRequest):
             logger.exception("Unexpected error during Conversion Airflow DAG trigger")
             raise HTTPException(status_code=500, detail=f"내부 서버 오류: {e}")
 
-@app.post("/api/airflow/rule-task", response_model=ConvertResponse)
-async def trigger_translation_rule_creation(payload: TranslationRuleRequest):
+@app.post("/api/code/rule-generate", response_model=ConvertResponse)
+async def trigger_translation_rule_creation(payload: RuleGenerateRequest):
     """
     Triggers the rule_task DAG for translation rule creation.
     """
@@ -249,12 +247,14 @@ async def trigger_translation_rule_creation(payload: TranslationRuleRequest):
     random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
     dag_run_id = f"api_rule_{timestamp}_{random_str}"
     
+    # 변환 시점에 최신 변환규칙을 자동으로 조회하여 snart_content 생성
+    snart_content = await generate_snart_content_from_db()
+    
     airflow_payload = {
         "dag_run_id": dag_run_id,
-        "conf": {
-            "source_code_id": payload.source_code_id,
-            "source_code_title": payload.source_code_title,
-            "source_code": payload.source_code  # 실제 Python 코드 전달
+        "conf": {           
+            "origin_code": payload.code,
+            "snart_content": snart_content  # 백엔드에서 자동 생성한 변환규칙
         }
     }
     

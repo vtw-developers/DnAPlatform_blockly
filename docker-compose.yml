@@ -94,7 +94,7 @@ services:
       - ./docker/airflow/requirements-equiv.txt:/opt/airflow/requirements-equiv.txt  # Equiv 전용
       - ./docker/airflow/init-airflow.sh:/opt/airflow/init-airflow.sh  # 초기화 스크립트 마운트
       - /data/workspace/Vtw:/data/workspace/Vtw  # 도커 밖의 semantic equivalent 파일들에 접근하기 위한 볼륨 마운트
-      - /data/workspace/PiREL-private:/data/workspace/PiREL-private  # PiREL 번역기 접근을 위한 볼륨 마운트
+      - /data/workspace/PiREL_generator:/data/workspace/PiREL_generator  # PiREL 번역기 접근을 위한 볼륨 마운트
     restart: always
     networks:
       - blockly_network

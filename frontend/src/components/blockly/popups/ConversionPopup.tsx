@@ -101,9 +101,9 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     
     try {
       // 생성된 Python 코드를 sourceCode로 사용 (변환된 코드가 아님)
-      const sourceCode = currentCode || `# ${sourceCodeTitle}에 대한 변환규칙 생성\n# Source Code ID: ${sourceCodeId}\n\ndef sample_function():\n    # 여기에 실제 원본 코드가 들어가야 합니다\n    pass`;
+      const code = currentCode || `# ${sourceCodeTitle}에 대한 변환규칙 생성\n# Source Code ID: ${sourceCodeId}\n\ndef sample_function():\n    # 여기에 실제 원본 코드가 들어가야 합니다\n    pass`;
       
-      const response = await codeBlockApi.createTranslationRule(sourceCodeId, sourceCodeTitle, sourceCode);
+      const response = await codeBlockApi.generateRule(code);
       setRuleCreationStatus(`변환규칙 생성 요청 완료. DAG Run ID: ${response.dag_run_id}`);
       
       // 잠시 후 상태 메시지 초기화
