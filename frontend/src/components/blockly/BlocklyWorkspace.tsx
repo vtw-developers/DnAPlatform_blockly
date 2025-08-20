@@ -52,7 +52,8 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     handleConvert,
     handleCloseConversionPopup,
     startConversion,
-    startRuleCreation
+    startRuleCreation,
+    handleRulesSaved
   } = useConversion();
 
   const { isOpen, openPopup, closePopup } = usePopups();
@@ -280,6 +281,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           ruleCreationResult={ruleCreationResult}
           ruleCreationError={ruleCreationError}
           onStartRuleCreation={startRuleCreation}
+          onRulesSaved={handleRulesSaved}
         />
       )}
 

@@ -16,6 +16,13 @@ interface ConvertedCodeBlock {
   source_code_title: string;
 }
 
+// 변환규칙 인터페이스 추가
+interface ConversionRule {
+  id: string;
+  rule: string;
+  isSelected: boolean;
+}
+
 interface ConversionPopupProps {
   isOpen: boolean;
   onClose: () => void;
@@ -38,6 +45,7 @@ interface ConversionPopupProps {
   ruleCreationResult: string;
   ruleCreationError: string | null;
   onStartRuleCreation: () => void;
+  onRulesSaved: () => void;
 }
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
@@ -61,6 +69,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   ruleCreationResult,
   ruleCreationError,
   onStartRuleCreation,
+  onRulesSaved,
 }) => {
   const [memo, setMemo] = useState('');
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
@@ -69,14 +78,129 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const [displayCode, setDisplayCode] = useState<string>('');
   const [checkedIds, setCheckedIds] = useState<number[]>([]);
   
+  // 변환규칙 관련 상태 추가
+  const [conversionRules, setConversionRules] = useState<ConversionRule[]>([]);
+  const [isSavingRules, setIsSavingRules] = useState(false);
+  
   useEffect(() => {
     if (isOpen) {
       loadConvertedBlocks();
       setSelectedBlock(null);
       setMemo('');
       setDisplayCode('');
+      setConversionRules([]);
     }
   }, [isOpen]);
+
+  // 변환규칙 생성 결과가 변경될 때 파싱
+  useEffect(() => {
+    if (ruleCreationResult) {
+      parseConversionRules(ruleCreationResult);
+    }
+  }, [ruleCreationResult]);
+
+  // 변환규칙 파싱 함수
+  const parseConversionRules = (result: string) => {
+    try {
+      // (match_expand) 패턴으로 규칙들을 분리
+      // 괄호가 중첩된 경우를 고려하여 정확하게 파싱
+      const rules: ConversionRule[] = [];
+      let currentRule = '';
+      let parenCount = 0;
+      let startIndex = -1;
+      
+      for (let i = 0; i < result.length; i++) {
+        const char = result[i];
+        
+        if (char === '(') {
+          if (parenCount === 0) {
+            // 새로운 규칙 시작
+            startIndex = i;
+          }
+          parenCount++;
+        } else if (char === ')') {
+          parenCount--;
+          if (parenCount === 0 && startIndex !== -1) {
+            // 규칙 완성
+            const rule = result.substring(startIndex, i + 1);
+            if (rule.includes('match_expand')) {
+              rules.push({
+                id: `rule_${rules.length}`,
+                rule: rule,
+                isSelected: true // 기본적으로 선택됨
+              });
+            }
+            startIndex = -1;
+          }
+        }
+      }
+      
+      if (rules.length > 0) {
+        setConversionRules(rules);
+      } else {
+        // 패턴이 없으면 전체를 하나의 규칙으로 처리
+        setConversionRules([{
+          id: 'rule_0',
+          rule: result,
+          isSelected: true
+        }]);
+      }
+    } catch (error) {
+      console.error('변환규칙 파싱 중 오류:', error);
+      // 파싱 실패 시 전체를 하나의 규칙으로 처리
+      setConversionRules([{
+        id: 'rule_0',
+        rule: result,
+        isSelected: true
+      }]);
+    }
+  };
+
+  // 변환규칙 선택 상태 토글
+  const toggleRuleSelection = (ruleId: string) => {
+    setConversionRules(prev => 
+      prev.map(rule => 
+        rule.id === ruleId 
+          ? { ...rule, isSelected: !rule.isSelected }
+          : rule
+      )
+    );
+  };
+
+  // 변환규칙 저장
+  const handleSaveRules = async () => {
+    const selectedRules = conversionRules.filter(rule => rule.isSelected);
+    if (selectedRules.length === 0) {
+      alert('저장할 규칙을 선택해주세요.');
+      return;
+    }
+
+    setIsSavingRules(true);
+    try {
+      const savedRules = [];
+      for (const rule of selectedRules) {
+        // 규칙을 examples, mark, rules로 분리
+        const ruleData = {
+          examples: `Generated from ${sourceCodeTitle}`,
+          mark: `Rule ${rule.id}`,
+          rules: rule.rule,
+          is_commented: false
+        };
+        
+        const savedRule = await codeBlockApi.savePy2JsRule(ruleData);
+        savedRules.push(savedRule);
+      }
+      
+      alert(`${savedRules.length}개의 변환규칙이 성공적으로 저장되었습니다.`);
+      setConversionRules([]);
+      onRulesSaved(); // 부모 컴포넌트에 규칙 저장 완료 알림
+    } catch (error) {
+      console.error('변환규칙 저장 실패:', error);
+      alert('변환규칙 저장에 실패했습니다.');
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
 
   const loadConvertedBlocks = async () => {
     try {
@@ -312,29 +436,73 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           {/* 변환된 코드 표시 영역 - 기존 변환 결과 또는 변환규칙 생성 결과 */}
           {(displayCode || selectedBlock || ruleCreationResult) && (
             <div className="result-container">
-              <div className="save-form">                                
-                <h4>변환된 코드</h4>
-                <pre className="converted-code-textarea">
-                  {ruleCreationResult || displayCode}
-                </pre>
-                <div className="source-title">
-                  원본 코드: {selectedBlock ? selectedBlock.source_code_title : sourceCodeTitle}
-                  {ruleCreationResult && ' (변환규칙 생성 결과)'}
-                </div>
-                <textarea
-                  className="memo-textarea"
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  placeholder="메모를 입력하세요..."
-                  rows={3}
-                />
-                <button 
-                  className="convert-save-button"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? '저장 중...' : '저장'}
-                </button>
+              <div className="save-form">
+                {/* 변환규칙 생성 결과인 경우 테이블 형태로 표시 */}
+                {ruleCreationResult ? (
+                  <>
+                    <h4>생성된 변환규칙</h4>
+                    <div className="rules-table-container">
+                      <table className="rules-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '50px' }}>선택</th>
+                            <th>변환규칙</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {conversionRules.map((rule) => (
+                            <tr key={rule.id}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={rule.isSelected}
+                                  onChange={() => toggleRuleSelection(rule.id)}
+                                />
+                              </td>
+                              <td>
+                                <pre className="rule-code">{rule.rule}</pre>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="source-title">
+                      원본 코드: {sourceCodeTitle} (변환규칙 생성 결과)
+                    </div>
+                    <button 
+                      className="convert-save-button"
+                      onClick={handleSaveRules}
+                      disabled={isSavingRules}
+                    >
+                      {isSavingRules ? '변환규칙 저장 중...' : '변환규칙 저장'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h4>변환된 코드</h4>
+                    <pre className="converted-code-textarea">
+                      {displayCode}
+                    </pre>
+                    <div className="source-title">
+                      원본 코드: {selectedBlock ? selectedBlock.source_code_title : sourceCodeTitle}
+                    </div>
+                    <textarea
+                      className="memo-textarea"
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                      placeholder="메모를 입력하세요..."
+                      rows={3}
+                    />
+                    <button 
+                      className="convert-save-button"
+                      onClick={handleSave}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? '저장 중...' : '저장'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}          
