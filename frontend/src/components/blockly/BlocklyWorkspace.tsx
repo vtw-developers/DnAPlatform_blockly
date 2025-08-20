@@ -40,9 +40,19 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
     isConverting,
     conversionDagRunId,
     conversionElapsedTime,
+    sourceCodeTitle,
+    currentCode: conversionCurrentCode,
+    // 변환규칙 생성 관련 상태와 함수들
+    isCreatingRule,
+    ruleCreationStatus,
+    ruleDagRunId,
+    ruleCreationElapsedTime,
+    ruleCreationResult,
+    ruleCreationError,
     handleConvert,
     handleCloseConversionPopup,
-    startConversion
+    startConversion,
+    startRuleCreation
   } = useConversion();
 
   const { isOpen, openPopup, closePopup } = usePopups();
@@ -261,7 +271,15 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onCodeGenerate }) =
           currentUser={user}
           sourceCodeTitle={title}
           sourceCodeId={selectedBlocks[0] || 0}
-          currentCode={currentCode}  // 생성된 Python 코드 전달
+          currentCode={conversionCurrentCode}  // useConversion에서 관리하는 currentCode 사용
+          // 변환규칙 생성 관련 props 추가
+          isCreatingRule={isCreatingRule}
+          ruleCreationStatus={ruleCreationStatus}
+          ruleDagRunId={ruleDagRunId}
+          ruleCreationElapsedTime={ruleCreationElapsedTime}
+          ruleCreationResult={ruleCreationResult}
+          ruleCreationError={ruleCreationError}
+          onStartRuleCreation={startRuleCreation}
         />
       )}
 

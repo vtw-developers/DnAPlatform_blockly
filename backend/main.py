@@ -398,6 +398,102 @@ async def get_conversion_dag_result(run_id: str):
 
 # --- END Conversion Section ---
 
+# --- Rule Generation Endpoint Functions ---
+
+@app.get("/api/code/rule-generate/result/{run_id}", response_model=XComResponse)
+async def get_rule_generation_dag_result(run_id: str):
+    """
+    Gets the result (XCom value) from the rule_task DAG run.
+    First checks if the DAG is completed, then retrieves the result.
+    """
+    airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
+    airflow_auth_header = "Basic YWRtaW46dnR3MjEwMzAy"
+    headers = {
+        'Authorization': airflow_auth_header,
+        'Accept': 'application/json'
+    }
+    
+    logger.info(f"Getting Rule Generation DAG result for run_id: {run_id}")
+    
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            # First, check DAG status
+            dag_status_url = f"{airflow_base_url}/api/v1/dags/rule_task/dagRuns/{run_id}"
+            status_response = await client.get(dag_status_url, headers=headers)
+            status_response.raise_for_status()
+            dag_data = status_response.json()
+            dag_state = dag_data.get("state", "unknown")
+            
+            logger.info(f"DAG state for {run_id}: {dag_state}")
+            
+            # If DAG is not completed, return appropriate message
+            if dag_state in ["running", "queued"]:
+                return XComResponse(error="DAG가 아직 실행 중입니다. 잠시 후 다시 시도해주세요.")
+            elif dag_state in ["failed", "error"]:
+                return XComResponse(error=f"DAG 실행이 실패했습니다. 상태: {dag_state}")
+            
+            # DAG is completed, now get the result
+            airflow_xcom_url = f"{airflow_base_url}/api/v1/dags/rule_task/dagRuns/{run_id}/taskInstances/rule_generator/xcomEntries/rule_generate_result"
+            
+            response = await client.get(airflow_xcom_url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"Rule Generation DAG result response for {run_id}: {data}")
+            encoded_value = data.get("value")
+            decoded_value = None
+            decode_error_message = None
+
+            if encoded_value:
+                try:
+                    # First, try base64 decoding
+                    decoded_bytes = base64.b64decode(encoded_value, validate=True)
+                    try:
+                        # Then, try UTF-8 decoding
+                        decoded_value = decoded_bytes.decode('utf-8')
+                        logger.info(f"Successfully decoded XCom for {run_id} as UTF-8.")
+                    except UnicodeDecodeError:
+                        logger.warning(f"XCom value for {run_id} is not valid UTF-8 after base64 decode. Bytes: {decoded_bytes[:50]}...")
+                        decode_error_message = "결과 디코딩 실패: UTF-8 인코딩 형식이 아닙니다."
+
+                except (base64.binascii.Error, ValueError) as b64_error:
+                    # Base64 decoding failed, assume it might be plain text
+                    logger.warning(f"XCom value for {run_id} does not appear to be base64 encoded: {b64_error}. Assuming plain text.")
+                    if isinstance(encoded_value, str):
+                         try:
+                             encoded_value.encode('utf-8').decode('utf-8')
+                             decoded_value = encoded_value # Treat as plain text
+                         except UnicodeError:
+                             decode_error_message = "결과 디코딩 실패: Base64가 아니며 UTF-8 문자열도 아닙니다."
+                    else:
+                         decode_error_message = "결과 디코딩 실패: Base64 형식이 아니며 문자열도 아닙니다."
+                except Exception as e:
+                    logger.error(f"Unexpected error during XCom decoding for {run_id}: {e}")
+                    decode_error_message = f"결과 처리 중 예상치 못한 오류: {e}"
+
+            # Return error if decoding failed, otherwise return value (which could be None)
+            if decode_error_message:
+                return XComResponse(error=decode_error_message)
+            else:
+                return XComResponse(value=decoded_value)
+
+        except httpx.HTTPStatusError as e:
+            # Common case: 404 if task instance or xcom doesn't exist yet
+            logger.warning(f"HTTP error getting Rule Generation DAG result for {run_id}: {e.response.status_code} - {e.response.text}")
+            error_detail = e.response.text
+            try: # Try to parse JSON error from Airflow
+                error_json = e.response.json()
+                error_detail = error_json.get('detail', error_detail)
+            except: pass
+            return XComResponse(error=f"결과 조회 실패 ({e.response.status_code}): {error_detail}")
+        except httpx.RequestError as e:
+            logger.error(f"Request error getting Rule Generation DAG result for {run_id}: {e}")
+            return XComResponse(error=f"Airflow 연결 실패: {e}")
+        except Exception as e:
+            logger.exception(f"Unexpected error getting Rule Generation DAG result for {run_id}")
+            return XComResponse(error=f"내부 서버 오류: {e}")
+
+# --- END Rule Generation Section ---
+
 # --- Verification Endpoint Models & Functions --- 
 
 # <<<< ADDED: Endpoint to get Verification status via backend >>>>

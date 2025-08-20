@@ -310,6 +310,40 @@ export class CodeBlockApi {
     }
   }
 
+  // 변환규칙 생성 결과 조회
+  async getRuleGenerationResult(dagRunId: string): Promise<VerificationResult> {
+    console.log(`Getting rule generation result via backend for runId: ${dagRunId}`);
+    try {
+      const response = await axios.get<XComResponse>(
+        `${this.baseUrl}/code/rule-generate/result/${dagRunId}`
+      );
+      console.log('Rule generation result from backend:', response.data);
+      
+      // XComResponse를 VerificationResult 형태로 변환
+      if (response.data.error) {
+        return {
+          error: response.data.error
+        };
+      } else if (response.data.value) {
+        return {
+          status: 'SUCCESS',
+          result: {
+            message: response.data.value
+          }
+        };
+      } else {
+        return {
+          error: '결과 데이터가 없습니다.'
+        };
+      }
+    } catch (error) {
+      console.error(`백엔드를 통한 변환규칙 생성 결과 조회 중 오류 (${dagRunId}):`, error);
+      return {
+        error: '백엔드 결과 조회 실패'
+      };
+    }
+  }
+
   async verifyCode(code: string, model_name: string, model_type: string, temperature: number = 0): Promise<{ dag_run_id: string }> {
     console.log(`Requesting verification via backend for model: ${model_name}, type: ${model_type}, temperature: ${temperature}`);
     try {

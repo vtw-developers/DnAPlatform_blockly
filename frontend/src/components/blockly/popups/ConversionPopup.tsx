@@ -24,12 +24,20 @@ interface ConversionPopupProps {
   error?: string;
   isConverting: boolean;
   elapsedTime: number;
-  onConvert: (snartContent: string) => void;  // snartContent 매개변수 추가
+  onConvert: (snartContent: string) => void;
   convertedCode: string;
   currentUser: any;
   sourceCodeTitle: string;
   sourceCodeId: number;
-  currentCode: string;  // 생성된 Python 코드 추가
+  currentCode: string;
+  // useConversion 훅에서 관리하는 변환규칙 생성 상태들
+  isCreatingRule: boolean;
+  ruleCreationStatus: string;
+  ruleDagRunId: string | null;
+  ruleCreationElapsedTime: number;
+  ruleCreationResult: string;
+  ruleCreationError: string | null;
+  onStartRuleCreation: () => void;
 }
 
 export const ConversionPopup: React.FC<ConversionPopupProps> = ({
@@ -44,7 +52,15 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   convertedCode,  
   sourceCodeTitle,
   sourceCodeId,
-  currentCode,  // 생성된 Python 코드 추가
+  currentCode,
+  // 변환규칙 생성 관련 props
+  isCreatingRule,
+  ruleCreationStatus,
+  ruleDagRunId,
+  ruleCreationElapsedTime,
+  ruleCreationResult,
+  ruleCreationError,
+  onStartRuleCreation,
 }) => {
   const [memo, setMemo] = useState('');
   const [convertedBlocks, setConvertedBlocks] = useState<ConvertedCodeBlock[]>([]);
@@ -52,8 +68,6 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
   const [selectedBlock, setSelectedBlock] = useState<ConvertedCodeBlock | null>(null);
   const [displayCode, setDisplayCode] = useState<string>('');
   const [checkedIds, setCheckedIds] = useState<number[]>([]);
-  const [isCreatingRule, setIsCreatingRule] = useState(false);
-  const [ruleCreationStatus, setRuleCreationStatus] = useState<string>('');
   
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +75,6 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
       setSelectedBlock(null);
       setMemo('');
       setDisplayCode('');
-      setRuleCreationStatus('');
     }
   }, [isOpen]);
 
@@ -89,44 +102,11 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
     onConvert('');
   };
 
-  // 변환규칙 생성 핸들러
-  const handleCreateRule = async () => {
-    if (!sourceCodeId || !sourceCodeTitle) {
-      alert('원본 코드 정보가 필요합니다.');
-      return;
-    }
-
-    setIsCreatingRule(true);
-    setRuleCreationStatus('변환규칙 생성 요청 중...');
-    
-    try {
-      // 생성된 Python 코드를 sourceCode로 사용 (변환된 코드가 아님)
-      const code = currentCode || `# ${sourceCodeTitle}에 대한 변환규칙 생성\n# Source Code ID: ${sourceCodeId}\n\ndef sample_function():\n    # 여기에 실제 원본 코드가 들어가야 합니다\n    pass`;
-      
-      const response = await codeBlockApi.generateRule(code);
-      setRuleCreationStatus(`변환규칙 생성 요청 완료. DAG Run ID: ${response.dag_run_id}`);
-      
-      // 잠시 후 상태 메시지 초기화
-      setTimeout(() => {
-        setRuleCreationStatus('');
-      }, 5000);
-      
-    } catch (error) {
-      console.error('변환규칙 생성 실패:', error);
-      setRuleCreationStatus('변환규칙 생성 실패. 다시 시도해주세요.');
-      
-      // 에러 메시지도 잠시 후 초기화
-      setTimeout(() => {
-        setRuleCreationStatus('');
-      }, 5000);
-    } finally {
-      setIsCreatingRule(false);
-    }
-  };
-
   const handleSave = async () => {
-    if (!displayCode) {
-      alert('변환된 코드가 필요합니다.');
+    // 변환된 코드 또는 변환규칙 생성 결과가 있어야 저장 가능
+    const codeToSave = ruleCreationResult || displayCode;
+    if (!codeToSave) {
+      alert('저장할 코드가 필요합니다.');
       return;
     }
 
@@ -138,16 +118,17 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
           selectedBlock.id,
           sourceCodeId,
           memo,
-          displayCode
+          codeToSave
         );
         alert('변환된 코드가 수정되었습니다.');
       } else {
         // 새로운 코드 저장
+        const title = ruleCreationResult ? `${sourceCodeTitle} (변환규칙 생성)` : sourceCodeTitle;
         await codeBlockApi.saveConvertedCode(
           sourceCodeId,
-          sourceCodeTitle,
+          title,
           memo,
-          displayCode
+          codeToSave
         );
         alert('변환된 코드가 저장되었습니다.');
       }
@@ -256,7 +237,7 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                                convertedCode.includes('Rule'))) ? (
               <button 
                 className="create-rule-button secondary" 
-                onClick={handleCreateRule}
+                onClick={onStartRuleCreation}
                 disabled={isCreatingRule}
               >
                 {isCreatingRule ? '규칙 생성 중...' : '변환규칙 생성'}
@@ -299,23 +280,47 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
                   <span className="console-message">오류: {error}</span>
                 </div>
               )}
+              
+              {/* 변환규칙 생성 관련 콘솔 출력 */}
               {ruleCreationStatus && (
-                <div className="console-line info">
+                <div className={`console-line ${ruleCreationError ? 'error' : ruleCreationResult ? 'success' : 'info'}`}>
                   <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
                   <span className="console-message">{ruleCreationStatus}</span>
+                </div>
+              )}
+              {ruleDagRunId && isCreatingRule && (
+                <div className="console-line info">
+                  <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                  <span className="console-message">DAG Run ID: {ruleDagRunId}</span>
+                </div>
+              )}
+              {isCreatingRule && (
+                <div className="console-line info">
+                  <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                  <span className="console-message">소요시간: {formatElapsedTime(ruleCreationElapsedTime)}</span>
+                </div>
+              )}
+              {ruleCreationError && (
+                <div className="console-line error">
+                  <span className="console-timestamp">[{new Date().toLocaleTimeString()}]</span>
+                  <span className="console-message">오류: {ruleCreationError}</span>
                 </div>
               )}
             </div>
           </div>
           
-          {(displayCode || selectedBlock) && (
+          {/* 변환된 코드 표시 영역 - 기존 변환 결과 또는 변환규칙 생성 결과 */}
+          {(displayCode || selectedBlock || ruleCreationResult) && (
             <div className="result-container">
               <div className="save-form">                                
                 <h4>변환된 코드</h4>
                 <pre className="converted-code-textarea">
-                  {displayCode}
+                  {ruleCreationResult || displayCode}
                 </pre>
-                <div className="source-title">원본 코드: {selectedBlock ? selectedBlock.source_code_title : sourceCodeTitle}</div>
+                <div className="source-title">
+                  원본 코드: {selectedBlock ? selectedBlock.source_code_title : sourceCodeTitle}
+                  {ruleCreationResult && ' (변환규칙 생성 결과)'}
+                </div>
                 <textarea
                   className="memo-textarea"
                   value={memo}

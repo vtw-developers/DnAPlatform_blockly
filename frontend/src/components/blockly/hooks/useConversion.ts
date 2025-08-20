@@ -12,8 +12,20 @@ export const useConversion = () => {
   const [sourceCodeTitle, setSourceCodeTitle] = useState<string>('');
   const [currentCode, setCurrentCode] = useState<string>('');
   
+  // 변환규칙 생성 관련 상태 추가
+  const [isCreatingRule, setIsCreatingRule] = useState(false);
+  const [ruleCreationStatus, setRuleCreationStatus] = useState<string>('');
+  const [ruleDagRunId, setRuleDagRunId] = useState<string | null>(null);
+  const [ruleCreationElapsedTime, setRuleCreationElapsedTime] = useState(0);
+  const [ruleCreationResult, setRuleCreationResult] = useState<string>('');
+  const [ruleCreationError, setRuleCreationError] = useState<string | null>(null);
+  
   const conversionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const conversionElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 변환규칙 생성 관련 타이머
+  const ruleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const ruleElapsedTimeRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleConvert = async (code: string, title: string) => {
     if (!code.trim()) {
@@ -30,6 +42,14 @@ export const useConversion = () => {
     setIsConverting(false);
     setConversionDagRunId(null);
     setConversionElapsedTime(0);
+    
+    // 변환규칙 생성 상태도 초기화
+    setIsCreatingRule(false);
+    setRuleCreationStatus('');
+    setRuleDagRunId(null);
+    setRuleCreationElapsedTime(0);
+    setRuleCreationResult('');
+    setRuleCreationError(null);
   };
 
   const startConversion = async () => {
@@ -72,6 +92,49 @@ export const useConversion = () => {
       setConversionStatus('변환 실패');
       setConversionError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
       setIsConverting(false);
+    }
+  };
+
+  // 변환규칙 생성 시작
+  const startRuleCreation = async () => {
+    if (!currentCode) {
+      alert('변환할 코드가 없습니다.');
+      return;
+    }
+
+    // 변환규칙 생성 시작 시 상태 초기화
+    setRuleCreationResult('');
+    setRuleCreationStatus('변환규칙 생성 요청 중...');
+    setRuleCreationError(null);
+    setRuleDagRunId(null);
+    setRuleCreationElapsedTime(0);
+    setIsCreatingRule(true);
+
+    try {
+      const response = await codeBlockApi.generateRule(currentCode);
+      setRuleDagRunId(response.dag_run_id);
+      setRuleCreationStatus(`변환규칙 생성 요청 완료. DAG Run ID: ${response.dag_run_id}`);
+      
+      // 상태 폴링 시작
+      if (ruleTimerRef.current) {
+        clearInterval(ruleTimerRef.current);
+      }
+      ruleTimerRef.current = setInterval(() => {
+        checkRuleCreationResult(response.dag_run_id);
+      }, 3000);
+
+      // 경과 시간 타이머 시작
+      if (ruleElapsedTimeRef.current) {
+        clearInterval(ruleElapsedTimeRef.current);
+      }
+      ruleElapsedTimeRef.current = setInterval(() => {
+        setRuleCreationElapsedTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error during rule creation:', error);
+      setRuleCreationStatus('변환규칙 생성 실패');
+      setRuleCreationError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+      setIsCreatingRule(false);
     }
   };
 
@@ -119,19 +182,67 @@ export const useConversion = () => {
       }
 
       if (shouldStopPolling) {
-        stopTimers();
+        stopConversionTimers();
       }
 
     } catch (error) {
       console.error('Error during conversion status check process:', error);
       setConversionStatus('폴링 오류');
       setConversionError(error instanceof Error ? error.message : '상태/결과 확인 중 오류');
-      stopTimers();
+      stopConversionTimers();
       setIsConverting(false);
     }
   };
 
-  const stopTimers = () => {
+  // 변환규칙 생성 결과 확인
+  const checkRuleCreationResult = async (runId: string) => {
+    let shouldStopPolling = false;
+    try {
+      const response = await codeBlockApi.getRuleGenerationResult(runId);
+      console.log("Rule creation result check:", response);
+
+      if (response.error) {
+        // 에러 발생 - DAG가 아직 실행 중인 경우 계속 모니터링
+        if (response.error.includes('DAG가 아직 실행 중입니다')) {
+          console.log("DAG is still running, continue monitoring...");
+          return; // 계속 모니터링
+        }
+        
+        // 다른 에러인 경우 중단
+        setRuleCreationError(response.error);
+        setIsCreatingRule(false);
+        setRuleCreationStatus('변환규칙 생성 실패');
+        shouldStopPolling = true;
+      } else if (response.status === 'SUCCESS') {
+        // 성공적으로 완료
+        const resultMessage = response.result?.message || response.result?.result_code || '변환규칙이 성공적으로 생성되었습니다.';
+        setRuleCreationResult(resultMessage);
+        setIsCreatingRule(false);
+        setRuleCreationStatus('변환규칙 생성 완료');
+        shouldStopPolling = true;
+      } else if (response.status === 'ERROR') {
+        // DAG 실행 중 에러 발생
+        setRuleCreationError(response.error || '변환규칙 생성 중 오류가 발생했습니다.');
+        setIsCreatingRule(false);
+        setRuleCreationStatus('변환규칙 생성 실패');
+        shouldStopPolling = true;
+      }
+      // RUNNING 상태인 경우 계속 모니터링
+
+      if (shouldStopPolling) {
+        stopRuleTimers();
+      }
+
+    } catch (error) {
+      console.error('Error during rule creation status check:', error);
+      setRuleCreationStatus('상태 확인 중 오류');
+      setRuleCreationError(error instanceof Error ? error.message : '상태 확인 중 오류');
+      stopRuleTimers();
+      setIsCreatingRule(false);
+    }
+  };
+
+  const stopConversionTimers = () => {
     if (conversionTimerRef.current) {
       clearInterval(conversionTimerRef.current);
       conversionTimerRef.current = null;
@@ -144,6 +255,19 @@ export const useConversion = () => {
     }
   };
 
+  const stopRuleTimers = () => {
+    if (ruleTimerRef.current) {
+      clearInterval(ruleTimerRef.current);
+      ruleTimerRef.current = null;
+      console.log("Rule creation polling timer stopped.");
+    }
+    if (ruleElapsedTimeRef.current) {
+      clearInterval(ruleElapsedTimeRef.current);
+      ruleElapsedTimeRef.current = null;
+      console.log("Rule creation elapsed time timer stopped.");
+    }
+  };
+
   const handleCloseConversionPopup = () => {
     setIsConversionPopupOpen(false);
     setConversionStatus('');
@@ -152,7 +276,16 @@ export const useConversion = () => {
     setIsConverting(false);
     setConversionDagRunId(null);
     setConversionElapsedTime(0);
-    stopTimers();
+    stopConversionTimers();
+    
+    // 변환규칙 생성 상태도 초기화
+    setIsCreatingRule(false);
+    setRuleCreationStatus('');
+    setRuleDagRunId(null);
+    setRuleCreationElapsedTime(0);
+    setRuleCreationResult('');
+    setRuleCreationError(null);
+    stopRuleTimers();
   };
 
   return {
@@ -164,8 +297,17 @@ export const useConversion = () => {
     conversionDagRunId,
     conversionElapsedTime,
     sourceCodeTitle,
+    currentCode,
+    // 변환규칙 생성 관련 상태와 함수들
+    isCreatingRule,
+    ruleCreationStatus,
+    ruleDagRunId,
+    ruleCreationElapsedTime,
+    ruleCreationResult,
+    ruleCreationError,
     handleConvert,
-    startConversion,  // snartContent 매개변수를 받는 함수
+    startConversion,
+    startRuleCreation,  // 변환규칙 생성 시작 함수 추가
     handleCloseConversionPopup
   };
 }; 
