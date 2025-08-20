@@ -13,7 +13,53 @@ class Py2JsRuleUpdate(BaseModel):
     rules: Optional[str] = None
     is_commented: Optional[bool] = None
 
+class Py2JsRuleCreate(BaseModel):
+    examples: str
+    mark: str
+    rules: str
+    is_commented: bool = False
+
 router = APIRouter(tags=["py2js-rules"])
+
+@router.post("/py2js-rules")
+async def create_py2js_rule(rule_create: Py2JsRuleCreate):
+    """
+    새로운 Python to JavaScript 변환규칙을 생성합니다.
+    """
+    try:
+        # 데이터베이스 연결
+        connection = get_db_connection()
+        cursor = connection.cursor(cursor_factory=RealDictCursor)
+        
+        # 새 규칙 삽입
+        query = """
+        INSERT INTO py2js_rule (examples, mark, rules, is_commented, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id, examples, mark, rules, is_commented, created_at, updated_at
+        """
+        
+        cursor.execute(query, (
+            rule_create.examples,
+            rule_create.mark,
+            rule_create.rules,
+            rule_create.is_commented
+        ))
+        
+        new_rule = cursor.fetchone()
+        
+        # 커밋 및 연결 종료
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        # 결과 반환
+        return dict(new_rule)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"변환규칙 생성 중 오류가 발생했습니다: {str(e)}"
+        )
 
 @router.get("/py2js-rules")
 async def get_py2js_rules():

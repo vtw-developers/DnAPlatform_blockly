@@ -310,6 +310,25 @@ export class CodeBlockApi {
     }
   }
 
+  // 변환규칙 저장
+  async savePy2JsRule(rule: { examples: string; mark: string; rules: string; is_commented?: boolean }): Promise<any> {
+    console.log('Saving Py2Js rule:', rule);
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/py2js-rules`,
+        rule,
+        {
+          headers: this.getHeaders()
+        }
+      );
+      console.log('Py2Js rule saved successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error saving Py2Js rule:', error);
+      throw error;
+    }
+  }
+
   // 변환규칙 생성 결과 조회
   async getRuleGenerationResult(dagRunId: string): Promise<VerificationResult> {
     console.log(`Getting rule generation result via backend for runId: ${dagRunId}`);

@@ -288,6 +288,13 @@ export const useConversion = () => {
     stopRuleTimers();
   };
 
+  // 변환규칙 저장 완료 후 상태 초기화
+  const handleRulesSaved = () => {
+    setRuleCreationResult('');
+    setRuleCreationStatus('');
+    setRuleCreationError(null);
+  };
+
   return {
     isConversionPopupOpen,
     conversionStatus,
@@ -305,9 +312,11 @@ export const useConversion = () => {
     ruleCreationElapsedTime,
     ruleCreationResult,
     ruleCreationError,
+    setRuleCreationResult,  // 변환규칙 결과 설정 함수 추가
     handleConvert,
     startConversion,
     startRuleCreation,  // 변환규칙 생성 시작 함수 추가
-    handleCloseConversionPopup
+    handleCloseConversionPopup,
+    handleRulesSaved
   };
 }; 
