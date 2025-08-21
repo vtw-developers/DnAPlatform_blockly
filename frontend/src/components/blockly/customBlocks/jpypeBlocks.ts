@@ -1,6 +1,5 @@
 import * as Blockly from 'blockly/core';
 import { FieldFileUpload } from './FieldFileUpload';
-import { pythonGenerator } from './summaryBlocks';
 
 // 블록이 이미 등록되었는지 확인하는 플래그
 let blocksRegistered = false;
@@ -52,9 +51,9 @@ const JPYPE_BLOCKS: { [key: string]: { init: () => void } } = {
   }
 };
 
-// Python 생성기 정의
-const JPYPE_GENERATORS = {
-  jpype_start_jvm: function(block: Blockly.Block) {
+// JPype 블록들의 Python 생성기 정의
+const jpypeGenerators = {
+  jpype_start_jvm: function(block: Blockly.Block, generator: any): string {
     const jar_path = block.getFieldValue('JAR_PATH');
     return [
       'import jpype',
@@ -63,10 +62,10 @@ const JPYPE_GENERATORS = {
       ''
     ].join('\n');
   },
-  jpype_shutdown_jvm: function(_block: Blockly.Block) {
+  jpype_shutdown_jvm: function(_block: Blockly.Block, generator: any): string {
     return 'jpype.shutdownJVM()\n';
   },
-  jpype_java_method_call: function(block: Blockly.Block) {
+  jpype_java_method_call: function(block: Blockly.Block, generator: any): string {
     const pyCode = block.getFieldValue('PY_CODE') || '';
     return pyCode + '\n';
   }
@@ -83,14 +82,12 @@ export function registerJpypeBlocks() {
       Blockly.Blocks[type] = block;
     });
 
-    // 생성기 등록
-    Object.entries(JPYPE_GENERATORS).forEach(([type, generator]) => {
-      (pythonGenerator as any)[type] = generator;
-    });
-
     blocksRegistered = true;
   } catch (error) {
     console.error('Error registering JPype blocks:', error);
     throw error;
   }
-} 
+}
+
+// JPype 생성기들을 외부에서 접근할 수 있도록 export
+export { jpypeGenerators }; 
