@@ -1,7 +1,6 @@
 import * as Blockly from 'blockly/core';
-import { pythonGenerator } from 'blockly/python';
 import { FieldFileUpload } from './FieldFileUpload';
-import os from 'os';
+import { pythonGenerator } from './summaryBlocks';
 
 // 블록이 이미 등록되었는지 확인하는 플래그
 let blocksRegistered = false;
@@ -86,7 +85,7 @@ export function registerJpypeBlocks() {
 
     // 생성기 등록
     Object.entries(JPYPE_GENERATORS).forEach(([type, generator]) => {
-      pythonGenerator[type] = generator;
+      (pythonGenerator as any)[type] = generator;
     });
 
     blocksRegistered = true;
