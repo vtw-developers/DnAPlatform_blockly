@@ -136,6 +136,9 @@ console.log(pythonGenerator.valueToCode)
 interface ExtendedBlock extends Blockly.Block {
     parameterCount_?: number;
     updateShape_?: () => void;
+    parameters_?: string[];
+    decompose?: (workspace: Blockly.Workspace) => Blockly.Block;
+    compose?: (containerBlock: Blockly.Block) => void;
 }
 
 export function registerSummaryBlocks() {
@@ -267,20 +270,46 @@ export function registerSummaryBlocks() {
         }
     };
 
-    // 함수 호출 블록 (파라미터 이름/개수 자동 동기화)
+    // 파라미터 추가/제거를 위한 mutator 컨테이너 블록
+    Blockly.Blocks['call_parameters_container'] = {
+        init: function (this: Blockly.Block) {
+            this.appendDummyInput().appendField('파라미터 설정');
+            this.appendStatementInput('STACK');
+            this.setColour(290);
+            this.setTooltip('파라미터를 추가하거나 제거하세요');
+            this.contextMenu = false;
+        }
+    };
+
+    // 개별 파라미터 아이템 블록
+    Blockly.Blocks['call_parameter_item'] = {
+        init: function (this: Blockly.Block) {
+            this.appendDummyInput()
+                .appendField('파라미터:')
+                .appendField(new Blockly.FieldTextInput('x'), 'PARAM_NAME');
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(260);
+            this.setTooltip('함수 호출 파라미터');
+            this.contextMenu = false;
+        }
+    };
+
+    // 함수 호출 블록 (파라미터 동적 추가/제거 가능)
     Blockly.Blocks['procedures_callreturn'] = {
-        init: function (this: Blockly.Block & { parameters_?: string[] }) {
+        init: function (this: ExtendedBlock) {
             this.appendDummyInput()
                 .appendField(new Blockly.FieldTextInput('함수이름'), 'NAME')
                 .appendField('with:');
             this.setOutput(true, null);
             this.setColour(290);
-            this.setTooltip('함수 호출 (리턴값 있음)');
+            this.setTooltip('함수 호출 (리턴값 있음) - 설정 버튼으로 파라미터 추가/제거 가능');
             this.setHelpUrl('');
             this.parameters_ = [];
+            this.setMutator(new Blockly.icons.MutatorIcon(['call_parameter_item'], this as any));
             (this as any).updateShape_();
         },
-        mutationToDom: function (this: Blockly.Block & { parameters_?: string[] }): Element {
+        mutationToDom: function (this: ExtendedBlock): Element {
             const container = document.createElement('mutation');
             // 함수명도 mutation에 저장
             const functionName = this.getFieldValue('NAME');
@@ -294,7 +323,7 @@ export function registerSummaryBlocks() {
             }
             return container;
         },
-        domToMutation: function (this: Blockly.Block & { parameters_?: string[] }, xmlElement: Element): void {
+        domToMutation: function (this: ExtendedBlock, xmlElement: Element): void {
             // mutation에서 함수명 읽어오기
             const functionName = xmlElement.getAttribute('name');
             if (functionName) {
@@ -310,13 +339,50 @@ export function registerSummaryBlocks() {
             console.log('procedures_callreturn domToMutation - parameters_:', this.parameters_);
             (this as any).updateShape_();
         },
-        updateShape_: function (this: Blockly.Block & { parameters_?: string[] }) {
+        // mutator 분해 - 설정 팝업에서 보여줄 파라미터 블록들 생성
+        decompose: function (this: ExtendedBlock, workspace: Blockly.Workspace): Blockly.Block {
+            const containerBlock = workspace.newBlock('call_parameters_container') as any;
+            containerBlock.initSvg();
+            let connection = containerBlock.getInput('STACK')!.connection;
+            
+            for (let i = 0; i < (this.parameters_?.length || 0); i++) {
+                const paramBlock = workspace.newBlock('call_parameter_item') as any;
+                paramBlock.initSvg();
+                paramBlock.setFieldValue(this.parameters_![i] || `param${i + 1}`, 'PARAM_NAME');
+                connection!.connect(paramBlock.previousConnection!);
+                connection = paramBlock.nextConnection;
+            }
+            return containerBlock;
+        },
+        
+        // mutator 조합 - 설정 팝업에서 확인 버튼 눌렀을 때 파라미터 적용
+        compose: function (this: ExtendedBlock, containerBlock: Blockly.Block): void {
+            let itemBlock = containerBlock.getInputTargetBlock('STACK');
+            const newParameters: string[] = [];
+            
+            // 연결된 파라미터 아이템들을 순회하며 파라미터명 수집
+            while (itemBlock) {
+                if (itemBlock.type === 'call_parameter_item') {
+                    const paramName = itemBlock.getFieldValue('PARAM_NAME') || `param${newParameters.length + 1}`;
+                    newParameters.push(paramName);
+                }
+                itemBlock = itemBlock.nextConnection?.targetBlock() || null;
+            }
+            
+            this.parameters_ = newParameters;
+            this.updateShape_!();
+        },
+        
+        updateShape_: function (this: ExtendedBlock) {
             console.log('procedures_callreturn updateShape_ - parameters_:', this.parameters_);
+            // 기존 파라미터 입력 제거
             let i = 0;
             while (this.getInput('ARG' + i)) {
                 this.removeInput('ARG' + i);
                 i++;
             }
+            
+            // 새 파라미터 입력 추가
             for (let j = 0; j < (this.parameters_?.length || 0); j++) {
                 console.log(`Adding parameter ${j}: ${this.parameters_![j]}`);
                 this.appendValueInput('ARG' + j)
@@ -324,28 +390,29 @@ export function registerSummaryBlocks() {
                     .appendField(this.parameters_![j] || `param${j + 1}`);
             }
         },
-        onchange: function (this: Blockly.Block & { parameters_?: string[] }) {
+        onchange: function (this: ExtendedBlock) {
             // XML에서 로드된 파라미터를 유지하기 위해 자동 동기화 비활성화
             console.log('onchange called - skipping auto sync to preserve XML parameters');
             return;
         }
     };
 
-    // 함수 호출 블록 (리턴값 없음, 동일 구조)
+    // 함수 호출 블록 (리턴값 없음, 파라미터 동적 추가/제거 가능)
     Blockly.Blocks['procedures_callnoreturn'] = {
-        init: function (this: Blockly.Block & { parameters_?: string[] }) {
+        init: function (this: ExtendedBlock) {
             this.appendDummyInput()
                 .appendField('call')
                 .appendField(new Blockly.FieldTextInput('함수이름'), 'NAME');
             this.setPreviousStatement(true, null);
             this.setNextStatement(true, null);
             this.setColour(290);
-            this.setTooltip('함수 호출 (리턴값 없음)');
+            this.setTooltip('함수 호출 (리턴값 없음) - 설정 버튼으로 파라미터 추가/제거 가능');
             this.setHelpUrl('');
             this.parameters_ = [];
+            this.setMutator(new Blockly.icons.MutatorIcon(['call_parameter_item'], this as any));
             (this as any).updateShape_();
         },
-        mutationToDom: function (this: Blockly.Block & { parameters_?: string[] }): Element {
+        mutationToDom: function (this: ExtendedBlock): Element {
             const container = document.createElement('mutation');
             // 함수명도 mutation에 저장
             const functionName = this.getFieldValue('NAME');
@@ -359,7 +426,7 @@ export function registerSummaryBlocks() {
             }
             return container;
         },
-        domToMutation: function (this: Blockly.Block & { parameters_?: string[] }, xmlElement: Element): void {
+        domToMutation: function (this: ExtendedBlock, xmlElement: Element): void {
             // mutation에서 함수명 읽어오기
             const functionName = xmlElement.getAttribute('name');
             if (functionName) {
@@ -374,31 +441,59 @@ export function registerSummaryBlocks() {
             }
             (this as any).updateShape_();
         },
-        updateShape_: function (this: Blockly.Block & { parameters_?: string[] }) {
+        // mutator 분해 - 설정 팝업에서 보여줄 파라미터 블록들 생성
+        decompose: function (this: ExtendedBlock, workspace: Blockly.Workspace): Blockly.Block {
+            const containerBlock = workspace.newBlock('call_parameters_container') as any;
+            containerBlock.initSvg();
+            let connection = containerBlock.getInput('STACK')!.connection;
+            
+            for (let i = 0; i < (this.parameters_?.length || 0); i++) {
+                const paramBlock = workspace.newBlock('call_parameter_item') as any;
+                paramBlock.initSvg();
+                paramBlock.setFieldValue(this.parameters_![i] || `param${i + 1}`, 'PARAM_NAME');
+                connection!.connect(paramBlock.previousConnection!);
+                connection = paramBlock.nextConnection;
+            }
+            return containerBlock;
+        },
+        
+        // mutator 조합 - 설정 팝업에서 확인 버튼 눌렀을 때 파라미터 적용
+        compose: function (this: ExtendedBlock, containerBlock: Blockly.Block): void {
+            let itemBlock = containerBlock.getInputTargetBlock('STACK');
+            const newParameters: string[] = [];
+            
+            // 연결된 파라미터 아이템들을 순회하며 파라미터명 수집
+            while (itemBlock) {
+                if (itemBlock.type === 'call_parameter_item') {
+                    const paramName = itemBlock.getFieldValue('PARAM_NAME') || `param${newParameters.length + 1}`;
+                    newParameters.push(paramName);
+                }
+                itemBlock = itemBlock.nextConnection?.targetBlock() || null;
+            }
+            
+            this.parameters_ = newParameters;
+            this.updateShape_!();
+        },
+        
+        updateShape_: function (this: ExtendedBlock) {
+            // 기존 파라미터 입력 제거
             let i = 0;
             while (this.getInput('ARG' + i)) {
                 this.removeInput('ARG' + i);
                 i++;
             }
+            
+            // 새 파라미터 입력 추가
             for (let j = 0; j < (this.parameters_?.length || 0); j++) {
                 this.appendValueInput('ARG' + j)
                     .setCheck(null)
                     .appendField(this.parameters_![j] || `param${j + 1}`);
             }
         },
-        onchange: function (this: Blockly.Block & { parameters_?: string[] }) {
-            if (!this.workspace) return;
-            const funcName = this.getFieldValue('NAME');
-            const blocks = this.workspace.getAllBlocks(false);
-            for (const block of blocks) {
-                if (block.type === 'ast_Summarized_FunctionDef' && block.getFieldValue('NAME') === funcName) {
-                    const params = (block as any).parameters_ || [];
-                    if (JSON.stringify(this.parameters_) !== JSON.stringify(params)) {
-                        this.parameters_ = [...params];
-                        (this as any).updateShape_();
-                    }
-                }
-            }
+        onchange: function (this: ExtendedBlock) {
+            // 자동 동기화 비활성화 (사용자가 수동으로 파라미터 관리)
+            console.log('onchange called - manual parameter management enabled');
+            return;
         }
     };
 
@@ -594,10 +689,13 @@ export function registerSummaryBlocks() {
     };
 
     pythonGenerator.forBlock['procedures_callnoreturn'] = function (block: Blockly.Block, generator: any): string {
-        const funcName = block.getFieldValue('NAME');
+        const funcName = block.getFieldValue('NAME') || 'unnamed_function';
         const args: string[] = [];
 
-        for (let i = 0; i < (block as any).argumentCount_; i++) {
+        // 동적 파라미터 개수 계산 (ARG로 시작하는 입력의 개수)
+        const argCount = block.inputList.filter((input: any) => input.name?.startsWith('ARG')).length;
+
+        for (let i = 0; i < argCount; i++) {
             const argCode = generator.valueToCode(block, 'ARG' + i, generator.ORDER_NONE) || 'None';
             args.push(argCode);
         }
@@ -617,7 +715,7 @@ export function registerSummaryBlocks() {
 
         domToMutation: function (this: any, xmlElement: Element) {
             this.parameterCount_ = parseInt(xmlElement.getAttribute('parameters') || '0', 10);
-            this.updateShape_();
+            this.updateShape_!();
         },
 
         decompose: function (this: any, workspace: Blockly.Workspace) {
@@ -641,7 +739,7 @@ export function registerSummaryBlocks() {
                 itemBlock = (itemBlock as any).nextConnection && (itemBlock as any).nextConnection.targetBlock();
             }
             this.parameterCount_ = parameters.length;
-            this.updateShape_();
+            this.updateShape_!();
         },
 
         updateShape_: function (this: any) {
