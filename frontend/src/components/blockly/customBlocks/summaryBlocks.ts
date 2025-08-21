@@ -202,8 +202,8 @@ export function registerSummaryBlocks() {
     Blockly.Blocks['procedures_callreturn'] = {
         init: function (this: Blockly.Block & { parameters_?: string[] }) {
             this.appendDummyInput()
-                .appendField('call')
-                .appendField(new Blockly.FieldTextInput('함수이름'), 'NAME');
+                .appendField(new Blockly.FieldTextInput('함수이름'), 'NAME')
+                .appendField('with:');
             this.setOutput(true, null);
             this.setColour(290);
             this.setTooltip('함수 호출 (리턴값 있음)');
@@ -213,6 +213,11 @@ export function registerSummaryBlocks() {
         },
         mutationToDom: function (this: Blockly.Block & { parameters_?: string[] }): Element {
             const container = document.createElement('mutation');
+            // 함수명도 mutation에 저장
+            const functionName = this.getFieldValue('NAME');
+            if (functionName) {
+                container.setAttribute('name', functionName);
+            }
             for (const param of this.parameters_ || []) {
                 const paramElem = document.createElement('arg');
                 paramElem.setAttribute('name', param);
@@ -221,39 +226,39 @@ export function registerSummaryBlocks() {
             return container;
         },
         domToMutation: function (this: Blockly.Block & { parameters_?: string[] }, xmlElement: Element): void {
+            // mutation에서 함수명 읽어오기
+            const functionName = xmlElement.getAttribute('name');
+            if (functionName) {
+                this.setFieldValue(functionName, 'NAME');
+            }
+            
             this.parameters_ = [];
             for (const child of Array.from(xmlElement.children)) {
                 if (child.nodeName.toLowerCase() === 'arg') {
                     this.parameters_!.push(child.getAttribute('name') || '');
                 }
             }
+            console.log('procedures_callreturn domToMutation - parameters_:', this.parameters_);
             (this as any).updateShape_();
         },
         updateShape_: function (this: Blockly.Block & { parameters_?: string[] }) {
+            console.log('procedures_callreturn updateShape_ - parameters_:', this.parameters_);
             let i = 0;
             while (this.getInput('ARG' + i)) {
                 this.removeInput('ARG' + i);
                 i++;
             }
             for (let j = 0; j < (this.parameters_?.length || 0); j++) {
+                console.log(`Adding parameter ${j}: ${this.parameters_![j]}`);
                 this.appendValueInput('ARG' + j)
                     .setCheck(null)
-                    .appendField(this.parameters_![j]);
+                    .appendField(this.parameters_![j] || `param${j + 1}`);
             }
         },
         onchange: function (this: Blockly.Block & { parameters_?: string[] }) {
-            if (!this.workspace) return;
-            const funcName = this.getFieldValue('NAME');
-            const blocks = this.workspace.getAllBlocks(false);
-            for (const block of blocks) {
-                if (block.type === 'ast_Summarized_FunctionDef' && block.getFieldValue('NAME') === funcName) {
-                    const params = (block as any).parameters_ || [];
-                    if (JSON.stringify(this.parameters_) !== JSON.stringify(params)) {
-                        this.parameters_ = [...params];
-                        (this as any).updateShape_();
-                    }
-                }
-            }
+            // XML에서 로드된 파라미터를 유지하기 위해 자동 동기화 비활성화
+            console.log('onchange called - skipping auto sync to preserve XML parameters');
+            return;
         }
     };
 
@@ -273,6 +278,11 @@ export function registerSummaryBlocks() {
         },
         mutationToDom: function (this: Blockly.Block & { parameters_?: string[] }): Element {
             const container = document.createElement('mutation');
+            // 함수명도 mutation에 저장
+            const functionName = this.getFieldValue('NAME');
+            if (functionName) {
+                container.setAttribute('name', functionName);
+            }
             for (const param of this.parameters_ || []) {
                 const paramElem = document.createElement('arg');
                 paramElem.setAttribute('name', param);
@@ -281,6 +291,12 @@ export function registerSummaryBlocks() {
             return container;
         },
         domToMutation: function (this: Blockly.Block & { parameters_?: string[] }, xmlElement: Element): void {
+            // mutation에서 함수명 읽어오기
+            const functionName = xmlElement.getAttribute('name');
+            if (functionName) {
+                this.setFieldValue(functionName, 'NAME');
+            }
+            
             this.parameters_ = [];
             for (const child of Array.from(xmlElement.children)) {
                 if (child.nodeName.toLowerCase() === 'arg') {
@@ -298,7 +314,7 @@ export function registerSummaryBlocks() {
             for (let j = 0; j < (this.parameters_?.length || 0); j++) {
                 this.appendValueInput('ARG' + j)
                     .setCheck(null)
-                    .appendField(this.parameters_![j]);
+                    .appendField(this.parameters_![j] || `param${j + 1}`);
             }
         },
         onchange: function (this: Blockly.Block & { parameters_?: string[] }) {
@@ -445,8 +461,15 @@ export function registerSummaryBlocks() {
                 }
             }
                     
-                    const currentIndent = '    '.repeat(indentLevel);
-                    indentedLines.push(currentIndent + trimmedLine);
+                    // 이미 들여쓰기가 적용된 줄인지 확인
+                    if (line.startsWith('    ')) {
+                        // 이미 들여쓰기가 있으면 그대로 사용
+                        indentedLines.push(line);
+                    } else {
+                        // 들여쓰기가 없는 줄만 새로 적용
+                        const currentIndent = '    '.repeat(indentLevel);
+                        indentedLines.push(currentIndent + trimmedLine);
+                    }
                 }
                 
                 // 중복 return 문 제거
@@ -484,24 +507,72 @@ export function registerSummaryBlocks() {
             const bodyText = block.getFieldValue('TEXT') || '';
             const returnValue = generator.valueToCode(block, 'VALUE', generator.ORDER_NONE) || 'None';
             
-            // 들여쓰기 처리 개선 - 원본 들여쓰기 제거 후 새로 적용
+            // 들여쓰기 처리
             const indent = '    '; // Python 표준 4칸 공백
             let indentedBody = '';
             
             if (bodyText && bodyText.trim()) {
                 // 본문 텍스트의 각 줄에 들여쓰기 적용
                 const lines = bodyText.trim().split('\n');
-                const indentedLines = lines.map((line: string) => {
-                    if (line.trim() === '') return line; // 빈 줄은 그대로
-                    // 원본 들여쓰기 제거 후 새로 적용
+                const indentedLines: string[] = [];
+                
+                // Python 구문 기반 들여쓰기 처리
+                let currentIndentLevel = 1; // 함수 본문 시작 레벨 (4칸)
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (line.trim() === '') continue; // 빈 줄은 건너뛰기
+                    
                     const trimmedLine = line.trim();
-                    return indent + trimmedLine; // 각 줄에 4칸 들여쓰기 추가
+                    let indentLevel = currentIndentLevel;
+                    
+                    // Python 구문에 따른 들여쓰기 레벨 결정
+                    if (trimmedLine.startsWith('"""') || trimmedLine.startsWith(':param') || trimmedLine.startsWith(':return')) {
+                        // 독스트링: 함수 본문 레벨 (4칸)
+                        indentLevel = 1;
+                    } else if (trimmedLine.startsWith('elif ') || trimmedLine.startsWith('else:')) {
+                        // elif, else: if와 같은 레벨 (현재 레벨 - 1)
+                        indentLevel = currentIndentLevel - 1;
+                        // 다음 줄부터 한 레벨 증가 (블록 내부)
+                        currentIndentLevel = indentLevel + 1;
+                    } else if (trimmedLine.endsWith(':')) {
+                        // 블록 시작 (if, for, while): 현재 레벨
+                        indentLevel = currentIndentLevel;
+                        // 다음 줄부터 한 레벨 증가
+                        currentIndentLevel++;
+                    } else {
+                        // 일반 문장: 현재 레벨
+                        indentLevel = currentIndentLevel;
+                    }
+                    
+                    const currentIndent = '    '.repeat(indentLevel);
+                    indentedLines.push(currentIndent + trimmedLine);
+                }
+                
+                // 불필요한 코드 제거: if 블록 안의 return result만 제거 (초기화는 유지)
+                const filteredLines = indentedLines.filter((line, index) => {
+                    const trimmed = line.trim();
+                    
+                    // if 블록 안의 return result 제거 (들여쓰기가 8칸 이상인 return result)
+                    if (trimmed === 'return result' && line.startsWith('        ')) {
+                        return false;
+                    }
+                    // 마지막 return result도 제거 (함수 끝에 새로 추가할 예정)
+                    if (trimmed === 'return result' && index === indentedLines.length - 1) {
+                        return false;
+                    }
+                    
+                    // 나머지는 모두 유지 (result = '' 초기화 포함)
+                    return true;
                 });
-                indentedBody = indentedLines.join('\n') + '\n';
+                
+                indentedBody = filteredLines.join('\n') + '\n';
             }
             
+            // 항상 마지막에 return 문 추가 (마지막 return은 이미 필터링에서 제거됨)
             const returnLine = indent + `return ${returnValue}\n`;
-            return indentedBody + returnLine;
+            const finalCode = indentedBody + returnLine;
+            return finalCode;
         } catch (error) {
             console.error('Error generating code for ast_ReturnFull:', error);
             return '    return None\n';
@@ -759,7 +830,7 @@ export function registerSummaryBlocks() {
         const argsCode = args.join(', ');
         const statements = generator.statementToCode(block, 'STACK');
         
-        // 들여쓰기 처리 개선 - 원본 들여쓰기 제거 후 새로 적용
+        // 들여쓰기 처리
         const indent = '    '; // Python 표준 4칸 공백
         let indentedStatements = '';
         
@@ -768,9 +839,14 @@ export function registerSummaryBlocks() {
             const lines = statements.split('\n');
             const indentedLines = lines.map((line: string) => {
                 if (line.trim() === '') return line; // 빈 줄은 그대로
-                // 원본 들여쓰기 제거 후 새로 적용
-                const trimmedLine = line.trim();
-                return indent + trimmedLine; // 각 줄에 4칸 들여쓰기 추가
+                // 이미 들여쓰기가 적용된 줄인지 확인
+                if (line.startsWith('    ')) {
+                    return line; // 이미 들여쓰기가 있으면 그대로 사용
+                } else {
+                    // 들여쓰기가 없는 줄만 4칸 추가
+                    const trimmedLine = line.trim();
+                    return indent + trimmedLine;
+                }
             });
             indentedStatements = indentedLines.join('\n');
         }
