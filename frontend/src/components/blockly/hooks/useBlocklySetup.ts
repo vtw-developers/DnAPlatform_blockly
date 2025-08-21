@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+
 import { registerJpypeBlocks } from '../customBlocks/jpypeBlocks';
+import { registerSummaryBlocks, pythonGenerator } from '../customBlocks/summaryBlocks';
 
 interface UseBlocklySetupProps {
   workspaceRef: React.RefObject<HTMLDivElement>;
@@ -17,6 +18,9 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
     if (!workspaceRef.current || workspaceInitialized.current) return;
 
     try {
+      // Summary 블록 등록 (먼저 등록)
+      registerSummaryBlocks();
+      
       // JPype 블록 등록
       registerJpypeBlocks();
 
@@ -43,7 +47,7 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
         },
       });
 
-      // Python 생성기 초기화
+      // Python 생성기 초기화 (custom pythonGenerator 사용)
       pythonGenerator.init(newWorkspace);
 
       setWorkspace(newWorkspace);
@@ -51,7 +55,7 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
       // 작업 공간 변경 이벤트 리스너 추가
       const changeListener = () => {
         try {
-          // Python 코드 생성
+          // Python 코드 생성 (custom pythonGenerator 사용)
           const code = pythonGenerator.workspaceToCode(newWorkspace);
           onCodeChange(code);
         } catch (error) {
