@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import * as Blockly from 'blockly';
+import { pythonGenerator as BlocklyPythonGenerator } from 'blockly/python';
 
 import { registerJpypeBlocks } from '../customBlocks/jpypeBlocks';
 import { registerSummaryBlocks, pythonGenerator } from '../customBlocks/summaryBlocks';
@@ -47,8 +48,11 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
         },
       });
 
-      // Python 생성기 초기화 (custom pythonGenerator 사용)
+      // Python 생성기 초기화 및 커스텀 생성기 적용
       pythonGenerator.init(newWorkspace);
+      
+      // Blockly 기본 생성기를 우리 커스텀 생성기로 대체
+      (BlocklyPythonGenerator as any).forBlock = pythonGenerator.forBlock;
 
       setWorkspace(newWorkspace);
 
