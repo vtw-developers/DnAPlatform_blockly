@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import * as Blockly from 'blockly';
 import { pythonGenerator as BlocklyPythonGenerator } from 'blockly/python';
 
-import { registerJpypeBlocks } from '../customBlocks/jpypeBlocks';
+import { registerJpypeBlocks, jpypeGenerators } from '../customBlocks/jpypeBlocks';
 import { registerSummaryBlocks, pythonGenerator } from '../customBlocks/summaryBlocks';
 
 interface UseBlocklySetupProps {
@@ -48,19 +48,30 @@ export const useBlocklySetup = ({ workspaceRef, toolboxConfig, onCodeChange }: U
         },
       });
 
-      // Python 생성기 초기화 및 커스텀 생성기 적용
+      // Python 생성기 초기화 - 기본 생성기와 커스텀 생성기 조합
+      BlocklyPythonGenerator.init(newWorkspace);
       pythonGenerator.init(newWorkspace);
       
-      // Blockly 기본 생성기를 우리 커스텀 생성기로 대체
-      (BlocklyPythonGenerator as any).forBlock = pythonGenerator.forBlock;
+      // 커스텀 블록들만 기본 생성기에 추가 (기본 블록들은 그대로 유지)
+      // AST 관련 커스텀 블록들 등록
+      Object.keys(pythonGenerator.forBlock).forEach(blockType => {
+        if (blockType.startsWith('ast_') || blockType === 'procedures_callreturn' || blockType === 'procedures_callnoreturn') {
+          (BlocklyPythonGenerator as any).forBlock[blockType] = pythonGenerator.forBlock[blockType];
+        }
+      });
+      
+      // JPype 관련 커스텀 블록들 등록
+      Object.entries(jpypeGenerators).forEach(([blockType, generator]) => {
+        (BlocklyPythonGenerator as any).forBlock[blockType] = generator;
+      });
 
       setWorkspace(newWorkspace);
 
       // 작업 공간 변경 이벤트 리스너 추가
       const changeListener = () => {
         try {
-          // Python 코드 생성 (custom pythonGenerator 사용)
-          const code = pythonGenerator.workspaceToCode(newWorkspace);
+          // Python 코드 생성 (기본 생성기 + 커스텀 블록 조합 사용)
+          const code = BlocklyPythonGenerator.workspaceToCode(newWorkspace);
           onCodeChange(code);
         } catch (error) {
           console.error('Error generating code:', error);
