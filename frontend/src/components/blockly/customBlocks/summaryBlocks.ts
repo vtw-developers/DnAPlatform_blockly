@@ -8,6 +8,75 @@ const pythonGenerator = new PythonGenerator();
 // 들여쓰기 상수 설정 (Python 표준 4칸 공백)
 pythonGenerator.INDENT = '    ';
 
+// 들여쓰기 관련 상수들
+const INDENT_CONFIG = {
+    BASE_INDENT: '    ', // 기본 4칸 공백
+    FUNCTION_BODY_LEVEL: 1, // 함수 본문 레벨
+    IF_ELSE_BODY_LEVEL: 2, // if/else 본문 레벨  
+    WHILE_FOR_BODY_LEVEL: 3, // while/for 본문 레벨
+    NESTED_CONTROL_LEVEL: 4, // 중첩된 제어문 레벨
+} as const;
+
+// 들여쓰기 유틸리티 함수들
+function getIndentString(level: number): string {
+    return INDENT_CONFIG.BASE_INDENT.repeat(level);
+}
+
+function calculateIndentLevel(
+    trimmedLine: string, 
+    previousLines: string[], 
+    currentIndex: number
+): number {
+    // 독스트링이나 함수 문서화는 함수 본문 레벨
+    if (trimmedLine.startsWith('"""') || trimmedLine.startsWith(':param') || trimmedLine.startsWith(':return')) {
+        return INDENT_CONFIG.FUNCTION_BODY_LEVEL;
+    }
+    
+    // 제어문 타입 확인
+    const isIfElseStatement = trimmedLine.startsWith('if ') || trimmedLine.startsWith('elif ') || trimmedLine.startsWith('else:');
+    const isWhileStatement = trimmedLine.startsWith('while ') || trimmedLine.startsWith('for ');
+    
+    // 이전 줄들을 역순으로 확인하여 현재 컨텍스트 파악
+    let hasWhile = false;
+    let hasIf = false;
+    
+    for (let i = currentIndex - 1; i >= 0; i--) {
+        const prevTrimmed = previousLines[i].trim();
+        if (prevTrimmed.startsWith('while ') || prevTrimmed.startsWith('for ')) {
+            hasWhile = true;
+        }
+        if (prevTrimmed.startsWith('if ') || prevTrimmed.startsWith('elif ')) {
+            hasIf = true;
+        }
+    }
+    
+    // return 문 특별 처리
+    if (trimmedLine.startsWith('return result')) {
+        return INDENT_CONFIG.FUNCTION_BODY_LEVEL;
+    }
+    
+    // 들여쓰기 레벨 결정 로직
+    if (isIfElseStatement) {
+        return hasWhile ? INDENT_CONFIG.WHILE_FOR_BODY_LEVEL : INDENT_CONFIG.FUNCTION_BODY_LEVEL;
+    } else if (isWhileStatement) {
+        return INDENT_CONFIG.IF_ELSE_BODY_LEVEL;
+    } else {
+        // 일반 코드의 경우 컨텍스트에 따라 결정
+        if (hasWhile && hasIf) {
+            return INDENT_CONFIG.NESTED_CONTROL_LEVEL;
+        } else if (hasWhile || hasIf) {
+            return INDENT_CONFIG.IF_ELSE_BODY_LEVEL;
+        } else {
+            return INDENT_CONFIG.FUNCTION_BODY_LEVEL;
+        }
+    }
+}
+
+function isHighIndentReturnStatement(line: string): boolean {
+    const trimmed = line.trim();
+    return trimmed === 'return result' && line.startsWith(getIndentString(2)); // 8칸 이상 들여쓰기
+}
+
 // 변수명 매핑 캐시
 const variableNameCache = new Map<string, string>();
 let variableCounter = 0;
@@ -363,14 +432,11 @@ export function registerSummaryBlocks() {
 
             
             // 들여쓰기 처리 개선 - 원본 들여쓰기 제거 후 새로 적용
-            const indent = '    '; // Python 표준 4칸 공백
             let indentedBody = '';
             
             if (bodyCode && bodyCode.trim()) {
                 // 본문 코드의 각 줄에 들여쓰기 적용
                 const lines = bodyCode.split('\n');
-                
-                // 단순한 들여쓰기 처리: 원본 패턴 유지 + 함수 본문 4칸 시작
                 const indentedLines: string[] = [];
                 
                 for (let i = 0; i < lines.length; i++) {
@@ -382,84 +448,8 @@ export function registerSummaryBlocks() {
                     
                     const trimmedLine = line.trim();
                     
-            // 원본 코드의 들여쓰기 패턴을 분석하여 적절한 레벨 결정
-            let indentLevel = 1; // 기본 함수 본문 레벨 (4칸)
-            
-            // 현재 줄의 타입 확인
-            const isIfElseStatement = trimmedLine.startsWith('if ') || trimmedLine.startsWith('elif ') || trimmedLine.startsWith('else:');
-            const isWhileStatement = trimmedLine.startsWith('while ') || trimmedLine.startsWith('for ');
-            const isGeneralCode = !isIfElseStatement && !isWhileStatement;
-            
-            if (isIfElseStatement) {
-                // if/elif/else 문의 들여쓰기 레벨 결정
-                // while 블록 안에 있는지 확인
-                let isInWhileBlock = false;
-                for (let j = i - 1; j >= 0; j--) {
-                    const prevLine = lines[j].trim();
-                    if (prevLine.startsWith('while ') || prevLine.startsWith('for ')) {
-                        isInWhileBlock = true;
-                        break;
-                    }
-                }
-                
-                if (isInWhileBlock) {
-                    // while 블록 안의 if/elif/else는 12칸
-                    indentLevel = 3;
-                } else {
-                    // 함수 본문 레벨의 if/elif/else는 4칸
-                    indentLevel = 1;
-                }
-            } else if (isWhileStatement) {
-                // while 문은 else 블록 안에 있으므로 8칸
-                indentLevel = 2;
-            } else {
-                // 일반 코드의 경우 바로 이전 제어문을 찾아서 들여쓰기 결정
-                let foundControlStatement = false;
-                
-                for (let j = i - 1; j >= 0 && !foundControlStatement; j--) {
-                    const prevLine = lines[j].trim();
-                    
-                    if (prevLine.startsWith('if ') || prevLine.startsWith('elif ') || prevLine.startsWith('else:')) {
-                        // if/elif/else 본문이므로 8칸
-                        indentLevel = 2;
-                        foundControlStatement = true;
-                    } else if (prevLine.startsWith('while ') || prevLine.startsWith('for ')) {
-                        // while/for 본문이므로 12칸
-                        indentLevel = 3;
-                        foundControlStatement = true;
-                    }
-                }
-                
-                // 특별한 경우: while 블록 안의 if 블록 안에 있는 코드
-                // while과 if 둘 다 이전에 나타났는지 확인
-                let hasWhile = false;
-                let hasIf = false;
-                
-                for (let j = i - 1; j >= 0; j--) {
-                    const prevLine = lines[j].trim();
-                    if (prevLine.startsWith('while ') || prevLine.startsWith('for ')) {
-                        hasWhile = true;
-                    }
-                    if (prevLine.startsWith('if ') && hasWhile) {
-                        hasIf = true;
-                        break;
-                    }
-                }
-                
-                // while 블록 안의 if 블록 안에 있는 코드는 16칸
-                // 단, 마지막 return 문은 함수 레벨로 처리 (4칸)
-                if (hasWhile && hasIf && !trimmedLine.startsWith('return result')) {
-                    indentLevel = 4;
-                } else if (trimmedLine.startsWith('return result')) {
-                    // 함수의 마지막 return문은 함수 본문 레벨 (4칸)
-                    indentLevel = 1;
-                }
-                
-                // 기본값이 설정되지 않은 경우 함수 본문 레벨
-                if (!foundControlStatement) {
-                    indentLevel = 1;
-                }
-            }
+                    // 새로운 유틸리티 함수를 사용하여 들여쓰기 레벨 계산
+                    const indentLevel = calculateIndentLevel(trimmedLine, lines, i);
                     
                     // 이미 들여쓰기가 적용된 줄인지 확인
                     if (line.startsWith('    ')) {
@@ -467,8 +457,8 @@ export function registerSummaryBlocks() {
                         indentedLines.push(line);
                     } else {
                         // 들여쓰기가 없는 줄만 새로 적용
-                        const currentIndent = '    '.repeat(indentLevel);
-                        indentedLines.push(currentIndent + trimmedLine);
+                        const indentString = getIndentString(indentLevel);
+                        indentedLines.push(indentString + trimmedLine);
                     }
                 }
                 
@@ -485,7 +475,7 @@ export function registerSummaryBlocks() {
                 indentedBody = finalIndentedLines.join('\n');
             } else {
                 // 본문이 없는 경우 기본 pass 문 추가
-                indentedBody = indent + 'pass\n';
+                indentedBody = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + 'pass\n';
             }
             
             const code = `def ${funcName}(${params}):\n${indentedBody}`;
@@ -508,7 +498,6 @@ export function registerSummaryBlocks() {
             const returnValue = generator.valueToCode(block, 'VALUE', generator.ORDER_NONE) || 'None';
             
             // 들여쓰기 처리
-            const indent = '    '; // Python 표준 4칸 공백
             let indentedBody = '';
             
             if (bodyText && bodyText.trim()) {
@@ -517,7 +506,7 @@ export function registerSummaryBlocks() {
                 const indentedLines: string[] = [];
                 
                 // Python 구문 기반 들여쓰기 처리
-                let currentIndentLevel = 1; // 함수 본문 시작 레벨 (4칸)
+                let currentIndentLevel = INDENT_CONFIG.FUNCTION_BODY_LEVEL; // 함수 본문 시작 레벨
                 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
@@ -528,8 +517,8 @@ export function registerSummaryBlocks() {
                     
                     // Python 구문에 따른 들여쓰기 레벨 결정
                     if (trimmedLine.startsWith('"""') || trimmedLine.startsWith(':param') || trimmedLine.startsWith(':return')) {
-                        // 독스트링: 함수 본문 레벨 (4칸)
-                        indentLevel = 1;
+                        // 독스트링: 함수 본문 레벨
+                        indentLevel = INDENT_CONFIG.FUNCTION_BODY_LEVEL;
                     } else if (trimmedLine.startsWith('elif ') || trimmedLine.startsWith('else:')) {
                         // elif, else: if와 같은 레벨 (현재 레벨 - 1)
                         indentLevel = currentIndentLevel - 1;
@@ -545,16 +534,16 @@ export function registerSummaryBlocks() {
                         indentLevel = currentIndentLevel;
                     }
                     
-                    const currentIndent = '    '.repeat(indentLevel);
-                    indentedLines.push(currentIndent + trimmedLine);
+                    const indentString = getIndentString(indentLevel);
+                    indentedLines.push(indentString + trimmedLine);
                 }
                 
                 // 불필요한 코드 제거: if 블록 안의 return result만 제거 (초기화는 유지)
                 const filteredLines = indentedLines.filter((line, index) => {
                     const trimmed = line.trim();
                     
-                    // if 블록 안의 return result 제거 (들여쓰기가 8칸 이상인 return result)
-                    if (trimmed === 'return result' && line.startsWith('        ')) {
+                    // if 블록 안의 return result 제거 (높은 들여쓰기 레벨의 return result)
+                    if (isHighIndentReturnStatement(line)) {
                         return false;
                     }
                     // 마지막 return result도 제거 (함수 끝에 새로 추가할 예정)
@@ -570,7 +559,7 @@ export function registerSummaryBlocks() {
             }
             
             // 항상 마지막에 return 문 추가 (마지막 return은 이미 필터링에서 제거됨)
-            const returnLine = indent + `return ${returnValue}\n`;
+            const returnLine = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + `return ${returnValue}\n`;
             const finalCode = indentedBody + returnLine;
             return finalCode;
         } catch (error) {
@@ -831,7 +820,6 @@ export function registerSummaryBlocks() {
         const statements = generator.statementToCode(block, 'STACK');
         
         // 들여쓰기 처리
-        const indent = '    '; // Python 표준 4칸 공백
         let indentedStatements = '';
         
         if (statements && statements.trim()) {
@@ -843,16 +831,16 @@ export function registerSummaryBlocks() {
                 if (line.startsWith('    ')) {
                     return line; // 이미 들여쓰기가 있으면 그대로 사용
                 } else {
-                    // 들여쓰기가 없는 줄만 4칸 추가
+                    // 들여쓰기가 없는 줄만 기본 들여쓰기 추가
                     const trimmedLine = line.trim();
-                    return indent + trimmedLine;
+                    return getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + trimmedLine;
                 }
             });
             indentedStatements = indentedLines.join('\n');
         }
         
         const returnValue = generator.valueToCode(block, 'RETURN', generator.ORDER_NONE) || 'None';
-        const indentedReturn = `${indent}return ${returnValue}\n`;
+        const indentedReturn = `${getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL)}return ${returnValue}\n`;
         return `def ${functionName}(${argsCode}):\n${indentedStatements}${indentedReturn}`;
     };
 
