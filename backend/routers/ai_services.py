@@ -8,6 +8,9 @@ import json
 import re
 import tempfile
 import subprocess
+import ast
+import textwrap
+import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -349,137 +352,131 @@ XML 형식 규칙:
             status_code=500,
             detail=str(e)
         )
+# gen_block_py.py에서 추출한 핵심 함수들
+def extract_body_code(func_node, source_lines):
+    """함수 본문 전체 코드를 들여쓰기 맞춰 추출"""
+    body_lines = []
+    for stmt in func_node.body:
+        if hasattr(stmt, 'lineno') and hasattr(stmt, 'end_lineno'):
+            body_lines.extend(source_lines[stmt.lineno - 1: stmt.end_lineno])
+        else:
+            # lineno가 없는 경우 간단한 처리
+            body_lines.append(ast.unparse(stmt))
+    
+    if body_lines:
+        return textwrap.dedent("\n".join(body_lines)).strip()
+    return ""
 
-@router.post("/python-to-blockly")
-async def convert_python_to_blockly(request: PythonToBlocklyRequest):
+def extract_return_var(func_node):
+    """마지막 return 문의 변수명을 추출"""
+    for stmt in reversed(func_node.body):
+        if isinstance(stmt, ast.Return):
+            if isinstance(stmt.value, ast.Name):
+                return stmt.value.id, getattr(stmt, 'lineno', 0)
+    return None, None
+
+def create_function_block_xml(code):
+    """Python 코드를 Blockly XML로 변환하는 핵심 함수"""
+    try:
+        import ast
+        import xml.etree.ElementTree as ET
+        import textwrap
+        
+        tree = ast.parse(code)
+        source_lines = code.splitlines()
+        function_defs = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+        blocks = []
+
+        for func in function_defs:
+            block = ET.Element("block")
+            block.set("type", "ast_Summarized_FunctionDef")
+            block.set("line_number", str(getattr(func, 'lineno', 1)))
+            block.set("inline", "false")
+
+            mutation = ET.SubElement(block, "mutation")
+            mutation.set("decorators", str(len(func.decorator_list)))
+            mutation.set("parameters", str(len(func.args.args)))
+            mutation.set("returns", "true" if func.returns else "false")
+
+            name_field = ET.SubElement(block, "field")
+            name_field.set("name", "NAME")
+            name_field.text = func.name
+
+            for i, arg in enumerate(func.args.args):
+                value = ET.SubElement(block, "value")
+                value.set("name", f"PARAMETER{i}")
+
+                param_block = ET.SubElement(value, "block")
+                param_block.set("type", "ast_FunctionParameter")
+                param_block.set("line_number", str(getattr(arg, "lineno", getattr(func, 'lineno', 1))))
+                param_block.set("movable", "false")
+                param_block.set("deletable", "false")
+
+                param_field = ET.SubElement(param_block, "field")
+                param_field.set("name", "NAME")
+                param_field.text = arg.arg
+
+            # BODY block
+            statement = ET.SubElement(block, "statement")
+            statement.set("name", "BODY")
+
+            has_return = any(isinstance(stmt, ast.Return) for stmt in func.body)
+            body_block_type = "ast_ReturnFull" if has_return else "ast_Raw"
+            body_block = ET.SubElement(statement, "block")
+            body_block.set("type", body_block_type)
+            body_block.set("line_number", str(func.body[0].lineno if func.body else getattr(func, 'lineno', 1)))
+
+            body_field = ET.SubElement(body_block, "field")
+            body_field.set("name", "TEXT")
+            body_code = extract_body_code(func, source_lines)
+            body_field.text = body_code
+
+            if has_return:
+                return_var, return_lineno = extract_return_var(func)
+                if return_var:
+                    value = ET.SubElement(body_block, "value")
+                    value.set("name", "VALUE")
+
+                    return_block = ET.SubElement(value, "block")
+                    return_block.set("type", "ast_Name")
+                    return_block.set("line_number", str(return_lineno or getattr(func, 'lineno', 1)))
+
+                    var_field = ET.SubElement(return_block, "field")
+                    var_field.set("name", "VAR")
+                    var_field.text = return_var
+
+            blocks.append(block)
+
+        return blocks
+        
+    except Exception as e:
+        logger.error(f"XML 변환 중 오류: {e}")
+        raise e
+
+@router.post("/python-to-blockly-rule-based")
+async def convert_python_to_blockly_rule_based(request: PythonToBlocklyRequest):
     """
-    Python 코드를 Blockly XML로 변환합니다.
+    Python 코드를 규칙기반으로 Blockly XML로 변환합니다.
+    gen_block_py.py의 로직을 직접 백엔드에 구현했습니다.
     """
     try:
-        logger.info(f"Python to Blockly 변환 요청: {request.python_code[:50]}...")
+        logger.info(f"규칙기반 Python to Blockly 변환 요청: {request.python_code[:50]}...")
         
-        prompt = f"""다음 Python 코드를 Blockly XML로 변환해주세요:
-
-```python
-{request.python_code}
-```
-
-결과는 유효한 Blockly XML 형식이어야 합니다. 원본 Python 코드의 모든 기능을 가능한 한 정확하게 유지해주세요.
-<xml xmlns="https://developers.google.com/blockly/xml"> 태그로 시작하여 </xml> 태그로 끝나야 합니다.
-"""
+        # Python 코드를 직접 처리하여 XML 생성
+        xml_blocks = create_function_block_xml(request.python_code)
         
-        if request.model_type == "ollama":
-            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.0.2:11434")
-            logger.info(f"Ollama URL: {ollama_url}")
-            
-            async with httpx.AsyncClient() as client:
-                try:
-                    request_data = {
-                        "model": request.model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "raw": True
-                    }
-                    
-                    response = await client.post(
-                        f"{ollama_url}/api/generate",
-                        json=request_data,
-                        timeout=30.0
-                    )
-                    
-                    if response.status_code != 200:
-                        error_msg = f"Ollama API 오류 - 상태 코드: {response.status_code}"
-                        logging.error(error_msg)
-                        raise HTTPException(status_code=500, detail=error_msg)
-                        
-                    response_data = response.json()
-                    xml_code = response_data.get("response", "").strip()
-                    
-                    # XML 코드 추출
-                    xml_pattern = r'<xml xmlns="https://developers.google.com/blockly/xml">.*?</xml>'
-                    xml_matches = re.search(xml_pattern, xml_code, re.DOTALL)
-                    
-                    if xml_matches:
-                        xml_code = xml_matches.group(0)
-                    
-                    # XML 시작과 끝 태그 확인
-                    if not xml_code.startswith("<xml"):
-                        xml_code = f'<xml xmlns="https://developers.google.com/blockly/xml">{xml_code}'
-                    if not xml_code.endswith("</xml>"):
-                        xml_code = f"{xml_code}</xml>"
-                    
-                    logger.info(f"변환된 Blockly XML: {xml_code[:100]}...")
-                    return {"xml": xml_code}
-                    
-                except Exception as e:
-                    error_msg = f"Ollama API 처리 중 오류: {str(e)}"
-                    logging.error(error_msg)
-                    raise HTTPException(status_code=500, detail=error_msg)
+        if not xml_blocks:
+            raise HTTPException(status_code=500, detail="변환할 수 있는 함수를 찾을 수 없습니다.")
         
-        elif request.model_type == "openai":
-            openai_key = os.getenv("OPENAI_API_KEY")
-            if not openai_key:
-                error_msg = "OpenAI API 키가 설정되지 않았습니다."
-                logging.error(error_msg)
-                raise HTTPException(status_code=500, detail=error_msg)
-                
-            async with httpx.AsyncClient() as client:
-                try:
-                    request_data = {
-                        "model": request.model_name,
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": "You are an expert at converting Python code to Blockly XML. Return ONLY the XML code without any markdown formatting or additional text."
-                            },
-                            {
-                                "role": "user",
-                                "content": prompt
-                            }
-                        ],
-                        "temperature": 0.3,
-                        "max_tokens": 2000
-                    }
-                    
-                    response = await client.post(
-                        "https://api.openai.com/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {openai_key}",
-                            "Content-Type": "application/json"
-                        },
-                        json=request_data,
-                        timeout=30.0
-                    )
-                    
-                    if response.status_code != 200:
-                        error_msg = f"OpenAI API 오류: 상태 코드 {response.status_code}"
-                        logging.error(error_msg)
-                        raise HTTPException(status_code=500, detail=error_msg)
-                    
-                    data = response.json()
-                    content = data["choices"][0]["message"]["content"].strip()
-                    
-                    # 마크다운 코드 블록 제거
-                    content = re.sub(r'^```xml\s*|\s*```$', '', content, flags=re.MULTILINE)
-                    xml_code = content.strip()
-                    
-                    logger.info(f"변환된 Blockly XML: {xml_code[:100]}...")
-                    return {"xml": xml_code}
-                    
-                except Exception as e:
-                    error_msg = f"OpenAI API 처리 중 오류: {str(e)}"
-                    logging.error(error_msg)
-                    raise HTTPException(status_code=500, detail=error_msg)
+        # XML 조합
+        xml_code = f'<xml xmlns="https://developers.google.com/blockly/xml">\n'
+        for block in xml_blocks:
+            xml_code += f'  {ET.tostring(block, encoding="unicode")}\n'
+        xml_code += '</xml>'
         
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"지원하지 않는 모델 타입입니다: {request.model_type}"
-            )
+        logger.info(f"규칙기반 변환 완료: {len(xml_blocks)}개 블록 생성")
+        return {"xml": xml_code}
             
     except Exception as e:
-        logger.error(f"Python to Blockly 변환 중 오류 발생: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        ) 
+        logger.error(f"규칙기반 변환 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) 
