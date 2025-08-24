@@ -165,6 +165,10 @@ export function registerSummaryBlocks() {
             this.setTooltip('Custom function block with parameter mutation.');
             this.setHelpUrl('');
             this.parameterCount_ = 0;
+            // 숨겨진 논리적 수식 저장 필드 추가
+            this.appendDummyInput('HIDDEN_LOGIC')
+                .appendField(new Blockly.FieldTextInput(''), 'LOGIC_TEXT')
+                .setVisible(false);
             // Body 영역 블록 연결을 위해 정의
             this.appendStatementInput('BODY')
                 .setCheck(null)
@@ -173,11 +177,21 @@ export function registerSummaryBlocks() {
         mutationToDom: function (this: ExtendedBlock): Element {
             const container = document.createElement('mutation');
             container.setAttribute('parameters', this.parameterCount_?.toString() || '0');
+            // 논리적 수식도 mutation에 저장
+            const logicText = this.getFieldValue('LOGIC_TEXT') || '';
+            if (logicText) {
+                container.setAttribute('logic', logicText);
+            }
             return container;
         },
         domToMutation: function (this: ExtendedBlock, xmlElement: Element): void {
             const paramCount = parseInt(xmlElement.getAttribute('parameters') || '0', 10);
             this.parameterCount_ = paramCount;
+            // mutation에서 논리적 수식 복원
+            const logicText = xmlElement.getAttribute('logic') || '';
+            if (logicText) {
+                this.setFieldValue(logicText, 'LOGIC_TEXT');
+            }
             this.updateShape_?.();
         },
         updateShape_: function (this: ExtendedBlock) {
@@ -523,16 +537,23 @@ export function registerSummaryBlocks() {
             const params = paramList.join(', ');
             // 함수 본문 블록을 처리
             const bodyCode = generator.statementToCode(block, 'BODY');
-            
+            // 숨겨진 필드에서 논리적 수식 가져오기
+            const logicText = block.getFieldValue('LOGIC_TEXT') || '';
 
             
             // 들여쓰기 처리 개선 - 원본 들여쓰기 제거 후 새로 적용
             let indentedBody = '';
             
-            if (bodyCode && bodyCode.trim()) {
+            // bodyCode가 있으면 우선 사용, 없으면 logicText 사용
+            const codeToProcess = bodyCode && bodyCode.trim() ? bodyCode : logicText;
+            
+            if (codeToProcess && codeToProcess.trim()) {
                 // 본문 코드의 각 줄에 들여쓰기 적용
-                const lines = bodyCode.split('\n');
+                const lines = codeToProcess.split('\n');
                 const indentedLines: string[] = [];
+                
+                // logicText를 사용하는 경우와 bodyCode를 사용하는 경우를 구분
+                const isUsingLogicText = codeToProcess === logicText;
                 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
@@ -543,17 +564,24 @@ export function registerSummaryBlocks() {
                     
                     const trimmedLine = line.trim();
                     
-                    // 새로운 유틸리티 함수를 사용하여 들여쓰기 레벨 계산
-                    const indentLevel = calculateIndentLevel(trimmedLine, lines, i);
-                    
-                    // 이미 들여쓰기가 적용된 줄인지 확인
-                    if (line.startsWith('    ')) {
-                        // 이미 들여쓰기가 있으면 그대로 사용
-                        indentedLines.push(line);
-                    } else {
-                        // 들여쓰기가 없는 줄만 새로 적용
+                    if (isUsingLogicText) {
+                        // logicText 사용 시: 직접 들여쓰기 적용 (이미 처리된 텍스트)
+                        const indentLevel = calculateIndentLevel(trimmedLine, lines, i);
                         const indentString = getIndentString(indentLevel);
                         indentedLines.push(indentString + trimmedLine);
+                    } else {
+                        // bodyCode 사용 시: 기존 로직 유지
+                        const indentLevel = calculateIndentLevel(trimmedLine, lines, i);
+                        
+                        // 이미 들여쓰기가 적용된 줄인지 확인
+                        if (line.startsWith('    ')) {
+                            // 이미 들여쓰기가 있으면 그대로 사용
+                            indentedLines.push(line);
+                        } else {
+                            // 들여쓰기가 없는 줄만 새로 적용
+                            const indentString = getIndentString(indentLevel);
+                            indentedLines.push(indentString + trimmedLine);
+                        }
                     }
                 }
                 
@@ -590,11 +618,19 @@ export function registerSummaryBlocks() {
     pythonGenerator.forBlock['ast_ReturnFull'] = function (block: Blockly.Block, generator: any): string {
         try {
             const bodyText = block.getFieldValue('TEXT') || '';
+            // VALUE 입력이 연결되어 있으면 해당 값을 사용, 없으면 기본값 사용
             const returnValue = generator.valueToCode(block, 'VALUE', generator.ORDER_NONE) || 'None';
+            
+            // 부모 함수 블록에 논리적 수식 저장 (ast_ReturnFull이 연결될 때)
+            const parentBlock = block.getParent();
+            if (parentBlock && parentBlock.type === 'ast_Summarized_FunctionDef' && bodyText && bodyText.trim()) {
+                parentBlock.setFieldValue(bodyText, 'LOGIC_TEXT');
+            }
             
             // 들여쓰기 처리
             let indentedBody = '';
             
+            // bodyText가 있으면 논리적 수식을 항상 포함 (VALUE 블록 유무와 관계없이)
             if (bodyText && bodyText.trim()) {
                 // 본문 텍스트의 각 줄에 들여쓰기 적용
                 const lines = bodyText.trim().split('\n');
@@ -633,29 +669,38 @@ export function registerSummaryBlocks() {
                     indentedLines.push(indentString + trimmedLine);
                 }
                 
-                // 불필요한 코드 제거: if 블록 안의 return result만 제거 (초기화는 유지)
-                const filteredLines = indentedLines.filter((line, index) => {
-                    const trimmed = line.trim();
-                    
-                    // if 블록 안의 return result 제거 (높은 들여쓰기 레벨의 return result)
-                    if (isHighIndentReturnStatement(line)) {
-                        return false;
-                    }
-                    // 마지막 return result도 제거 (함수 끝에 새로 추가할 예정)
-                    if (trimmed === 'return result' && index === indentedLines.length - 1) {
-                        return false;
-                    }
-                    
-                    // 나머지는 모두 유지 (result = '' 초기화 포함)
-                    return true;
-                });
+                // VALUE 블록이 연결되어 있을 때만 중복 return 제거 로직 적용
+                let filteredLines = indentedLines;
+                if (generator.valueToCode(block, 'VALUE', generator.ORDER_NONE)) {
+                    // 불필요한 코드 제거: if 블록 안의 return result만 제거 (초기화는 유지)
+                    filteredLines = indentedLines.filter((line, index) => {
+                        const trimmed = line.trim();
+                        
+                        // if 블록 안의 return result 제거 (높은 들여쓰기 레벨의 return result)
+                        if (isHighIndentReturnStatement(line)) {
+                            return false;
+                        }
+                        // 마지막 return result도 제거 (함수 끝에 새로 추가할 예정)
+                        if (trimmed === 'return result' && index === indentedLines.length - 1) {
+                            return false;
+                        }
+                        
+                        // 나머지는 모두 유지 (result = '' 초기화 포함)
+                        return true;
+                    });
+                }
                 
                 indentedBody = filteredLines.join('\n') + '\n';
             }
             
-            // 항상 마지막에 return 문 추가 (마지막 return은 이미 필터링에서 제거됨)
-            const returnLine = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + `return ${returnValue}\n`;
-            const finalCode = indentedBody + returnLine;
+            // VALUE 블록이 연결되어 있을 때만 추가 return 문 생성
+            let finalCode = indentedBody;
+            if (generator.valueToCode(block, 'VALUE', generator.ORDER_NONE)) {
+                // 항상 마지막에 return 문 추가 (마지막 return은 이미 필터링에서 제거됨)
+                const returnLine = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + `return ${returnValue}\n`;
+                finalCode = indentedBody + returnLine;
+            }
+            
             return finalCode;
         } catch (error) {
             console.error('Error generating code for ast_ReturnFull:', error);
