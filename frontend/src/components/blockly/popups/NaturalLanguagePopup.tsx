@@ -264,22 +264,6 @@ export const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({
           </div>
         ) : (
           <div className="python-tab">
-            <div className="model-selector">
-              <label>모델 선택:</label>
-              <select
-                value={selectedModel?.name}
-                onChange={(e) => {
-                  const model = models.find(m => m.name === e.target.value);
-                  if (model) setSelectedModel(model);
-                }}
-              >
-                {models.map((model) => (
-                  <option key={model.name} value={model.name}>
-                    {model.name} ({model.type})
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="python-input">
               <textarea
                 value={pythonInput}
