@@ -4,12 +4,17 @@ from typing import List, Optional
 from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import tempfile
+import subprocess
 import os
 import logging
 from utils import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# 상수 정의
+DEFAULT_CODE_TIMEOUT = 5
 
 # 모델 정의
 class UserInfo(BaseModel):
@@ -58,6 +63,13 @@ class CodeBlockUpdate(CodeBlockBase):
 
 class DeleteCodeBlocks(BaseModel):
     ids: List[int]
+    
+class CodeExecuteRequest(BaseModel):
+    code: str
+
+class CodeExecuteResponse(BaseModel):
+    output: str
+    error: str
 
 # 데이터베이스 연결
 def get_db_connection():
@@ -569,3 +581,38 @@ async def delete_converted_codes(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close() 
+        
+@router.post("/execute-code", response_model=CodeExecuteResponse)
+def execute_code(request: CodeExecuteRequest):
+    """Python 코드를 실행하고 결과를 반환"""
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(request.code)
+            temp_file = f.name
+
+        try:
+            process = subprocess.Popen(
+                ['python', temp_file],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate(timeout=DEFAULT_CODE_TIMEOUT)
+
+            return {
+                "output": stdout,
+                "error": stderr
+            }
+        finally:
+            os.unlink(temp_file)
+
+    except subprocess.TimeoutExpired:
+        return {
+            "output": "",
+            "error": f"코드 실행 시간이 초과되었습니다 ({DEFAULT_CODE_TIMEOUT}초 제한)."
+        }
+    except Exception as e:
+        return {
+            "output": "",
+            "error": f"코드 실행 중 오류가 발생했습니다: {str(e)}"
+        }

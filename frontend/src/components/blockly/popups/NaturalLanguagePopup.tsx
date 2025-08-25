@@ -288,9 +288,7 @@ export const NaturalLanguagePopup: React.FC<NaturalLanguagePopupProps> = ({
                     });
 
                     const blockXml = await codeBlockApi.convertPythonToBlockly(
-                      pythonInput,
-                      selectedModel.name,
-                      selectedModel.type
+                      pythonInput
                     );
                     
                     console.log('변환된 XML:', blockXml);
