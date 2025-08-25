@@ -23,13 +23,12 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    openjdk-17-jdk \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Set JAVA_HOME and PATH
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-ENV PATH="$JAVA_HOME/bin:$PATH"
+# Set Python path
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -37,10 +36,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install JPype1
 RUN pip install JPype1
-
-# Set Python path
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
 
 # Copy application code
 COPY . .

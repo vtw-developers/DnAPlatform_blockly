@@ -470,9 +470,9 @@ export class CodeBlockApi {
     }
   }
 
-  async convertPythonToBlockly(pythonCode: string, modelName: string, modelType: string = 'ollama'): Promise<string> {
+  async convertPythonToBlockly(pythonCode: string): Promise<string> {
     try {
-      // 규칙기반 변환 엔드포인트 사용 (AI 모델 사용하지 않음)
+      // 규칙기반 변환 엔드포인트 사용
       const response = await fetch(`${this.baseUrl}/python-to-blockly-rule-based`, {
         method: 'POST',
         headers: {
@@ -480,8 +480,6 @@ export class CodeBlockApi {
         },
         body: JSON.stringify({
           python_code: pythonCode,
-          model_name: modelName,  // 호환성을 위해 유지하지만 실제로는 사용되지 않음
-          model_type: modelType   // 호환성을 위해 유지하지만 실제로는 사용되지 않음
         }),
       });
 
