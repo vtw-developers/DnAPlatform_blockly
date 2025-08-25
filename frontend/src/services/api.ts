@@ -40,15 +40,6 @@ interface CodeExecuteResponse {
   error: string;
 }
 
-interface CodeVerifyResponse {
-  dag_run_id: string;
-}
-
-interface CodeVerifyRequest {
-  code: string;
-  model_name?: string;
-}
-
 export interface ModelInfo {
   name: string;
   type: 'ollama' | 'openai';
@@ -71,18 +62,6 @@ export interface VerificationResult {
   };
   error?: string;
   status?: 'RUNNING' | 'SUCCESS' | 'ERROR';
-}
-
-interface OllamaResponse {
-  response: string;
-}
-
-interface OpenAIResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
 }
 
 export interface LLMModel {

@@ -12,69 +12,11 @@ pythonGenerator.INDENT = '    ';
 const INDENT_CONFIG = {
     BASE_INDENT: '    ', // 기본 4칸 공백
     FUNCTION_BODY_LEVEL: 1, // 함수 본문 레벨
-    IF_ELSE_BODY_LEVEL: 2, // if/else 본문 레벨  
-    WHILE_FOR_BODY_LEVEL: 3, // while/for 본문 레벨
-    NESTED_CONTROL_LEVEL: 4, // 중첩된 제어문 레벨
 } as const;
 
 // 들여쓰기 유틸리티 함수들
 function getIndentString(level: number): string {
     return INDENT_CONFIG.BASE_INDENT.repeat(level);
-}
-
-function calculateIndentLevel(
-    trimmedLine: string, 
-    previousLines: string[], 
-    currentIndex: number
-): number {
-    // 독스트링이나 함수 문서화는 함수 본문 레벨
-    if (trimmedLine.startsWith('"""') || trimmedLine.startsWith(':param') || trimmedLine.startsWith(':return')) {
-        return INDENT_CONFIG.FUNCTION_BODY_LEVEL;
-    }
-    
-    // 제어문 타입 확인
-    const isIfElseStatement = trimmedLine.startsWith('if ') || trimmedLine.startsWith('elif ') || trimmedLine.startsWith('else:');
-    const isWhileStatement = trimmedLine.startsWith('while ') || trimmedLine.startsWith('for ');
-    
-    // 이전 줄들을 역순으로 확인하여 현재 컨텍스트 파악
-    let hasWhile = false;
-    let hasIf = false;
-    
-    for (let i = currentIndex - 1; i >= 0; i--) {
-        const prevTrimmed = previousLines[i].trim();
-        if (prevTrimmed.startsWith('while ') || prevTrimmed.startsWith('for ')) {
-            hasWhile = true;
-        }
-        if (prevTrimmed.startsWith('if ') || prevTrimmed.startsWith('elif ')) {
-            hasIf = true;
-        }
-    }
-    
-    // return 문 특별 처리
-    if (trimmedLine.startsWith('return result')) {
-        return INDENT_CONFIG.FUNCTION_BODY_LEVEL;
-    }
-    
-    // 들여쓰기 레벨 결정 로직
-    if (isIfElseStatement) {
-        return hasWhile ? INDENT_CONFIG.WHILE_FOR_BODY_LEVEL : INDENT_CONFIG.FUNCTION_BODY_LEVEL;
-    } else if (isWhileStatement) {
-        return INDENT_CONFIG.IF_ELSE_BODY_LEVEL;
-    } else {
-        // 일반 코드의 경우 컨텍스트에 따라 결정
-        if (hasWhile && hasIf) {
-            return INDENT_CONFIG.NESTED_CONTROL_LEVEL;
-        } else if (hasWhile || hasIf) {
-            return INDENT_CONFIG.IF_ELSE_BODY_LEVEL;
-        } else {
-            return INDENT_CONFIG.FUNCTION_BODY_LEVEL;
-        }
-    }
-}
-
-function isHighIndentReturnStatement(line: string): boolean {
-    const trimmed = line.trim();
-    return trimmed === 'return result' && line.startsWith(getIndentString(2)); // 8칸 이상 들여쓰기
 }
 
 // 변수명 매핑 캐시
@@ -128,9 +70,7 @@ function clearVariableNameCache() {
     variableCounter = 0;
 }
 
-console.log(JavaScript)
-console.log("valueToCode")
-console.log(pythonGenerator.valueToCode)
+
 
 // Blockly.Block 인터페이스 확장
 interface ExtendedBlock extends Blockly.Block {
@@ -139,6 +79,7 @@ interface ExtendedBlock extends Blockly.Block {
     parameters_?: string[];
     decompose?: (workspace: Blockly.Workspace) => Blockly.Block;
     compose?: (containerBlock: Blockly.Block) => void;
+    loadPythonCodeFromXml?: () => void;
 }
 
 export function registerSummaryBlocks() {
@@ -165,7 +106,7 @@ export function registerSummaryBlocks() {
             this.setTooltip('Custom function block with parameter mutation.');
             this.setHelpUrl('');
             this.parameterCount_ = 0;
-            // 숨겨진 논리적 수식 저장 필드 추가
+            // 숨겨진 논리적 수식 저장 필드 추가 (원본 Python 코드 보존용)
             this.appendDummyInput('HIDDEN_LOGIC')
                 .appendField(new Blockly.FieldTextInput(''), 'LOGIC_TEXT')
                 .setVisible(false);
@@ -187,11 +128,36 @@ export function registerSummaryBlocks() {
         domToMutation: function (this: ExtendedBlock, xmlElement: Element): void {
             const paramCount = parseInt(xmlElement.getAttribute('parameters') || '0', 10);
             this.parameterCount_ = paramCount;
-            // mutation에서 논리적 수식 복원
+            
+
+            
+            // XML에서 Python 코드를 찾아서 LOGIC_TEXT에 저장
+            // BODY 블록의 TEXT 필드에서 Python 코드 추출
+            const bodyBlock = xmlElement.querySelector('statement[name="BODY"] block');
+            
+            if (bodyBlock) {
+                // ast_ReturnFull 블록의 TEXT 필드에서 Python 코드 추출
+                const returnBlock = bodyBlock.querySelector('block[type="ast_ReturnFull"]');
+                
+                if (returnBlock) {
+                    const textField = returnBlock.querySelector('field[name="TEXT"]');
+                    
+                    if (textField && textField.textContent) {
+                        // 원본 Python 코드를 LOGIC_TEXT에 저장하여 들여쓰기 보존
+                        const pythonCode = textField.textContent;
+                        this.setFieldValue(pythonCode, 'LOGIC_TEXT');
+                    }
+                }
+            }
+            
+            // mutation에서 논리적 수식 복원 (기존 로직 유지)
+            // 단, TEXT 필드에서 읽어온 Python 코드가 있으면 그것을 우선시
             const logicText = xmlElement.getAttribute('logic') || '';
-            if (logicText) {
+            if (logicText && !this.getFieldValue('LOGIC_TEXT')) {
+                // LOGIC_TEXT에 아무것도 없을 때만 mutation의 logic 사용
                 this.setFieldValue(logicText, 'LOGIC_TEXT');
             }
+            
             this.updateShape_?.();
         },
         updateShape_: function (this: ExtendedBlock) {
@@ -213,6 +179,39 @@ export function registerSummaryBlocks() {
             if (this.getInput('BODY')) {
                 this.moveInputBefore('BODY', null);
             }
+        },
+        
+        // XML에서 Python 코드를 읽어오는 함수
+        loadPythonCodeFromXml: function (this: ExtendedBlock) {
+            try {
+                // BODY 입력에서 직접 ast_ReturnFull 블록 찾기
+                const bodyInput = this.getInput('BODY');
+                if (bodyInput && bodyInput.connection) {
+                    const connectedBlock = bodyInput.connection.targetBlock();
+                    if (connectedBlock && connectedBlock.type === 'ast_ReturnFull') {
+                        // ast_ReturnFull 블록의 TEXT 필드에서 Python 코드 읽기
+                        const textField = connectedBlock.getField('TEXT');
+                        if (textField) {
+                            const pythonCode = textField.getValue();
+                            this.setFieldValue(pythonCode, 'LOGIC_TEXT');
+                        }
+                    }
+                }
+            } catch (error) {
+                // BODY에서 Python 코드 읽기 실패 시 무시
+            }
+        },
+        
+
+        
+        // XML 로드 후 Python 코드를 읽어오는 이벤트
+        onchange: function (this: ExtendedBlock) {
+            // XML 로드가 완료된 후 Python 코드 읽기
+            setTimeout(() => {
+                if (this.loadPythonCodeFromXml) {
+                    this.loadPythonCodeFromXml();
+                }
+            }, 100);
         }
     };
 
@@ -350,7 +349,7 @@ export function registerSummaryBlocks() {
                     this.parameters_!.push(child.getAttribute('name') || '');
                 }
             }
-            console.log('procedures_callreturn domToMutation - parameters_:', this.parameters_);
+
             (this as any).updateShape_();
         },
         // mutator 분해 - 설정 팝업에서 보여줄 파라미터 블록들 생성
@@ -388,7 +387,6 @@ export function registerSummaryBlocks() {
         },
         
         updateShape_: function (this: ExtendedBlock) {
-            console.log('procedures_callreturn updateShape_ - parameters_:', this.parameters_);
             // 기존 파라미터 입력 제거
             let i = 0;
             while (this.getInput('ARG' + i)) {
@@ -398,7 +396,6 @@ export function registerSummaryBlocks() {
             
             // 새 파라미터 입력 추가
             for (let j = 0; j < (this.parameters_?.length || 0); j++) {
-                console.log(`Adding parameter ${j}: ${this.parameters_![j]}`);
                 this.appendValueInput('ARG' + j)
                     .setCheck(null)
                     .appendField(this.parameters_![j] || `param${j + 1}`);
@@ -406,7 +403,6 @@ export function registerSummaryBlocks() {
         },
         onchange: function (this: ExtendedBlock) {
             // XML에서 로드된 파라미터를 유지하기 위해 자동 동기화 비활성화
-            console.log('onchange called - skipping auto sync to preserve XML parameters');
             return;
         }
     };
@@ -506,7 +502,6 @@ export function registerSummaryBlocks() {
         },
         onchange: function (this: ExtendedBlock) {
             // 자동 동기화 비활성화 (사용자가 수동으로 파라미터 관리)
-            console.log('onchange called - manual parameter management enabled');
             return;
         }
     };
@@ -537,65 +532,72 @@ export function registerSummaryBlocks() {
             const params = paramList.join(', ');
             // 함수 본문 블록을 처리
             const bodyCode = generator.statementToCode(block, 'BODY');
-            // 숨겨진 필드에서 논리적 수식 가져오기
+            // 숨겨진 필드에서 원본 Python 코드 가져오기
             const logicText = block.getFieldValue('LOGIC_TEXT') || '';
 
+
             
-            // 들여쓰기 처리 개선 - 원본 들여쓰기 제거 후 새로 적용
+            // 들여쓰기 처리 개선 - LOGIC_TEXT의 원본 Python 코드 우선 사용
             let indentedBody = '';
             
-            // bodyCode가 있으면 우선 사용, 없으면 logicText 사용
-            const codeToProcess = bodyCode && bodyCode.trim() ? bodyCode : logicText;
+            // LOGIC_TEXT에 원본 Python 코드가 있으면 반드시 사용, 없을 때만 bodyCode 사용
+            const codeToProcess = logicText && logicText.trim() ? logicText : bodyCode;
+            
+
             
             if (codeToProcess && codeToProcess.trim()) {
-                // 본문 코드의 각 줄에 들여쓰기 적용
-                const lines = codeToProcess.split('\n');
-                const indentedLines: string[] = [];
-                
-                // logicText를 사용하는 경우와 bodyCode를 사용하는 경우를 구분
-                const isUsingLogicText = codeToProcess === logicText;
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    if (line.trim() === '') {
-                        indentedLines.push(line); // 빈 줄은 그대로
-                        continue;
+                // LOGIC_TEXT에서 온 원본 Python 코드의 경우 함수 본문 레벨로 들여쓰기 추가
+                if (codeToProcess === logicText) {
+                    // 원본 Python 코드를 함수 본문 레벨로 들여쓰기 적용
+                    const lines = codeToProcess.split('\n');
+                    const indentedLines: string[] = [];
+                    
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (line.trim() === '') {
+                            indentedLines.push(line); // 빈 줄은 그대로
+                            continue;
+                        }
+                        
+                        // 모든 라인에 함수 본문 레벨 들여쓰기 추가
+                        indentedLines.push(getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + line);
                     }
                     
-                    const trimmedLine = line.trim();
+                    indentedBody = indentedLines.join('\n');
+                    // 마지막에 개행이 없으면 추가
+                    if (!indentedBody.endsWith('\n')) {
+                        indentedBody += '\n';
+                    }
+                } else {
+                    // bodyCode에서 온 경우에만 들여쓰기 처리 적용
+                    const lines = codeToProcess.split('\n');
+                    const indentedLines: string[] = [];
                     
-                    if (isUsingLogicText) {
-                        // logicText 사용 시: 직접 들여쓰기 적용 (이미 처리된 텍스트)
-                        const indentLevel = calculateIndentLevel(trimmedLine, lines, i);
-                        const indentString = getIndentString(indentLevel);
-                        indentedLines.push(indentString + trimmedLine);
-                    } else {
-                        // bodyCode 사용 시: 기존 로직 유지
-                        const indentLevel = calculateIndentLevel(trimmedLine, lines, i);
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (line.trim() === '') {
+                            indentedLines.push(line); // 빈 줄은 그대로
+                            continue;
+                        }
                         
-                        // 이미 들여쓰기가 적용된 줄인지 확인
+                        // 원본 Python 코드의 들여쓰기를 그대로 유지
+                        // 함수 본문 내부이므로 기본 들여쓰기만 추가
                         if (line.startsWith('    ')) {
                             // 이미 들여쓰기가 있으면 그대로 사용
                             indentedLines.push(line);
+                        } else if (line.startsWith('\t')) {
+                            // 탭 들여쓰기를 공백으로 변환
+                            const tabCount = (line.match(/^\t+/) || [''])[0].length;
+                            const spaceIndent = '    '.repeat(tabCount);
+                            indentedLines.push(spaceIndent + line.substring(tabCount));
                         } else {
-                            // 들여쓰기가 없는 줄만 새로 적용
-                            const indentString = getIndentString(indentLevel);
-                            indentedLines.push(indentString + trimmedLine);
+                            // 들여쓰기가 없는 경우 함수 본문 레벨로 들여쓰기 추가
+                            indentedLines.push(getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + line);
                         }
                     }
+                    
+                    indentedBody = indentedLines.join('\n');
                 }
-                
-                // 중복 return 문 제거
-                const finalIndentedLines = indentedLines.filter((line, index) => {
-                    if (line.trim().startsWith('return result')) {
-                        // 첫 번째 return 문만 유지
-                        const isFirstReturn = indentedLines.findIndex(l => l.trim().startsWith('return result')) === index;
-                        return isFirstReturn;
-                    }
-                    return true;
-                });
-                
-                indentedBody = finalIndentedLines.join('\n');
             } else {
                 // 본문이 없는 경우 기본 pass 문 추가
                 indentedBody = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + 'pass\n';
@@ -621,84 +623,35 @@ export function registerSummaryBlocks() {
             // VALUE 입력이 연결되어 있으면 해당 값을 사용, 없으면 기본값 사용
             const returnValue = generator.valueToCode(block, 'VALUE', generator.ORDER_NONE) || 'None';
             
-            // 부모 함수 블록에 논리적 수식 저장 (ast_ReturnFull이 연결될 때)
-            const parentBlock = block.getParent();
-            if (parentBlock && parentBlock.type === 'ast_Summarized_FunctionDef' && bodyText && bodyText.trim()) {
-                parentBlock.setFieldValue(bodyText, 'LOGIC_TEXT');
-            }
+            // 원본 Python 코드는 이미 XML에서 LOGIC_TEXT에 저장되어 있음
             
             // 들여쓰기 처리
             let indentedBody = '';
             
-            // bodyText가 있으면 논리적 수식을 항상 포함 (VALUE 블록 유무와 관계없이)
+            // bodyText가 있으면 원본 Python 코드를 그대로 사용
             if (bodyText && bodyText.trim()) {
-                // 본문 텍스트의 각 줄에 들여쓰기 적용
-                const lines = bodyText.trim().split('\n');
-                const indentedLines: string[] = [];
-                
-                // Python 구문 기반 들여쓰기 처리
-                let currentIndentLevel = INDENT_CONFIG.FUNCTION_BODY_LEVEL; // 함수 본문 시작 레벨
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    if (line.trim() === '') continue; // 빈 줄은 건너뛰기
-                    
-                    const trimmedLine = line.trim();
-                    let indentLevel = currentIndentLevel;
-                    
-                    // Python 구문에 따른 들여쓰기 레벨 결정
-                    if (trimmedLine.startsWith('"""') || trimmedLine.startsWith(':param') || trimmedLine.startsWith(':return')) {
-                        // 독스트링: 함수 본문 레벨
-                        indentLevel = INDENT_CONFIG.FUNCTION_BODY_LEVEL;
-                    } else if (trimmedLine.startsWith('elif ') || trimmedLine.startsWith('else:')) {
-                        // elif, else: if와 같은 레벨 (현재 레벨 - 1)
-                        indentLevel = currentIndentLevel - 1;
-                        // 다음 줄부터 한 레벨 증가 (블록 내부)
-                        currentIndentLevel = indentLevel + 1;
-                    } else if (trimmedLine.endsWith(':')) {
-                        // 블록 시작 (if, for, while): 현재 레벨
-                        indentLevel = currentIndentLevel;
-                        // 다음 줄부터 한 레벨 증가
-                        currentIndentLevel++;
-                    } else {
-                        // 일반 문장: 현재 레벨
-                        indentLevel = currentIndentLevel;
-                    }
-                    
-                    const indentString = getIndentString(indentLevel);
-                    indentedLines.push(indentString + trimmedLine);
+                // 원본 Python 코드는 이미 올바른 들여쓰기를 가지고 있으므로 그대로 사용
+                indentedBody = bodyText.trim();
+                // 마지막에 개행이 없으면 추가
+                if (!indentedBody.endsWith('\n')) {
+                    indentedBody += '\n';
                 }
-                
-                // VALUE 블록이 연결되어 있을 때만 중복 return 제거 로직 적용
-                let filteredLines = indentedLines;
-                if (generator.valueToCode(block, 'VALUE', generator.ORDER_NONE)) {
-                    // 불필요한 코드 제거: if 블록 안의 return result만 제거 (초기화는 유지)
-                    filteredLines = indentedLines.filter((line, index) => {
-                        const trimmed = line.trim();
-                        
-                        // if 블록 안의 return result 제거 (높은 들여쓰기 레벨의 return result)
-                        if (isHighIndentReturnStatement(line)) {
-                            return false;
-                        }
-                        // 마지막 return result도 제거 (함수 끝에 새로 추가할 예정)
-                        if (trimmed === 'return result' && index === indentedLines.length - 1) {
-                            return false;
-                        }
-                        
-                        // 나머지는 모두 유지 (result = '' 초기화 포함)
-                        return true;
-                    });
-                }
-                
-                indentedBody = filteredLines.join('\n') + '\n';
             }
             
             // VALUE 블록이 연결되어 있을 때만 추가 return 문 생성
             let finalCode = indentedBody;
             if (generator.valueToCode(block, 'VALUE', generator.ORDER_NONE)) {
-                // 항상 마지막에 return 문 추가 (마지막 return은 이미 필터링에서 제거됨)
-                const returnLine = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + `return ${returnValue}\n`;
-                finalCode = indentedBody + returnLine;
+                // 원본 코드에 return 문이 이미 있는지 확인
+                const hasReturnStatement = indentedBody.includes('return ');
+                
+                if (!hasReturnStatement) {
+                    // return 문이 없을 때만 추가
+                    const returnLine = getIndentString(INDENT_CONFIG.FUNCTION_BODY_LEVEL) + `return ${returnValue}\n`;
+                    finalCode = indentedBody + returnLine;
+                } else {
+                    // return 문이 이미 있으면 그대로 사용
+                    finalCode = indentedBody;
+                }
             }
             
             return finalCode;
@@ -803,16 +756,6 @@ export function registerSummaryBlocks() {
         }
     };
 
-    // Blockly.Extensions.registerMutator 호출 (주석 처리된 상태로 유지)
-    // Blockly.Extensions.registerMutator(
-    //     'parameters_mutator',
-    //     PARAMS_MUTATOR_MIXIN,
-    //     null, // No helper function needed if we embed updateShape_
-    //     ['ast_FunctionParameter']
-    // );
-
-    // 등록 완료
-    console.log("Summary blocks registered successfully");
 }
 
 export { pythonGenerator }; 
