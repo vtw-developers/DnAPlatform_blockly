@@ -277,7 +277,7 @@ def generate_block(request: GenerateBlockRequest):
         # XML 조합
         xml_code = create_blockly_xml(xml_blocks)
         
-        logger.info(f"블록 생성 완료: {len(xml_blocks)}개 블록 생성")
+        logger.info(f"블록 생성 완료: xml_code = {xml_code}")
         return {"xml": xml_code, "python_code": python_code}
             
     except Exception as e:
