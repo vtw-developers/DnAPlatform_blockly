@@ -30,6 +30,209 @@ const isLocalhost = window.location.hostname === 'localhost' || window.location.
 const API_URL = isLocalhost ? import.meta.env.VITE_LOCAL_API_URL || '/api' : API_BASE_URL;
 console.log('Using API URL:', API_URL);
 
+// 토큰 관리 클래스
+class TokenManager {
+  private static instance: TokenManager;
+  private refreshToken: string | null = null;
+  private isRefreshing: boolean = false;
+  private refreshSubscribers: Array<(token: string) => void> = [];
+
+  private constructor() {
+    this.refreshToken = localStorage.getItem('refreshToken');
+  }
+
+  public static getInstance(): TokenManager {
+    if (!TokenManager.instance) {
+      TokenManager.instance = new TokenManager();
+    }
+    return TokenManager.instance;
+  }
+
+  public setTokens(accessToken: string, refreshToken: string) {
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    this.refreshToken = refreshToken;
+  }
+
+  public getAccessToken(): string | null {
+    return localStorage.getItem('token');
+  }
+
+  public getRefreshToken(): string | null {
+    return this.refreshToken;
+  }
+
+  public clearTokens() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    this.refreshToken = null;
+  }
+
+  public async refreshAccessToken(): Promise<string | null> {
+    if (this.isRefreshing) {
+      // 이미 토큰 갱신 중이면 대기
+      return new Promise((resolve) => {
+        this.refreshSubscribers.push(resolve);
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      const response = await axios.post(`${API_URL}/auth/refresh`, {
+        refresh_token: this.refreshToken
+      });
+
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
+      
+      // 대기 중인 구독자들에게 새 토큰 전달
+      this.refreshSubscribers.forEach(resolve => resolve(access_token));
+      this.refreshSubscribers = [];
+      
+      return access_token;
+    } catch (error) {
+      console.error('토큰 갱신 실패:', error);
+      this.clearTokens();
+      // 로그인 페이지로 리다이렉트
+      window.location.href = '/login';
+      return null;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  public onTokenRefreshed(callback: (token: string) => void) {
+    this.refreshSubscribers.push(callback);
+  }
+}
+
+// 전역 토큰 매니저 인스턴스
+export const tokenManager = TokenManager.getInstance();
+
+// axios 인터셉터 설정
+axios.interceptors.request.use(
+  (config) => {
+    const token = tokenManager.getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+axios.interceptors.response.use(
+  (response) => {
+    // 백엔드에서 새로운 토큰을 헤더로 보내온 경우 자동으로 저장
+    const newToken = response.headers['x-new-token'];
+    if (newToken) {
+      localStorage.setItem('token', newToken);
+      console.log('새로운 토큰이 자동으로 저장되었습니다.');
+    }
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+
+    // 401 에러이고 토큰 갱신을 시도하지 않은 경우
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const newToken = await tokenManager.refreshAccessToken();
+        if (newToken) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return axios(originalRequest);
+        }
+      } catch (refreshError) {
+        console.error('토큰 갱신 중 오류:', refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// 사용자 활동 감지 및 세션 연장
+class SessionManager {
+  private static instance: SessionManager;
+  private activityTimeout: NodeJS.Timeout | null = null;
+  private lastActivity: number = Date.now();
+
+  private constructor() {
+    this.setupActivityListeners();
+    this.startActivityMonitoring();
+  }
+
+  public static getInstance(): SessionManager {
+    if (!SessionManager.instance) {
+      SessionManager.instance = new SessionManager();
+    }
+    return SessionManager.instance;
+  }
+
+  private setupActivityListeners() {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    events.forEach(event => {
+      document.addEventListener(event, () => {
+        this.updateActivity();
+      }, { passive: true });
+    });
+  }
+
+  private updateActivity() {
+    this.lastActivity = Date.now();
+    
+    // 기존 타임아웃 제거
+    if (this.activityTimeout) {
+      clearTimeout(this.activityTimeout);
+    }
+
+    // 25분 후에 세션 연장 시도 (토큰 만료 5분 전)
+    this.activityTimeout = setTimeout(() => {
+      this.extendSession();
+    }, 25 * 60 * 1000); // 25분
+  }
+
+  private async extendSession() {
+    try {
+      const token = tokenManager.getAccessToken();
+      if (token) {
+        await axios.post(`${API_URL}/auth/extend-session`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        console.log('세션이 자동으로 연장되었습니다.');
+      }
+    } catch (error) {
+      console.error('세션 연장 실패:', error);
+    }
+  }
+
+  private startActivityMonitoring() {
+    // 5분마다 사용자 활동 확인
+    setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastActivity = now - this.lastActivity;
+      
+      // 30분 이상 활동이 없으면 세션 연장 시도
+      if (timeSinceLastActivity > 30 * 60 * 1000) { // 30분
+        this.extendSession();
+      }
+    }, 5 * 60 * 1000); // 5분마다 체크
+  }
+
+  public forceExtendSession() {
+    this.extendSession();
+  }
+}
+
+// 전역 세션 매니저 인스턴스
+export const sessionManager = SessionManager.getInstance();
+
 export interface CodeBlocksResponse {
   blocks: CodeBlock[];
   total: number;

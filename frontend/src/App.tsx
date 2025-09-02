@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import BlocklyWorkspace from './components/blockly/BlocklyWorkspace';
 import LoginPage from './pages/auth/LoginPage';
@@ -8,10 +8,19 @@ import UserManagementPage from './pages/auth/UserManagementPage';
 import Navbar from './components/common/Navbar';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { sessionManager } from './services/api';
 import './App.css';
 
 const AppContent = () => {
   const { user, isLoading } = useAuth();
+  
+  // 세션 매니저 초기화
+  useEffect(() => {
+    if (user) {
+      // 사용자가 로그인되어 있으면 세션 매니저 활성화
+      console.log('세션 매니저가 활성화되었습니다.');
+    }
+  }, [user]);
   
   const handleCodeGenerate = (code: string) => {
     console.log('Generated code:', code);

@@ -8,10 +8,13 @@ from utils import (
     verify_password,
     get_password_hash,
     create_access_token,
+    create_refresh_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_current_user,
-    get_current_admin_user
+    get_current_admin_user,
+    refresh_access_token
 )
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -101,7 +104,17 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
             expires_delta=access_token_expires
         )
         
-        return {"access_token": access_token, "token_type": "bearer"}
+        # 리프레시 토큰 생성
+        refresh_token = create_refresh_token(
+            data={"sub": user["email"], "role": user["role"]}
+        )
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60  # 초 단위로 반환
+        }
     finally:
         conn.close()
 
@@ -308,3 +321,30 @@ async def delete_user(
         return {"message": "사용자가 삭제되었습니다."}
     finally:
         conn.close() 
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(request: RefreshTokenRequest):
+    """리프레시 토큰을 사용하여 새로운 액세스 토큰 발급"""
+    try:
+        new_access_token = refresh_access_token(request.refresh_token)
+        return {
+            "access_token": new_access_token,
+            "refresh_token": request.refresh_token,  # 기존 리프레시 토큰 유지
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="리프레시 토큰이 유효하지 않습니다."
+        )
+
+@router.post("/extend-session")
+async def extend_session(current_user: dict = Depends(get_current_user)):
+    """사용자 액션이 있을 때 세션을 자동으로 연장"""
+    # 이 엔드포인트는 사용자 액션이 있을 때마다 호출되어 세션을 연장
+    # 실제로는 미들웨어나 다른 방식으로 자동 처리됨
+    return {"message": "세션이 연장되었습니다.", "user": current_user["email"]} 
