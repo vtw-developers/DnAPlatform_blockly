@@ -1,12 +1,13 @@
 import axios from 'axios';
 import { getApiUrl } from './api';
+import { tokenManager } from './api';
 
 const API_BASE_URL = getApiUrl();
 
 // axios 인터셉터 설정
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = tokenManager.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,7 +25,7 @@ axios.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       // 로그인 시도가 아닐 때만 토큰 제거 및 리다이렉트
       if (!error.config.url.includes('/auth/login')) {
-        localStorage.removeItem('token');
+        tokenManager.clearTokens();
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
@@ -59,7 +60,9 @@ export interface User {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
+  expires_in: number;
 }
 
 class AuthApi {
@@ -97,6 +100,10 @@ class AuthApi {
       if (!response.data || !response.data.access_token) {
         throw new Error('Invalid login response');
       }
+      
+      // 토큰 매니저를 사용하여 토큰 저장
+      const { access_token, refresh_token } = response.data;
+      tokenManager.setTokens(access_token, refresh_token);
       
       return response.data;
     } catch (error) {
@@ -138,7 +145,7 @@ class AuthApi {
   }
 
   logout(): void {
-    localStorage.removeItem('token');
+    tokenManager.clearTokens();
     // axios 인스턴스의 기본 헤더에서 Authorization 제거
     delete axios.defaults.headers.common['Authorization'];
   }

@@ -84,7 +84,9 @@ class User(UserBase):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int  # 초 단위로 만료 시간
 
 class TokenData(BaseModel):
     email: str

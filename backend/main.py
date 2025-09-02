@@ -19,6 +19,7 @@ import random
 from pydantic import BaseModel
 from routers import code_blocks, ai_services, proxy, auth, deploy, py2js_rules
 from database import wait_for_db, create_tables
+from utils import extend_session_if_needed  # 세션 연장 함수 import 추가
 import shutil
 import pytz
 from routers.auth import create_admin_if_not_exists
@@ -988,3 +989,27 @@ async def generate_snart_content_from_db() -> str:
         logger.error(f"변환규칙 조회 및 .snart 생성 중 오류: {e}")
         # 오류 발생 시 빈 내용 반환 (기본 변환으로 진행)
         return "" 
+
+# 자동 세션 연장을 위한 미들웨어
+async def auto_extend_session_middleware(request: Request, call_next):
+    """사용자 액션이 있을 때마다 자동으로 세션을 연장하는 미들웨어"""
+    response = await call_next(request)
+    
+    # 인증이 필요한 API 요청인 경우에만 세션 연장
+    if request.url.path.startswith("/api/") and request.url.path != "/api/auth/login":
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                # 세션이 만료되기 5분 전이라면 자동으로 연장
+                new_token = extend_session_if_needed(token)
+                if new_token != token:
+                    # 새로운 토큰을 응답 헤더에 포함
+                    response.headers["X-New-Token"] = new_token
+                    response.headers["X-Token-Refreshed"] = "true"
+            except Exception as e:
+                logger.warning(f"세션 연장 중 오류 발생: {e}")
+    
+    return response
+
+app.middleware("http")(auto_extend_session_middleware) 
