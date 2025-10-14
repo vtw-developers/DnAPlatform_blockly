@@ -8,6 +8,5 @@ node_modules/
 *.log.*.*
 *.log.*.*.*
 __pycache__/
-auth/
 
 

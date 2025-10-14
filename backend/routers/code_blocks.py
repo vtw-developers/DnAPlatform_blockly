@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 상수 정의
-DEFAULT_CODE_TIMEOUT = 5
+DEFAULT_CODE_TIMEOUT = 15
 
 # 모델 정의
 class UserInfo(BaseModel):

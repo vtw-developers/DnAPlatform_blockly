@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import logging
 from airflow.hooks.base import BaseHook
 import os
+import sys
+import importlib.util
 
 def get_openai_api_key():
     """OpenAI API 키를 가져옵니다."""
@@ -13,12 +15,8 @@ def get_openai_api_key():
     except Exception:
         return os.getenv('OPENAI_API_KEY', '')
 
-def run_generator(**context):
-    """Semantic equivalent 코드를 생성합니다."""
-    import subprocess
-    import tempfile
-    import os
-    
+def run_sem_equiv_test(**context):
+    """sem_equiv_test() 함수를 호출하여 테스트 케이스를 생성합니다."""
     # API 키 가져오기
     api_key = get_openai_api_key()
     
@@ -29,6 +27,9 @@ def run_generator(**context):
         model_type = dag_run.conf.get('model_type', 'ollama')
         origin_code = dag_run.conf.get('origin_code', '')
         temp = dag_run.conf.get('temp', 0.0)
+        
+        # OpenAI 호환 API 설정
+        openai_base_url = dag_run.conf.get('openai_base_url', 'http://localhost:11434/v1')
         
         # GPT 모델인 경우 OpenAI로 설정
         if 'gpt' in model_name.lower():
@@ -41,156 +42,67 @@ def run_generator(**context):
         model_type = 'ollama'
         origin_code = ""
         temp = 0.0
+        openai_base_url = 'http://localhost:11434/v1'
     
     if not origin_code:
         raise ValueError("origin_code는 필수 파라미터입니다.")
     
-    # 실행 파일 경로 확인
-    file_path = "/data/workspace/Vtw/semantic_equiv/sem_equiv_generator_exec.py"
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"실행 파일을 찾을 수 없습니다: {file_path}")
+    # sem_equiv_test 함수가 있는 파일 경로 설정
+    sem_equiv_file_path = "/data/workspace/sem_equiv/langgraph/main.py"
     
-    # 임시 디렉토리에서 실행
-    with tempfile.TemporaryDirectory() as temp_dir:
-        output_file = os.path.join(temp_dir, "sem_equiv_result.py")
-        
+    if not os.path.exists(sem_equiv_file_path):
+        raise FileNotFoundError(f"sem_equiv_test 파일을 찾을 수 없습니다: {sem_equiv_file_path}")
+    
+    # 파일이 있는 디렉토리를 sys.path에 추가
+    sem_equiv_dir = os.path.dirname(sem_equiv_file_path)
+    if sem_equiv_dir not in sys.path:
+        sys.path.insert(0, sem_equiv_dir)
+    
+    try:
         # 환경 변수 설정
-        env = os.environ.copy()
-        env["OPENAI_API_KEY"] = api_key
-        env["OUTPUT_FILE"] = output_file
-        env["SEM_EQUIV_OUTPUT_PATH"] = output_file
+        os.environ["OPENAI_API_KEY"] = api_key
         
-        # subprocess 실행
-        try:
-            # Equiv 전용 가상환경의 Python 경로 설정
-            venv_python = "/opt/airflow/equiv_env/.venv/bin/python"
-            
-            result = subprocess.run(
-                [venv_python, file_path, origin_code, model_name, model_type, str(temp)],
-                check=True,
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=300,
-                cwd="/tmp"
-            )
-            
-            # 결과 파일 읽기
-            if os.path.exists(output_file):
-                with open(output_file, 'r', encoding='utf-8') as f:
-                    generated_code = f.read()
-            else:
-                generated_code = result.stdout
-            
-            # XCom에 결과 저장
-            context['task_instance'].xcom_push(key='sem_equiv_result', value=generated_code)
-            return generated_code
-            
-        except subprocess.TimeoutExpired:
-            logging.error("subprocess 실행 시간 초과 (5분)")
-            raise
-        except subprocess.CalledProcessError as e:
-            logging.error(f"subprocess 실행 실패: {e}")
-            logging.error(f"STDOUT: {e.stdout}")
-            logging.error(f"STDERR: {e.stderr}")
-            raise
-
-def run_test(**context):
-    """Equivalence test를 생성합니다."""
-    import subprocess
-    import tempfile
-    import os
-    
-    # API 키 가져오기
-    api_key = get_openai_api_key()
-    
-    # REST API 파라미터 추출
-    dag_run = context.get('dag_run')
-    if dag_run and dag_run.conf:
-        model_name = dag_run.conf.get('model_name', 'qwen3:32b')
-        model_type = dag_run.conf.get('model_type', 'ollama')
-        origin_code = dag_run.conf.get('origin_code', '')
-        temp = dag_run.conf.get('temp', 0.0)
+        # 작업 디렉토리를 sem_equiv 디렉토리로 변경
+        original_cwd = os.getcwd()
+        os.chdir(sem_equiv_dir)
         
-        # GPT 모델인 경우 OpenAI로 설정
-        if 'gpt' in model_name.lower():
-            model_type = 'openai'
-            # deprecated 모델을 현재 사용 가능한 모델로 변경
-            if model_name in ['gpt-4-vision-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview']:
-                model_name = 'gpt-4o'
-    else:
-        model_name = 'qwen3:32b'
-        model_type = 'ollama'
-        origin_code = ""
-        temp = 0.0
-    
-    if not origin_code:
-        raise ValueError("origin_code는 필수 파라미터입니다.")
-    
-    # 실행 파일 경로 확인
-    file_path = "/data/workspace/Vtw/semantic_equiv/equiv_test_generator_exec.py"
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"테스트 실행 파일을 찾을 수 없습니다: {file_path}")
-    
-    # 임시 디렉토리에서 실행
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_output_file = os.path.join(temp_dir, "equiv_test.py")
+        # main 모듈에서 sem_equiv_test 함수 동적 로딩
+        spec = importlib.util.spec_from_file_location("main", sem_equiv_file_path)
+        main_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(main_module)
+        sem_equiv_test = main_module.sem_equiv_test
         
-        # 환경 변수 설정
-        env = os.environ.copy()
-        env["OUTPUT_FILE"] = temp_output_file
-        env["OPENAI_API_KEY"] = api_key
+        # sem_equiv_test 함수 호출
+        result = sem_equiv_test(
+            origin_code=origin_code,
+            generate_test_model=model_name,
+            temperature=temp,
+            generate_test_backend=model_type,
+            openai_base_url=openai_base_url,
+            openai_api_key=api_key
+        )
         
-        # subprocess 실행
-        try:
-            # Python 3.12 가상환경의 Python 경로 설정
-            venv_python = "/opt/airflow/pirel_env/.venv/bin/python"
-            
-            result = subprocess.run(
-                [venv_python, file_path, origin_code, model_name, model_type, str(temp)],
-                check=True,
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=300,
-                cwd="/tmp"
-            )
-            
-            # 결과 파일 읽기
-            if os.path.exists(temp_output_file):
-                with open(temp_output_file, 'r', encoding='utf-8') as f:
-                    result_content = f.read()
-            else:
-                result_content = result.stdout
-            
-            # XCom에 결과 저장
-            context['task_instance'].xcom_push(key='equiv_test_result', value=result_content)
-            return result_content
-            
-        except subprocess.TimeoutExpired:
-            logging.error("subprocess 실행 시간 초과 (5분)")
-            raise
-        except subprocess.CalledProcessError as e:
-            logging.error(f"subprocess 실행 실패: {e}")
-            logging.error(f"STDOUT: {e.stdout}")
-            logging.error(f"STDERR: {e.stderr}")
-            raise
-
-def get_result(**context):
-    """생성된 결과를 반환합니다."""
-    task_instance = context['task_instance']
-    
-    # 결과 가져오기
-    sem_equiv_result = task_instance.xcom_pull(task_ids='run_sem_equiv_generator', key='sem_equiv_result')
-    equiv_test_result = task_instance.xcom_pull(task_ids='equiv_test_generator', key='equiv_test_result')
-    
-    # 결과 통합
-    combined_result = {
-        'semantic_equivalent': sem_equiv_result,
-        'equiv_test': equiv_test_result
-    }
-    
-    return combined_result
+        # 결과는 튜플 (equiv_code, test_cases)
+        equiv_code, test_cases = result
+        
+        # XCom에 결과 저장
+        context['task_instance'].xcom_push(key='sem_equiv_code', value=equiv_code)
+        context['task_instance'].xcom_push(key='sem_equiv_test_cases', value=test_cases)
+        
+        logging.info(f"sem_equiv_test 실행 완료. 테스트 케이스 길이: {len(test_cases)}")
+        
+        # 결과 반환 (equiv_code와 test_cases 모두 포함)
+        return {
+            'equiv_code': equiv_code,
+            'test_cases': test_cases
+        }
+        
+    except Exception as e:
+        logging.error(f"sem_equiv_test 실행 실패: {str(e)}")
+        raise
+    finally:
+        # 원래 작업 디렉토리로 복원
+        os.chdir(original_cwd)
 
 @dag(
     dag_id="equiv_task",
@@ -201,38 +113,24 @@ def get_result(**context):
     default_args={
         'retries': 2,
         'retry_delay': timedelta(minutes=1),
-        'execution_timeout': timedelta(minutes=10),
+        'execution_timeout': timedelta(minutes=15),
     }
 )
 def equiv_task_dag():
+    """
+    sem_equiv_test() 함수를 호출하여 semantic equivalent 코드와 테스트 케이스를 생성하는 DAG
+    """
     
-    task1 = PythonOperator(
-        task_id="run_sem_equiv_generator",
-        python_callable=run_generator,
+    sem_equiv_task = PythonOperator(
+        task_id="run_sem_equiv_test",
+        python_callable=run_sem_equiv_test,
         provide_context=True,
         retries=1,
-        retry_delay=timedelta(minutes=1),
-        execution_timeout=timedelta(minutes=5),
+        retry_delay=timedelta(minutes=2),
+        execution_timeout=timedelta(minutes=15),
     )
     
-    task2 = PythonOperator(
-        task_id="equiv_test_generator",
-        python_callable=run_test,
-        provide_context=True,
-        retries=1,
-        retry_delay=timedelta(minutes=1),
-        execution_timeout=timedelta(minutes=5),
-    )
-    
-    task3 = PythonOperator(
-        task_id="get_result",
-        python_callable=get_result,
-        provide_context=True,
-        retries=1,
-        retry_delay=timedelta(minutes=1),
-    )
-        
-    task1 >> task2 >> task3
+    return sem_equiv_task
 
 # DAG 객체 생성
 dag = equiv_task_dag()

@@ -173,6 +173,29 @@ def create_tables():
                 """)
                 logger.info("users 테이블에 organization 컬럼이 추가되었습니다.")
 
+        # password_reset_tokens 테이블 생성
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'password_reset_tokens'
+            ) as exists;
+        """)
+        result = cur.fetchone()
+        reset_tokens_exists = result['exists']
+
+        if not reset_tokens_exists:
+            cur.execute("""
+                CREATE TABLE password_reset_tokens (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    token VARCHAR(255) UNIQUE NOT NULL,
+                    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                    used BOOLEAN NOT NULL DEFAULT false,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            logger.info("password_reset_tokens 테이블이 성공적으로 생성되었습니다.")
+
         conn.commit()
             
     except Exception as e:

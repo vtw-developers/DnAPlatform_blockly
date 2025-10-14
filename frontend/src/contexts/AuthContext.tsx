@@ -43,10 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUser();
   }, []);
 
-  if (isLoading) {
-    return <div>Loading...</div>; // 또는 로딩 스피너 컴포넌트
-  }
-
   return (
     <AuthContext.Provider value={{ user, setUser, isLoading }}>
       {children}

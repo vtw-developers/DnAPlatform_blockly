@@ -94,8 +94,10 @@ class TokenManager {
     } catch (error) {
       console.error('토큰 갱신 실패:', error);
       this.clearTokens();
-      // 로그인 페이지로 리다이렉트
-      window.location.href = '/login';
+      // 로그인 페이지로 리다이렉트 (현재 페이지가 로그인 페이지가 아닐 때만)
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
       return null;
     } finally {
       this.isRefreshing = false;
@@ -136,6 +138,11 @@ axios.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // 로그인 요청은 인터셉터에서 제외
+    if (originalRequest.url && originalRequest.url.includes('/auth/login')) {
+      return Promise.reject(error);
+    }
 
     // 401 에러이고 토큰 갱신을 시도하지 않은 경우
     if (error.response?.status === 401 && !originalRequest._retry) {

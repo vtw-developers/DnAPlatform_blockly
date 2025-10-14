@@ -5,7 +5,8 @@ python-dotenv==1.0.0
 pydantic==2.5.1
 pydantic[email]
 python-jose[cryptography]
-passlib[bcrypt]
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
 python-multipart
 httpx==0.24.1
 docker==7.0.0
