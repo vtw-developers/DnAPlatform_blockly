@@ -28,15 +28,22 @@ def run_sem_equiv_test(**context):
         origin_code = dag_run.conf.get('origin_code', '')
         temp = dag_run.conf.get('temp', 0.0)
         
-        # OpenAI 호환 API 설정
-        openai_base_url = dag_run.conf.get('openai_base_url', 'http://localhost:11434/v1')
-        
-        # GPT 모델인 경우 OpenAI로 설정
+        # 모델에 따른 API URL 자동 선택
         if 'gpt' in model_name.lower():
+            # GPT 계열 모델: 공식 OpenAI API 사용
             model_type = 'openai'
+            openai_base_url = 'https://api.openai.com/v1'
             # deprecated 모델을 현재 사용 가능한 모델로 변경
             if model_name in ['gpt-4-vision-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview']:
                 model_name = 'gpt-4o'
+        else:
+            # 로컬 모델: 로컬 OpenAI 호환 API 사용
+            model_type = 'openai'
+            openai_base_url = 'http://192.168.0.2:8001/v1'
+        
+        # 사용자가 직접 지정한 경우 덮어쓰기
+        if 'openai_base_url' in dag_run.conf:
+            openai_base_url = dag_run.conf.get('openai_base_url')
     else:
         model_name = 'qwen3:32b'
         model_type = 'ollama'
