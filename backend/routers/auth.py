@@ -2,6 +2,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional, List
+import logging
 from database import get_db_connection
 from models import UserCreate, User, Token, UserLogin, UserUpdate, UserListResponse, UserRole
 from utils import (
@@ -12,10 +13,27 @@ from utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_current_user,
     get_current_admin_user,
-    refresh_access_token
+    refresh_access_token,
+    create_password_reset_token,
+    verify_reset_token,
+    reset_password_with_token,
+    send_password_reset_email
 )
 from pydantic import BaseModel
 
+# 비밀번호 재설정 관련 모델
+class PasswordResetRequest(BaseModel):
+    email: str
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+class PasswordResetResponse(BaseModel):
+    message: str
+    success: bool
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 async def create_admin_if_not_exists():
@@ -347,4 +365,89 @@ async def extend_session(current_user: dict = Depends(get_current_user)):
     """사용자 액션이 있을 때 세션을 자동으로 연장"""
     # 이 엔드포인트는 사용자 액션이 있을 때마다 호출되어 세션을 연장
     # 실제로는 미들웨어나 다른 방식으로 자동 처리됨
-    return {"message": "세션이 연장되었습니다.", "user": current_user["email"]} 
+    return {"message": "세션이 연장되었습니다.", "user": current_user["email"]}
+
+@router.post("/forgot-password", response_model=PasswordResetResponse)
+async def forgot_password(request: PasswordResetRequest):
+    """비밀번호 재설정 요청 - 이메일로 재설정 링크 발송"""
+    try:
+        # 토큰 생성
+        reset_token = create_password_reset_token(request.email)
+        
+        if not reset_token:
+            # 보안을 위해 사용자가 존재하지 않아도 성공 메시지 반환
+            return PasswordResetResponse(
+                message="해당 이메일로 비밀번호 재설정 링크를 발송했습니다.",
+                success=True
+            )
+        
+        # 이메일 발송
+        email_sent = send_password_reset_email(request.email, reset_token)
+        
+        if email_sent:
+            return PasswordResetResponse(
+                message="해당 이메일로 비밀번호 재설정 링크를 발송했습니다.",
+                success=True
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요."
+            )
+            
+    except Exception as e:
+        logger.error(f"비밀번호 재설정 요청 처리 중 오류: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
+
+@router.get("/verify-reset-token/{token}")
+async def verify_password_reset_token(token: str):
+    """비밀번호 재설정 토큰 검증"""
+    token_data = verify_reset_token(token)
+    
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않거나 만료된 토큰입니다."
+        )
+    
+    return {
+        "message": "유효한 토큰입니다.",
+        "email": token_data["email"]
+    }
+
+@router.post("/reset-password", response_model=PasswordResetResponse)
+async def reset_password(request: PasswordResetConfirm):
+    """비밀번호 재설정 실행"""
+    try:
+        # 비밀번호 길이 검증
+        if len(request.new_password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="비밀번호는 최소 6자 이상이어야 합니다."
+            )
+        
+        # 토큰으로 비밀번호 재설정
+        success = reset_password_with_token(request.token, request.new_password)
+        
+        if success:
+            return PasswordResetResponse(
+                message="비밀번호가 성공적으로 재설정되었습니다.",
+                success=True
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="유효하지 않거나 만료된 토큰입니다."
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"비밀번호 재설정 처리 중 오류: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        ) 

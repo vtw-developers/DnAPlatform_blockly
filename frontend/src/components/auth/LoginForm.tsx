@@ -48,13 +48,22 @@ const LoginForm = () => {
         throw new Error('로그인 응답이 올바르지 않습니다.');
       }
     } catch (err) {
+      // 로그인 실패 시 모든 토큰 제거
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      
       let errorMessage = '로그인에 실패했습니다.';
       if (err instanceof Error) {
         errorMessage = err.message;
       } else if (axios.isAxiosError(err) && err.response?.data?.detail) {
         errorMessage = err.response.data.detail;
       }
+      
+      // 에러 상태 설정 (리렌더링 강제)
       setError(errorMessage);
+      
+      // 사용자 상태도 null로 설정
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +99,10 @@ const LoginForm = () => {
             autoComplete="email"
             autoFocus
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (error) setError(''); // 입력 시 에러 메시지 초기화
+            }}
             disabled={isLoading}
           />
           <TextField
@@ -103,7 +115,10 @@ const LoginForm = () => {
             id="password"
             autoComplete="current-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (error) setError(''); // 입력 시 에러 메시지 초기화
+            }}
             disabled={isLoading}
           />
           <Button
@@ -116,6 +131,9 @@ const LoginForm = () => {
             {isLoading ? '로그인 중...' : '로그인'}
           </Button>
           <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <Link href="/forgot-password" variant="body2" sx={{ display: 'block', mb: 1 }}>
+              비밀번호를 잊으셨나요?
+            </Link>
             <Link href="/signup" variant="body2">
               계정이 없으신가요? 회원가입
             </Link>

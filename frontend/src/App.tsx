@@ -5,6 +5,8 @@ import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ProfilePage from './pages/auth/ProfilePage';
 import UserManagementPage from './pages/auth/UserManagementPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import Navbar from './components/common/Navbar';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -27,7 +29,7 @@ const AppContent = () => {
   };
 
   if (isLoading) {
-    return null; // AuthContext에서 이미 로딩 UI를 보여주고 있음
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
   }
 
   return (
@@ -44,6 +46,12 @@ const AppContent = () => {
         } />
         <Route path="/signup" element={
           user ? <Navigate to="/" /> : <SignupPage />
+        } />
+        <Route path="/forgot-password" element={
+          user ? <Navigate to="/" /> : <ForgotPasswordPage />
+        } />
+        <Route path="/reset-password" element={
+          user ? <Navigate to="/" /> : <ResetPasswordPage />
         } />
         <Route 
           path="/profile" 
