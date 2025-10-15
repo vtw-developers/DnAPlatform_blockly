@@ -542,7 +542,7 @@ async def get_verification_dag_result(run_id: str):
     """
     airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://192.168.0.2:8080")
     # <<<< CHANGED: Use equiv_task DAG path >>>>
-    airflow_xcom_url = f"{airflow_base_url}/api/v1/dags/equiv_task/dagRuns/{run_id}/taskInstances/get_result/xcomEntries/return_value"
+    airflow_xcom_url = f"{airflow_base_url}/api/v1/dags/equiv_task/dagRuns/{run_id}/taskInstances/run_sem_equiv_test/xcomEntries/return_value"
     airflow_auth_header = "Basic YWRtaW46dnR3MjEwMzAy"
     headers = {
         'Authorization': airflow_auth_header,
@@ -561,23 +561,27 @@ async def get_verification_dag_result(run_id: str):
 
             if encoded_value:
                 try:
+                    # 먼저 Base64 디코딩 시도
                     decoded_bytes = base64.b64decode(encoded_value, validate=True)
                     try:
                         decoded_value = decoded_bytes.decode('utf-8')
-                        logger.info(f"Successfully decoded Verification XCom for {run_id} as UTF-8.")
+                        logger.info(f"Successfully decoded Verification XCom for {run_id} as Base64 UTF-8.")
                     except UnicodeDecodeError:
                         logger.warning(f"Verification XCom value for {run_id} is not valid UTF-8: {decoded_bytes[:50]}...")
                         decode_error_message = "결과 디코딩 실패: UTF-8 인코딩 형식이 아닙니다."
                 except (base64.binascii.Error, ValueError) as b64_error:
-                    logger.warning(f"Verification XCom value for {run_id} not base64: {b64_error}. Assuming plain text.")
+                    logger.info(f"Verification XCom value for {run_id} not base64: {b64_error}. Treating as plain text.")
+                    # Base64가 아닌 경우 일반 문자열로 처리
                     if isinstance(encoded_value, str):
-                         try:
-                             encoded_value.encode('utf-8').decode('utf-8')
-                             decoded_value = encoded_value
-                         except UnicodeError:
-                             decode_error_message = "결과 디코딩 실패: Base64가 아니며 UTF-8 문자열도 아닙니다."
+                        try:
+                            # 문자열이 유효한 UTF-8인지 확인
+                            encoded_value.encode('utf-8').decode('utf-8')
+                            decoded_value = encoded_value
+                            logger.info(f"Successfully processed Verification XCom for {run_id} as plain text.")
+                        except UnicodeError:
+                            decode_error_message = "결과 디코딩 실패: Base64가 아니며 UTF-8 문자열도 아닙니다."
                     else:
-                         decode_error_message = "결과 디코딩 실패: Base64 형식이 아니며 문자열도 아닙니다."
+                        decode_error_message = "결과 디코딩 실패: Base64 형식이 아니며 문자열도 아닙니다."
                 except Exception as e:
                     logger.error(f"Unexpected error during Verification XCom decoding for {run_id}: {e}")
                     decode_error_message = f"결과 처리 중 예상치 못한 오류: {e}"
@@ -585,7 +589,22 @@ async def get_verification_dag_result(run_id: str):
             if decode_error_message:
                 return XComResponse(error=decode_error_message)
             else:
-                return XComResponse(value=decoded_value)
+                # DAG 결과가 딕셔너리인 경우 JSON 문자열로 변환
+                if decoded_value and isinstance(decoded_value, str):
+                    try:
+                        # JSON 파싱 시도
+                        import json
+                        parsed_data = json.loads(decoded_value)
+                        # test_cases가 있는 경우 해당 값만 반환
+                        if isinstance(parsed_data, dict) and 'test_cases' in parsed_data:
+                            return XComResponse(value=parsed_data['test_cases'])
+                        else:
+                            return XComResponse(value=decoded_value)
+                    except json.JSONDecodeError:
+                        # JSON이 아닌 경우 그대로 반환
+                        return XComResponse(value=decoded_value)
+                else:
+                    return XComResponse(value=decoded_value)
 
         except httpx.HTTPStatusError as e:
            logger.warning(f"HTTP error getting Verification DAG result for {run_id}: {e.response.status_code} - {e.response.text}")
