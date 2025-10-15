@@ -5,7 +5,8 @@ import logging
 from airflow.hooks.base import BaseHook
 import os
 import sys
-import importlib.util
+import subprocess
+import json
 
 def get_openai_api_key():
     """OpenAI API 키를 가져옵니다."""
@@ -16,7 +17,7 @@ def get_openai_api_key():
         return os.getenv('OPENAI_API_KEY', '')
 
 def run_sem_equiv_test(**context):
-    """sem_equiv_test() 함수를 호출하여 테스트 케이스를 생성합니다."""
+    """subprocess를 사용하여 sem_equiv_test() 함수를 호출하여 테스트 케이스를 생성합니다."""
     # API 키 가져오기
     api_key = get_openai_api_key()
     
@@ -54,43 +55,50 @@ def run_sem_equiv_test(**context):
     if not origin_code:
         raise ValueError("origin_code는 필수 파라미터입니다.")
     
-    # sem_equiv_test 함수가 있는 파일 경로 설정
-    sem_equiv_file_path = "/data/workspace/sem_equiv/langgraph/main.py"
+    # sem_equiv 프로젝트 경로 설정
+    sem_equiv_dir = "/data/workspace/sem_equiv/langgraph"
+    main_script_path = os.path.join(sem_equiv_dir, "sem_equiv_test_exec.py")
     
-    if not os.path.exists(sem_equiv_file_path):
-        raise FileNotFoundError(f"sem_equiv_test 파일을 찾을 수 없습니다: {sem_equiv_file_path}")
-    
-    # 파일이 있는 디렉토리를 sys.path에 추가
-    sem_equiv_dir = os.path.dirname(sem_equiv_file_path)
-    if sem_equiv_dir not in sys.path:
-        sys.path.insert(0, sem_equiv_dir)
+    if not os.path.exists(main_script_path):
+        raise FileNotFoundError(f"sem_equiv sem_equiv_test_exec.py 파일을 찾을 수 없습니다: {main_script_path}")
     
     try:
         # 환경 변수 설정
-        os.environ["OPENAI_API_KEY"] = api_key
+        env = os.environ.copy()
+        env["OPENAI_API_KEY"] = api_key
         
-        # 작업 디렉토리를 sem_equiv 디렉토리로 변경
-        original_cwd = os.getcwd()
-        os.chdir(sem_equiv_dir)
+        # 호스트의 Python 직접 실행 (권한 문제 완전 회피)
+        venv_python = "/data/workspace/sem_equiv/.venv/bin/python3"
         
-        # main 모듈에서 sem_equiv_test 함수 동적 로딩
-        spec = importlib.util.spec_from_file_location("main", sem_equiv_file_path)
-        main_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(main_module)
-        sem_equiv_test = main_module.sem_equiv_test
+        # subprocess로 sem_equiv_test_exec.py 실행 (호스트 Python 직접 사용)
+        cmd = [venv_python, "sem_equiv_test_exec.py", origin_code, model_name, model_type, str(temp), openai_base_url]
         
-        # sem_equiv_test 함수 호출
-        result = sem_equiv_test(
-            origin_code=origin_code,
-            generate_test_model=model_name,
-            temperature=temp,
-            generate_test_backend=model_type,
-            openai_base_url=openai_base_url,
-            openai_api_key=api_key
+        logging.info(f"실행 명령어: {' '.join(cmd)}")
+        logging.info(f"작업 디렉토리: {sem_equiv_dir}")
+        logging.info(f"모델: {model_name}, 온도: {temp}, 백엔드: {model_type}")
+        
+        # 원본 디렉토리에서 실행 (권한 문제는 --no-sync로 해결)
+        result = subprocess.run(
+            cmd,
+            cwd=sem_equiv_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5분 타임아웃
         )
         
-        # 결과는 튜플 (equiv_code, test_cases)
-        equiv_code, test_cases = result
+        if result.returncode != 0:
+            logging.error(f"subprocess 실행 실패: {result.stderr}")
+            raise RuntimeError(f"sem_equiv_test 실행 실패: {result.stderr}")
+        
+        # JSON 결과 파싱
+        try:
+            result_data = json.loads(result.stdout.strip())
+            equiv_code = result_data["equiv_code"]
+            test_cases = result_data["test_cases"]
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON 파싱 실패: {result.stdout}")
+            raise RuntimeError(f"결과 파싱 실패: {e}")
         
         # XCom에 결과 저장
         context['task_instance'].xcom_push(key='sem_equiv_code', value=equiv_code)
@@ -98,18 +106,18 @@ def run_sem_equiv_test(**context):
         
         logging.info(f"sem_equiv_test 실행 완료. 테스트 케이스 길이: {len(test_cases)}")
         
-        # 결과 반환 (equiv_code와 test_cases 모두 포함)
+        # 결과 반환
         return {
             'equiv_code': equiv_code,
             'test_cases': test_cases
         }
         
+    except subprocess.TimeoutExpired:
+        logging.error("sem_equiv_test 실행 시간 초과")
+        raise RuntimeError("sem_equiv_test 실행 시간 초과")
     except Exception as e:
         logging.error(f"sem_equiv_test 실행 실패: {str(e)}")
         raise
-    finally:
-        # 원래 작업 디렉토리로 복원
-        os.chdir(original_cwd)
 
 @dag(
     dag_id="equiv_task",

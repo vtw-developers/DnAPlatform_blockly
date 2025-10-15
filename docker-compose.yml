@@ -69,12 +69,13 @@ services:
   airflow:
     image: apache/airflow:2.7.3-python3.11
     container_name: dna-platform-airflow
-    user: "50000:0"
+    user: "1000:0"  # UID는 호스트와 동일, GID는 0 (Airflow 요구사항)
+    network_mode: "host"
     depends_on:
       - airflow-db
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow_user:airflow_password@airflow-db:5432/airflow_db
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow_user:airflow_password@localhost:5433/airflow_db
       - AIRFLOW__CORE__FERNET_KEY=your_fernet_key_here
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
@@ -82,22 +83,17 @@ services:
       - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    ports:
-      - "8080:8080"
     volumes:
       - ./docker/airflow/dags:/opt/airflow/dags
       - ./docker/airflow/logs:/opt/airflow/logs
       - ./docker/airflow/plugins:/opt/airflow/plugins
       - ./docker/airflow/data:/opt/airflow/data
-      - ./docker/airflow/requirements.txt:/opt/airflow/requirements.txt  # 기본 requirements.txt
-      - ./docker/airflow/requirements-pirel.txt:/opt/airflow/requirements-pirel.txt  # PiREL 전용
-      - ./docker/airflow/requirements-equiv.txt:/opt/airflow/requirements-equiv.txt  # Equiv 전용
+      - ./docker/airflow/requirements.txt:/opt/airflow/requirements.txt  # 기본 requirements.txt (Airflow용만)
       - ./docker/airflow/init-airflow.sh:/opt/airflow/init-airflow.sh  # 초기화 스크립트 마운트
       - /data/workspace/PiREL_generator:/data/workspace/PiREL_generator  # PiREL 번역기 접근을 위한 볼륨 마운트
-      - /data/workspace/sem_equiv:/data/workspace/sem_equiv  # sem_equiv 파일들에 접근하기 위한 볼륨 마운트
+      - /data/workspace/sem_equiv:/data/workspace/sem_equiv:rw  # sem_equiv 파일들에 접근하기 위한 볼륨 마운트 (읽기/쓰기 권한)
+      - /home/vtw/.local/share/uv:/home/vtw/.local/share/uv  # UV Python 환경 마운트
     restart: always
-    networks:
-      - blockly_network
     command: bash /opt/airflow/init-airflow.sh    
 
 networks:
