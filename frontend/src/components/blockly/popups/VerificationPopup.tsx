@@ -55,8 +55,8 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
   const hasValidationResults = result && !error;
   const canExecute = hasValidationResults && !isExecuting;
 
-  // JSON 파싱하여 equiv_test 값 추출하는 함수
-  const parseEquivTest = (resultString: string | null): string | null => {
+  // JSON 파싱하여 test_cases 값 추출하는 함수
+  const parseTestCases = (resultString: string | null): string | null => {
     if (!resultString) return null;
     
     console.log('받은 result 데이터:', resultString); // 디버깅용 로그
@@ -74,50 +74,63 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
       console.log('파싱할 문자열:', trimmedResult);
       
       // JSON 형태인지 확인 ({}로 시작하고 끝나는지)
-      if (!trimmedResult.startsWith('{') || !trimmedResult.endsWith('}')) {
-        console.log('JSON 형태가 아닌 데이터:', trimmedResult);
-        return null;
-      }
-      
-      try {
-        // 표준 JSON 파싱 시도
-        parsedData = JSON.parse(trimmedResult);
-        console.log('표준 JSON 파싱 성공:', parsedData);
-      } catch (error) {
-        console.log('표준 JSON 파싱 실패, Python 딕셔너리 형태로 재시도');
-        
+      if (trimmedResult.startsWith('{') && trimmedResult.endsWith('}')) {
         try {
-          // Python 딕셔너리 형태를 안전하게 JavaScript 객체로 변환
-          console.log('Python 딕셔너리 형태 변환 시도');
+          // 표준 JSON 파싱 시도
+          parsedData = JSON.parse(trimmedResult);
+          console.log('표준 JSON 파싱 성공:', parsedData);
+        } catch (error) {
+          console.log('표준 JSON 파싱 실패, Python 딕셔너리 형태로 재시도');
           
-          // Function 생성자를 사용하여 안전하게 파싱 (eval보다 안전)
-          // Python 딕셔너리 형태를 JavaScript 객체 리터럴로 변환
-          const jsCode = `return ${trimmedResult}`;
-          const parseFunction = new Function(jsCode);
-          parsedData = parseFunction();
-          
-          console.log('Python 딕셔너리 형태 파싱 성공:', parsedData);
-          
-        } catch (conversionError) {
-          console.error('Python 딕셔너리 변환 실패:', conversionError);
-          console.error('원본 문자열:', trimmedResult);
-          console.error('문자열 길이:', trimmedResult.length);
-          console.error('첫 10글자:', trimmedResult.substring(0, 10));
-          console.error('마지막 10글자:', trimmedResult.substring(Math.max(0, trimmedResult.length - 10)));
-          
-          return null; // 변환 실패 시 null 반환하여 전체 result 표시
+          try {
+            // Python 딕셔너리 형태를 안전하게 JavaScript 객체로 변환
+            console.log('Python 딕셔너리 형태 변환 시도');
+            
+            // Function 생성자를 사용하여 안전하게 파싱 (eval보다 안전)
+            // Python 딕셔너리 형태를 JavaScript 객체 리터럴로 변환
+            const jsCode = `return ${trimmedResult}`;
+            const parseFunction = new Function(jsCode);
+            parsedData = parseFunction();
+            
+            console.log('Python 딕셔너리 형태 파싱 성공:', parsedData);
+            
+          } catch (conversionError) {
+            console.error('Python 딕셔너리 변환 실패:', conversionError);
+            console.error('원본 문자열:', trimmedResult);
+            console.error('문자열 길이:', trimmedResult.length);
+            console.error('첫 10글자:', trimmedResult.substring(0, 10));
+            console.error('마지막 10글자:', trimmedResult.substring(Math.max(0, trimmedResult.length - 10)));
+            
+            return null; // 변환 실패 시 null 반환하여 전체 result 표시
+          }
         }
+      } else {
+        // JSON 형태가 아닌 경우, 전체 문자열을 test_cases로 간주
+        console.log('JSON 형태가 아닌 데이터, 전체를 test_cases로 처리:', trimmedResult);
+        return trimmedResult;
       }
     }
     
-    // equiv_test 값 추출 및 처리
-    if (parsedData && parsedData.equiv_test) {
-      const equivTest = parsedData.equiv_test;
-      console.log('원본 equiv_test:', equivTest); // 디버깅용 로그
+    // test_cases 값 추출 및 처리
+    if (parsedData && parsedData.test_cases) {
+      const testCases = parsedData.test_cases;
+      console.log('원본 test_cases:', testCases); // 디버깅용 로그
       
-      if (typeof equivTest === 'string') {
-        // 모든 가능한 이스케이프 패턴을 처리
-        let processedText = equivTest
+      if (Array.isArray(testCases)) {
+        // 배열인 경우 각 테스트 케이스를 문자열로 변환하여 조합
+        const testCasesString = testCases.map((testCase, index) => {
+          if (typeof testCase === 'string') {
+            return `# 테스트 케이스 ${index + 1}\n${testCase}`;
+          } else {
+            return `# 테스트 케이스 ${index + 1}\n${JSON.stringify(testCase, null, 2)}`;
+          }
+        }).join('\n\n');
+        
+        console.log('처리된 test_cases:', testCasesString); // 디버깅용 로그
+        return testCasesString;
+      } else if (typeof testCases === 'string') {
+        // 문자열인 경우 이스케이프 처리
+        let processedText = testCases
           .replace(/\\\\n/g, '\n')     // \\n을 실제 개행으로 (이중 이스케이프)
           .replace(/\\n/g, '\n')       // \n을 실제 개행으로
           .replace(/\\\\t/g, '\t')     // \\t를 실제 탭으로 (이중 이스케이프)
@@ -126,25 +139,29 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
           .replace(/\\"/g, '"')        // \"를 실제 쌍따옴표로
           .replace(/\\\\/g, '\\');     // \\를 실제 백슬래시로
         
-        console.log('처리된 equiv_test:', processedText); // 디버깅용 로그
+        console.log('처리된 test_cases:', processedText); // 디버깅용 로그
         return processedText;
       } else {
-        console.log('equiv_test가 문자열이 아님:', typeof equivTest, equivTest);
-        return String(equivTest); // 문자열로 변환
+        console.log('test_cases가 배열이나 문자열이 아님:', typeof testCases, testCases);
+        return JSON.stringify(testCases, null, 2); // JSON 형태로 변환
       }
     }
     
     return null;
   };
 
-  const equivTestCode = parseEquivTest(result);
+  const testCasesCode = parseTestCases(result);
 
   // 디버깅용 로그
   console.log('VerificationPopup 렌더링 상태:');
+  console.log('- result 원본:', result);
+  console.log('- result 타입:', typeof result);
+  console.log('- result 길이:', result ? result.length : 0);
   console.log('- executionResult:', executionResult);
   console.log('- testOutput:', testOutput);
   console.log('- isExecuting:', isExecuting);
-  console.log('- equivTestCode 존재:', !!equivTestCode);
+  console.log('- testCasesCode 존재:', !!testCasesCode);
+  console.log('- testCasesCode 내용:', testCasesCode);
   console.log('- canExecute:', canExecute);
 
   return (
@@ -171,11 +188,11 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
                 <>
                   <div className="success-message">
                     <h3>검증 성공</h3>
-                    {equivTestCode ? (
-                      <div className="equiv-test-section">
-                        <h4>검증 테스트 코드</h4>
-                        <code className="equiv-test-code">
-                          <pre style={{ whiteSpace: 'pre-wrap' }}>{equivTestCode}</pre>
+                    {testCasesCode ? (
+                      <div className="test-cases-section">
+                        <h4>생성된 테스트 케이스</h4>
+                        <code className="test-cases-code">
+                          <pre style={{ whiteSpace: 'pre-wrap' }}>{testCasesCode}</pre>
                         </code>
                       </div>
                     ) : (
@@ -192,17 +209,17 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
                   )}
                 </>
               ) : null}
-              {canExecute && equivTestCode && (
+              {canExecute && testCasesCode && (
                 <button 
                   className="execute-button"
                   onClick={() => {
-                    console.log('검증 테스트 코드 실행 시작');
-                    console.log('실행할 코드:', equivTestCode);
-                    onExecute(equivTestCode);
+                    console.log('테스트 케이스 실행 시작');
+                    console.log('실행할 코드:', testCasesCode);
+                    onExecute(testCasesCode);
                   }}
                   disabled={isExecuting}
                 >
-                  {isExecuting ? '실행 중...' : '검증 테스트 코드 실행'}
+                  {isExecuting ? '실행 중...' : '테스트 케이스 실행'}
                 </button>
               )}
             </div>
