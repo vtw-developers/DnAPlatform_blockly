@@ -83,6 +83,8 @@ services:
       - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8080:8080"
     volumes:
       - ./docker/airflow/dags:/opt/airflow/dags
       - ./docker/airflow/logs:/opt/airflow/logs
@@ -93,7 +95,7 @@ services:
       - /data/workspace/PiREL_generator:/data/workspace/PiREL_generator  # PiREL 번역기 접근을 위한 볼륨 마운트
       - /data/workspace/sem_equiv:/data/workspace/sem_equiv:rw  # sem_equiv 파일들에 접근하기 위한 볼륨 마운트 (읽기/쓰기 권한)
       - /home/vtw/.local/share/uv:/home/vtw/.local/share/uv  # UV Python 환경 마운트
-    restart: always
+    restart: always    
     command: bash /opt/airflow/init-airflow.sh    
 
 networks:
