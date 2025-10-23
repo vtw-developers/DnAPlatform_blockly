@@ -352,13 +352,15 @@ export const ConversionPopup: React.FC<ConversionPopupProps> = ({
               {isConverting ? '변환 중...' : '변환 시작'}
             </button>
             
-            {/* TranslationRuleNotFoundException 에러가 발생한 경우에만 표시 */}
+            {/* 변환 실패 에러가 발생한 경우에만 표시 */}
             {(error && (error.includes('TranslationRuleNotFoundException') || 
                         error.includes('TranslationRule') || 
-                        error.includes('Rule'))) ||
+                        error.includes('Rule') ||
+                        error.includes('Translation failed'))) ||
              (convertedCode && (convertedCode.includes('TranslationRuleNotFoundException') || 
                                convertedCode.includes('TranslationRule') || 
-                               convertedCode.includes('Rule'))) ? (
+                               convertedCode.includes('Rule') ||
+                               convertedCode.includes('Translation failed'))) ? (
               <button 
                 className="create-rule-button secondary" 
                 onClick={onStartRuleCreation}

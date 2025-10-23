@@ -94,9 +94,18 @@ class TokenManager {
     } catch (error) {
       console.error('토큰 갱신 실패:', error);
       this.clearTokens();
-      // 로그인 페이지로 리다이렉트 (현재 페이지가 로그인 페이지가 아닐 때만)
+      
+      // 사용자에게 세션 만료 알림 표시
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+        // 세션 만료 알림을 위한 이벤트 발생
+        window.dispatchEvent(new CustomEvent('sessionExpired', {
+          detail: { message: '세션이 만료되었습니다. 다시 로그인해 주세요.' }
+        }));
+        
+        // 잠시 후 로그인 페이지로 리다이렉트
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
       }
       return null;
     } finally {
