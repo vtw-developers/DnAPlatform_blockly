@@ -59,8 +59,8 @@ def run_translator(**context):
         pirel_dir = "/data/workspace/PiREL_generator/src"
         file_path = os.path.join(pirel_dir, "api_vtw_exec.py")
         
-        # Python 3.12 가상환경의 Python 경로 설정
-        venv_python = "/opt/airflow/pirel_env/.venv/bin/python"
+        # 로컬 시스템의 Python 직접 사용 (권한 문제 완전 회피)
+        venv_python = "/data/workspace/PiREL_generator/.venv/bin/python3"
         
         try:
             # 서브프로그램에 .snart 파일 경로를 추가 인자로 전달

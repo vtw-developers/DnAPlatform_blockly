@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Alert, Snackbar } from '@mui/material';
 import BlocklyWorkspace from './components/blockly/BlocklyWorkspace';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
@@ -14,7 +15,11 @@ import { sessionManager } from './services/api';
 import './App.css';
 
 const AppContent = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, setUser } = useAuth();
+  const [sessionExpiredAlert, setSessionExpiredAlert] = useState<{
+    open: boolean;
+    message: string;
+  }>({ open: false, message: '' });
   
   // 세션 매니저 초기화
   useEffect(() => {
@@ -23,6 +28,24 @@ const AppContent = () => {
       console.log('세션 매니저가 활성화되었습니다.');
     }
   }, [user]);
+
+  // 세션 만료 이벤트 리스너
+  useEffect(() => {
+    const handleSessionExpired = (event: CustomEvent) => {
+      setSessionExpiredAlert({
+        open: true,
+        message: event.detail.message || '세션이 만료되었습니다.'
+      });
+      // 사용자 상태 초기화
+      setUser(null);
+    };
+
+    window.addEventListener('sessionExpired', handleSessionExpired as EventListener);
+    
+    return () => {
+      window.removeEventListener('sessionExpired', handleSessionExpired as EventListener);
+    };
+  }, [setUser]);
   
   const handleCodeGenerate = (code: string) => {
     console.log('Generated code:', code);
@@ -33,48 +56,66 @@ const AppContent = () => {
   }
 
   return (
-    <Router>
-      <Navbar 
-        isAuthenticated={!!user} 
-        isAdmin={user?.role === 'admin'} 
-        userEmail={user?.email}
-        userName={user?.name}
-      />
-      <Routes>
-        <Route path="/login" element={
-          user ? <Navigate to="/" /> : <LoginPage />
-        } />
-        <Route path="/signup" element={
-          user ? <Navigate to="/" /> : <SignupPage />
-        } />
-        <Route path="/forgot-password" element={
-          user ? <Navigate to="/" /> : <ForgotPasswordPage />
-        } />
-        <Route path="/reset-password" element={
-          user ? <Navigate to="/" /> : <ResetPasswordPage />
-        } />
-        <Route 
-          path="/profile" 
-          element={user ? <ProfilePage /> : <Navigate to="/login" />} 
+    <>
+      <Router>
+        <Navbar 
+          isAuthenticated={!!user} 
+          isAdmin={user?.role === 'admin'} 
+          userEmail={user?.email}
+          userName={user?.name}
         />
-        <Route 
-          path="/admin/users" 
-          element={
-            user?.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
-          } 
-        />
-        <Route 
-          path="/" 
-          element={
-            user ? (
-              <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          } 
-        />
-      </Routes>
-    </Router>
+        <Routes>
+          <Route path="/login" element={
+            user ? <Navigate to="/" /> : <LoginPage />
+          } />
+          <Route path="/signup" element={
+            user ? <Navigate to="/" /> : <SignupPage />
+          } />
+          <Route path="/forgot-password" element={
+            user ? <Navigate to="/" /> : <ForgotPasswordPage />
+          } />
+          <Route path="/reset-password" element={
+            user ? <Navigate to="/" /> : <ResetPasswordPage />
+          } />
+          <Route 
+            path="/profile" 
+            element={user ? <ProfilePage /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/admin/users" 
+            element={
+              user?.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
+            } 
+          />
+          <Route 
+            path="/" 
+            element={
+              user ? (
+                <BlocklyWorkspace onCodeGenerate={handleCodeGenerate} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            } 
+          />
+        </Routes>
+      </Router>
+      
+      {/* 세션 만료 알림 */}
+      <Snackbar
+        open={sessionExpiredAlert.open}
+        autoHideDuration={3000}
+        onClose={() => setSessionExpiredAlert({ open: false, message: '' })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSessionExpiredAlert({ open: false, message: '' })} 
+          severity="warning"
+          sx={{ width: '100%' }}
+        >
+          {sessionExpiredAlert.message}
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 

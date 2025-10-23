@@ -18,22 +18,8 @@ axios.interceptors.request.use(
   }
 );
 
-// 401 응답 처리
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // 로그인 시도가 아닐 때만 토큰 제거 및 리다이렉트
-      if (!error.config.url.includes('/auth/login')) {
-        tokenManager.clearTokens();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+// auth.ts에서는 별도의 401 처리 인터셉터를 제거
+// api.ts의 인터셉터에서 토큰 갱신 및 리다이렉트를 처리
 
 export interface SignupData {
   email: string;
