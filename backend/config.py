@@ -20,12 +20,10 @@ class Settings(BaseSettings):
     AIRFLOW_PASSWORD: str = os.getenv("AIRFLOW_PASSWORD", "airflow")
     
     # CORS 설정
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:5000",
-        "http://192.168.0.2:5050",
-        "http://121.65.128.115:5050",
-        "http://121.65.128.115:8000"
-    ]
+    CORS_ORIGINS: List[str] = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5000,http://localhost:8000"
+    ).split(",")
     
     # 애플리케이션 설정
     APP_TITLE: str = "Blockly Platform API"
