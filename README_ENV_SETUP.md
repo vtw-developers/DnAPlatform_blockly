@@ -31,22 +31,22 @@ DB_PASSWORD=blockly_password
 ```env
 PORT=8000
 SECRET_KEY=your_secret_key_here_change_this_in_production
-ALLOWED_ORIGINS=http://localhost:5000,http://192.168.0.2:5050,http://121.65.128.115:5050
+CORS_ORIGINS=http://localhost:5000,http://localhost:8000,http://your-server-ip:5050
 ```
 
 #### Frontend Configuration
 ```env
-VITE_API_URL=http://192.168.0.2:8000/api
-VITE_LOCAL_API_URL=http://192.168.0.2:8000/api
-VITE_INTERNAL_API_URL=http://192.168.0.2:8000/api
-VITE_PUBLIC_API_URL=http://121.65.128.115:8000/api
+VITE_API_URL=http://your-server-ip:8000/api
+VITE_LOCAL_API_URL=http://localhost:8000/api
+VITE_INTERNAL_API_URL=http://your-server-ip:8000/api
+VITE_PUBLIC_API_URL=http://your-public-ip:8000/api
 VITE_PORT=5000
 VITE_INTERNAL_PORT=5050
 ```
 
 #### AI Service Configuration
 ```env
-OLLAMA_BASE_URL=http://192.168.0.2:11434
+OLLAMA_BASE_URL=http://your-server-ip:11434
 USE_LOCAL_LLM=true
 ENABLE_OLLAMA=true
 ENABLE_OPENAI=false
@@ -57,6 +57,17 @@ OPENAI_API_KEY=your_openai_api_key_here
 ```env
 AIRFLOW_UID=50000
 AIRFLOW_GID=0
+AIRFLOW_FERNET_KEY=your_fernet_key_here
+AIRFLOW_DB_NAME=airflow_db
+AIRFLOW_DB_USER=airflow_user
+AIRFLOW_DB_PASSWORD=airflow_password
+```
+
+#### Docker Compose Database Configuration
+```env
+POSTGRES_DB=blockly_db
+POSTGRES_USER=blockly_user
+POSTGRES_PASSWORD=blockly_password
 ```
 
 ## 보안 주의사항

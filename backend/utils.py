@@ -25,6 +25,13 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7  # 리프레시 토큰은 7일간 유효
 
+# SECRET_KEY가 기본값인 경우 보안 경고 출력
+if SECRET_KEY == "your-secret-key-here":
+    logger.warning(
+        "⚠️  보안 경고: SECRET_KEY가 기본값을 사용하고 있습니다. "
+        "운영 환경에서는 반드시 강력한 SECRET_KEY를 환경 변수로 설정하세요."
+    )
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

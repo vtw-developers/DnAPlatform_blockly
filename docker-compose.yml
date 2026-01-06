@@ -3,9 +3,9 @@ services:
     image: postgres:15-alpine
     container_name: dna-platform-db
     environment:
-      POSTGRES_DB: blockly_db
-      POSTGRES_USER: blockly_user
-      POSTGRES_PASSWORD: blockly_password
+      POSTGRES_DB: ${POSTGRES_DB:-blockly_db}
+      POSTGRES_USER: ${POSTGRES_USER:-blockly_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blockly_password}
     ports:
       - "5432:5432"
     volumes:
@@ -18,9 +18,9 @@ services:
     image: postgres:15-alpine
     container_name: dna-platform-airflow-db
     environment:
-      POSTGRES_DB: airflow_db
-      POSTGRES_USER: airflow_user
-      POSTGRES_PASSWORD: airflow_password
+      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow_db}
+      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow_user}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow_password}
     ports:
       - "5433:5432"
     volumes:
@@ -75,8 +75,8 @@ services:
       - airflow-db
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow_user:airflow_password@localhost:5433/airflow_db
-      - AIRFLOW__CORE__FERNET_KEY=your_fernet_key_here
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow_user}:${AIRFLOW_DB_PASSWORD:-airflow_password}@localhost:5433/${AIRFLOW_DB_NAME:-airflow_db}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY:-your_fernet_key_here}
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True

@@ -92,3 +92,15 @@ coverage/
 *.bak
 *.tmp
 *.temp
+
+# Security and credentials (보안 관련 파일)
+*.key
+*.pem
+*.cert
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+*.secret
+*.token
